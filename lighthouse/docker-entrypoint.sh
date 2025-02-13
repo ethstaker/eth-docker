@@ -125,15 +125,8 @@ fi
 
 if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Lighthouse to listen on IPv6 ports"
+  echo "IPv6 ENR will be auto-discovered. Please make sure the v6 P2P ports are reachable \"from Internet\""
   __ipv6="--listen-address :: --port6 ${CL_P2P_PORT:-9000} --enr-udp6-port ${CL_P2P_PORT:-9000} --quic-port6 ${CL_QUIC_PORT:-9001}"
-# ENR discovery on v6 is not yet working, likely too few peers. Manual for now
-  ipv6_pattern="^[0-9A-Fa-f]{1,4}:" # Sufficient to check the start
-  set +e
-  public_v6=$(curl -6 -s ifconfig.me)
-  set -e
-  if [[ "${public_v6}" =~ ${ipv6_pattern} ]]; then
-    __ipv6+=" --enr-address ${public_v6}"
-  fi
 else
   __ipv6=""
 fi
