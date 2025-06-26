@@ -56,13 +56,16 @@ fi
 
 if [ "${ARCHIVE_NODE}" = "true" ]; then
   echo "Erigon archive node without pruning"
-  __prune="--prune.mode=archive"
+  __prune="--prune.mode=archive --prune.distance=0"
 elif [ "${MINIMAL_NODE}" = "aggressive" ]; then
   echo "Erigon minimal node with aggressive expiry"
   __prune="--prune.mode=minimal"
+elif [ "${MINIMAL_NODE}" = "true" ]; then
+  echo "Erigon minimal node with pre-merge history expiry"
+  __prune="--history-expiry --prune.mode=full"
 else
   echo "Erigon full node with pruning"
-  __prune="--prune.mode=full"
+  __prune="--prune.mode=blocks"
 fi
 
 __caplin=""

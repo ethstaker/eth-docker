@@ -2402,10 +2402,10 @@ prune-history() {
       ;;
     *erigon.yml* )
       __client="Erigon"
-      __min_ver="vTBD"
+      __min_ver="v3.1.0"
       __extra_msg="To prune pre-merge history, a full resync is required, which should take 2-3 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       __prune_marker=""
-      ;;&
+      ;;
     * )
       echo "${__me} does not know how to prune pre-merge history on ${__client:-MysteryClient},"
       echo "nor how to configure it for pre-merge history expiry on fresh sync."
