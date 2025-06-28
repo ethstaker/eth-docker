@@ -2372,7 +2372,7 @@ prune-history() {
   case "${__value}" in
     *geth.yml* )
       __client="Geth"
-      __min_ver="master / latest"
+      __min_ver="v1.15.12"
       __extra_msg="To prune pre-merge history, a full resync is required, which should take 6-8 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       __prune_marker="/var/lib/geth/prune-marker"
       ;;
