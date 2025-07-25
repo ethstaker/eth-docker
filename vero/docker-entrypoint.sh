@@ -46,12 +46,12 @@ fi
 #fi
 
 # Check whether we should enable doppelganger protection
-#if [ "${DOPPELGANGER}" = "true" ]; then
-#  __doppel="--doppelgangerProtection"
-#  echo "Doppelganger protection enabled, VC will pause for 2 epochs"
-#else
-#  __doppel=""
-#fi
+if [ "${DOPPELGANGER}" = "true" ]; then
+  __doppel="--enable-doppelganger-detection"
+  echo "Doppelganger protection enabled, VC will pause for 2 epochs"
+else
+  __doppel=""
+fi
 
 # Web3signer URL
 if [ ! "${WEB3SIGNER}" = "true" ]; then
@@ -91,9 +91,9 @@ fi
 if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__mev_boost} ${__log_level} ${VC_EXTRAS}
+  exec "$@" ${__network} ${__mev_boost} ${__log_level} ${__doppel} ${VC_EXTRAS}
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} "--graffiti" "${GRAFFITI}" ${__mev_boost} ${__log_level} ${VC_EXTRAS}
+  exec "$@" ${__network} "--graffiti" "${GRAFFITI}" ${__mev_boost} ${__log_level} ${__doppel} ${VC_EXTRAS}
 fi

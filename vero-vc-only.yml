@@ -27,6 +27,7 @@ services:
     environment:
       - MEV_BOOST=${MEV_BOOST}
       - VC_EXTRAS=${VC_EXTRAS:-}
+      - DOPPELGANGER=${DOPPELGANGER:-}
       - GRAFFITI=${GRAFFITI:-}
       - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
       - WEB3SIGNER=${WEB3SIGNER}
