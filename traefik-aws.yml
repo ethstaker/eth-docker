@@ -8,12 +8,7 @@ x-logging: &logging
 
 services:
   traefik:
-    build:
-      context: ./traefik
-      args:
-        - DOCKER_TAG=${TRAEFIK_TAG}
-    image: traefik-aws
-    pull_policy: never
+    image: traefik:${TRAEFIK_TAG}
     restart: "unless-stopped"
     command:
 #      - --accesslog=true
@@ -39,8 +34,10 @@ services:
       - ${HOST_IP:-}:${TRAEFIK_WEB_PORT}:${TRAEFIK_WEB_PORT}/tcp
       - ${HOST_IP:-}:${TRAEFIK_WEB_HTTP_PORT}:${TRAEFIK_WEB_HTTP_PORT}/tcp
     environment:
-      - AWS_PROFILE=${AWS_PROFILE}
-      - AWS_HOSTED_ZONE_ID=${AWS_HOSTED_ZONE_ID}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_HOSTED_ZONE_ID=${AWS_ZONE_ID}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - certs:/letsencrypt
@@ -53,6 +50,42 @@ services:
       - metrics.instance=traefik
       - metrics.network=${NETWORK}
     <<: *logging
+
+  ddns:
+    image: qmcgaw/ddns-updater:${DDNS_TAG}
+    restart: "unless-stopped"
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - 'CONFIG={"settings": [{"provider": "route53", "domain": "${DDNS_SUBDOMAIN}.${DOMAIN}", "ip_version": "ipv4","ipv6_suffix": "", "access_key": "${AWS_ACCESS_KEY_ID}", "secret_key": "${AWS_SECRET_ACCESS_KEY}","zone_id": "${AWS_ZONE_ID}", "ttl": 1}]}'
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    <<: *logging
+
+  route53-ddns:
+    image: crazymax/ddns-route53:${CNAME_TAG}
+    volumes:
+      - ./traefik/generate-config.sh:/generate-config.sh
+      - ./config:/config
+    entrypoint: ["/bin/sh", "-c", "/generate-config.sh && ddns-route53 run"]
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - ROUTE53_ZONE_ID=${AWS_ZONE_ID}
+      - CNAME_LIST=${CNAME_LISTS:-}
+      - CNAME_TARGET=${DDNS_SUBDOMAIN}.${DOMAIN}
+      - TZ=UTC
+      - LOG_LEVEL=info
+      - SCHEDULE=*/5 * * * *
+    restart: unless-stopped
+
+  curl-jq:
+    image: curl-jq:local
+    pull_policy: never
+    build:
+      context: ./traefik
+      dockerfile: Dockerfile.jq
+    restart: "no"
+    profiles: ["tools"]
 
 volumes:
   certs:
