@@ -104,15 +104,36 @@ case "${NODE_TYPE}" in
     case "${NETWORK}" in
       mainnet)
         echo "Nethermind minimal node with pre-merge history expiry"
-        __prune+=" --Sync.AncientBodiesBarrier=15537394 --Sync.AncientReceiptsBarrier=15537394"
+        __prune+=" --Sync.AncientBodiesBarrier=15537394 --Sync.AncientReceiptsBarrier=15537394 --History.Pruning=UseAncientBarriers"
         ;;
       sepolia)
         echo "Nethermind minimal node with pre-merge history expiry"
+        __prune+=" --Sync.AncientBodiesBarrier=1450408 --Sync.AncientReceiptsBarrier=1450408 --History.Pruning=UseAncientBarriers"
         ;;
       *)
         echo "There is no pre-merge history for ${NETWORK} network, \"pre-merge-expiry\" has no effect."
         ;;
     esac
+    ;;
+  pre-cancun-expiry)
+    case "${NETWORK}" in
+      mainnet)
+        echo "Nethermind minimal node with pre-Cancun history expiry"
+        __prune+=" --Sync.AncientBodiesBarrier=19426587 --Sync.AncientReceiptsBarrier=19426587 --History.Pruning=UseAncientBarriers"
+        ;;
+      sepolia)
+        echo "Nethermind minimal node with pre-Cancun history expiry"
+        __prune+=" --Sync.AncientBodiesBarrier=5187023 --Sync.AncientReceiptsBarrier=5187023 --History.Pruning=UseAncientBarriers"
+        ;;
+      *)
+        echo "There is no pre-Cancun history for ${NETWORK} network, \"pre-cancun-expiry\" has no effect."
+        ;;
+    esac
+    ;;
+  rolling-expiry)
+    echo "Nethermind minimal node with rolling history expiry, keeps 1 year by default."
+    echo "\"EL_EXTRAS=--history-retentionepochs <epochs>\" in \".env\" can override, minimum <epochs> are 82125."
+    __prune+=" --History.Pruning=Rolling"
     ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Nethermind implementation."
