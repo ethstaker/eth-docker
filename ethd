@@ -3947,9 +3947,19 @@ https://0x8c7d33605ecef85403f8b7289c8058f440cbb6bf72b055dfe2f3e2c6695b6a1ea5a9cd
     # Replace "\n" back to newlines to restore multi-line format
     MEV_RELAYS=$(printf '%s' "${__formatted_mev_relays}" | sed 's/\\n/\n/g')
     echo "Your MEV relay(s): ${MEV_RELAYS}"
+
+    # Configure MEV min-bid
+    __var="MEV_MIN_BID"
+    __get_value_from_env "${__var}" "${__env_file}" "__value"
+    if ! MEV_MIN_BID=$(whiptail --title "MEV Min-Bid Configuration" --inputbox "Set minimum MEV bid (in ETH, e.g. 0.05). Leave empty for no minimum bid:" 10 65 "${__value}" 3>&1 1>&2 2>&3); then
+      echo "You chose Cancel."
+      exit 1
+    fi
+    echo "Your MEV min-bid: ${MEV_MIN_BID}"
   else
     MEV_BOOST="false"
     MEV_RELAYS=""
+    MEV_MIN_BID=""
   fi
 }
 
@@ -4539,6 +4549,8 @@ config() {
   __var=MEV_BOOST
   __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
   __var=MEV_RELAYS
+  __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
+  __var=MEV_MIN_BID
   __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
   __var=EL_MINIMAL_NODE
   __update_value_in_env "${__var}" "${!__var-false}" "${__env_file}"
