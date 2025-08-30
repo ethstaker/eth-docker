@@ -112,12 +112,9 @@ if [ "${ARCHIVE_NODE}" = "true" ]; then
   exit 1
 elif [ "${MINIMAL_NODE}" = "true" ]; then
   case "${NETWORK}" in
-    mainnet | sepolia )
+    mainnet|sepolia )
       echo "Nimbus EL minimal node with pre-merge history expiry"
       __prune="--history-expiry=true"
-      if [ "${PORTAL}" = "true" ]; then
-        __prune+=" --portal-url=${PORTAL_NODE}"
-      fi
       ;;
     * )
       echo "There is no pre-merge history for ${NETWORK} network, EL_MINIMAL_NODE has no effect."

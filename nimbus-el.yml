@@ -30,8 +30,6 @@ services:
       - NETWORK=${NETWORK}
       - ERA1_URL=${ERA1_URL:-}
       - ERA_URL=${ERA_URL:-}
-      - PORTAL_NODE=${PORTAL_NODE}
-      - PORTAL=${PORTAL:-false}
     volumes:
       - nimbus-el-data:/var/lib/nimbus
       - /etc/localtime:/etc/localtime:ro

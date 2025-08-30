@@ -1,6 +1,0 @@
-# To be used in conjunction with fluffy.yml
-services:
-  portal:
-    ports:
-      - ${SHARE_IP:-}:${PORTAL_RPC_PORT}:${PORTAL_RPC_PORT:-8545}/tcp
-      - ${SHARE_IP:-}:${PORTAL_WS_PORT}:${PORTAL_WS_PORT:-8546}/tcp
