@@ -8,11 +8,7 @@ x-logging: &logging
 
 services:
   traefik:
-    build:
-      context: ./traefik
-      args:
-        - DOCKER_TAG=${TRAEFIK_TAG}
-    image: traefik-aws
+    image: traefik:${TRAEFIK_TAG}
     pull_policy: never
     restart: "unless-stopped"
     command:
@@ -39,8 +35,10 @@ services:
       - ${HOST_IP:-}:${TRAEFIK_WEB_PORT}:${TRAEFIK_WEB_PORT}/tcp
       - ${HOST_IP:-}:${TRAEFIK_WEB_HTTP_PORT}:${TRAEFIK_WEB_HTTP_PORT}/tcp
     environment:
-      - AWS_PROFILE=${AWS_PROFILE}
+      - AWS_PROFILE=${AWS_PROFILE:-}
       - AWS_HOSTED_ZONE_ID=${AWS_HOSTED_ZONE_ID}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - certs:/letsencrypt
@@ -52,6 +50,27 @@ services:
       - metrics.port=8080
       - metrics.instance=traefik
       - metrics.network=${NETWORK}
+    <<: *logging
+
+  dns:
+    image: dns-aws
+    pull_policy: never
+    build:
+      context: ./traefik
+      args:
+        - DOCKER_TAG=${PYTHON_DNS_TAG}
+    restart: "unless-stopped"
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_PROFILE=${AWS_PROFILE:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_HOSTED_ZONE_ID=${AWS_HOSTED_ZONE_ID}
+      - A_RECORD_NAME=${DDNS_SUBDOMAIN}.${DOMAIN}
+      - CNAME_LIST=${CNAME_LIST:-}
+      - TTL=${TTL:-300}
+    volumes:
+      - ~/.aws:/root/.aws:ro
     <<: *logging
 
 volumes:

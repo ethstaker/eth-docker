@@ -1,13 +1,10 @@
-# Add AWS CLI to traefik image
-ARG DOCKER_TAG=latest
+ARG DOCKER_TAG=3.12-alpine
+FROM python:${DOCKER_TAG}
 
-FROM traefik:${DOCKER_TAG}
+WORKDIR /app
 
-RUN apk add --no-cache \
-        python3 \
-        py3-pip \
-    && pip3 install --upgrade pip \
-    && pip3 install \
-        awscli \
-	tzdata \
-    && rm -rf /var/cache/apk/*
+RUN pip install --no-cache-dir boto3 requests tenacity
+
+COPY app/updater.py .
+
+CMD ["python", "updater.py"]
