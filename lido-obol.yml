@@ -55,7 +55,7 @@ services:
     image: curl-jq:local
     pull_policy: build
     build:
-      context: ./traefik
+      context: ./traefik-utils
       dockerfile: Dockerfile.jq
     restart: "no"
     profiles: ["tools"]
