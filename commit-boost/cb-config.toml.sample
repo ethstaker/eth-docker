@@ -1,7 +1,9 @@
+# See https://github.com/Commit-Boost/commit-boost-client/blob/main/config.example.toml
 chain = "Hoodi"
 
 [pbs]
 port = 18550
+host = "0.0.0.0"
 
 [[relays]]
 id = "aestus"
@@ -15,3 +17,13 @@ url = "https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1d
 [[relays]]
 id = "ultrasound"
 url = "https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
+
+[metrics]
+port = 10000
+host = "0.0.0.0"
+
+[logs.stdout]
+level = "info"
+
+[logs.file]
+enabled = false
