@@ -713,7 +713,7 @@ space() {
   __get_value_from_env "${__var}" "${__env_file}" "ANCIENT_DIR"
   if [ -n "${ANCIENT_DIR}" ]; then
     echo
-    du -sh "${ANCIENT_DIR}"
+    ${__auto_sudo} du -sh "${ANCIENT_DIR}"
   fi
 }
 
