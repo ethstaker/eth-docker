@@ -1,0 +1,57 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  cb-signer-init:
+    build:
+      context: ./commit-boost
+      dockerfile: Dockerfile.signer-init
+    image: init:cb-signer
+    restart: no
+    environment:
+      COMPOSE_FILE: ${COMPOSE_FILE}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WEB3SIGNER: ${WEB3SIGNER:-false}
+      W3S_NODE: ${W3S_NODE}
+    volumes:
+      - ./commit-boost/cb-config.toml:/cb-config.toml
+
+  cb-signer:
+    image: ${CB_SIGNER_DOCKER_REPO:-ghcr.io/commit-boost/pbs}:${CB_SIGNER_DOCKER_TAG:-latest}
+    environment:
+      CB_CONFIG: /cb-config.toml
+    volumes:
+      - ./commit-boost/cb-config.toml:/cb-config.toml:ro
+      - lhvalidator-data:/var/lib/lighthouse
+      - lsvalidator-data:/var/lib/lodestar
+      - prysmvalidator-data:/var/lib/prysm
+      - teku-data:/var/lib/teku
+      - teku-vc-data:/var/lib/teku-vc
+      - nimbus-vc-data:/var/lib/nimbus
+    depends_on:
+      cb-signer-init:
+        condition: service_completed_successfully
+
+    networks:
+      default:
+        aliases:
+          - ${CB_SIGNER_ALIAS:-cb-signer-${NETWORK}}  # This allows multiple Eth Docker stacks all connected to the same bridge network
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=10000
+      - metrics.instance=cb-signer
+      - metrics.network=${NETWORK}
+
+volumes:
+  lhvalidator-data:
+  lsvalidator-data:
+  prysmvalidator-data:
+  teku-data:
+  teku-vc-data:
+  nimbus-vc-data:

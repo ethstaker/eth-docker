@@ -1,0 +1,53 @@
+# See https://github.com/Commit-Boost/commit-boost-client/blob/main/config.example.toml
+chain = "Hoodi"
+
+[pbs]
+port = 18550
+host = "0.0.0.0"
+with_signer = true
+
+[[relays]]
+id = "aestus"
+url = "https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live"
+[[relays]]
+id = "titan"
+url = "https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz"
+[[relays]]
+id = "flashbots"
+url = "https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@boost-relay-hoodi.flashbots.net"
+[[relays]]
+id = "ultrasound"
+url = "https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
+
+# For Remote signer:
+# [signer.remote]
+# URL of the Web3Signer instance
+# url = "https://remote.signer.url"
+
+# [signer.local.loader]
+# ValidatorsDir: format of the keystore (lighthouse, prysm, teku, lodestar, or nimbus)
+# format = "lighthouse"
+# ValidatorsDir: full path to the keys directory
+# For lighthouse, it's the path to the directory where the `<pubkey>` directories are located, under each of which is a `voting-keystore.json` file.
+# For prysm, it's the path to the `all-accounts.keystore.json` file.
+# For teku, it's the path to the directory where all `<pubkey>.json` files are located.
+# For lodestar, it's the path to the directory where all `<pubkey>.json` files are located.
+# For nimbus, it's the path to the directory where the `<pubkey>` directories are located, under each of which is a `keystore.json` file.
+# keys_path = ""
+# ValidatorsDir: full path to the secrets file/directory
+# For lighthouse, it's the path to the directory where the `<pubkey>` files are located.
+# For prysm, it's the path to the file containing the wallet decryption password.
+# For teku, it's the path to the directory where all `<pubkey>.txt` files are located.
+# For lodestar, it's the path to the file containing the decryption password.
+# For nimbus, it's the path to the directory where the `<pubkey>` files are located.
+# secrets_path = ""
+
+[metrics]
+port = 10000
+host = "0.0.0.0"
+
+[logs.stdout]
+level = "info"
+
+[logs.file]
+enabled = false
