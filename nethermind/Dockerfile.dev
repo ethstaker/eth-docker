@@ -44,4 +44,4 @@ RUN chmod -R 755 /usr/local/bin/*
 
 USER ${USER}
 
-ENTRYPOINT ["dotnet","/nethermind/nethermind.dll"]
+ENTRYPOINT ["/nethermind/nethermind"]
