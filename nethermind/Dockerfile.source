@@ -24,7 +24,7 @@ RUN bash -o pipefail -c "\
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y --no-install-recommends install libsnappy-dev libc6-dev libc6 ca-certificates gosu tzdata wget git git-lfs && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y --no-install-recommends install ca-certificates gosu tzdata wget git git-lfs && rm -rf /var/lib/apt/lists/*
 
 ARG USER=nethermind
 ARG UID=10001
