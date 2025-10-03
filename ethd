@@ -848,6 +848,13 @@ __source_build() {
           __docompose build --pull --no-cache execution
       fi
       ;;
+    *ethrex.yml* )
+      __var="ETHREX_DOCKERFILE"
+      __get_value_from_env "${__var}" "${__env_file}" "__build"
+      if [ "${__build}" = "Dockerfile.source" ]; then
+          __docompose build --pull --no-cache execution
+      fi
+      ;;
   esac
   case "${__value}" in
     *lighthouse.yml* | *lighthouse-cl-only.yml* )
@@ -1918,6 +1925,11 @@ resync-execution() {
       __el_client="Nimbus"
       __extra_msg="A full resync should take 5 days.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
+    *ethrex.yml* )
+      __el_volume='ethrex-el-data'
+      __el_client="Ethrex"
+      __extra_msg="A full resync should take a few hours.\nYou can use https://rescuenode.com to keep attesting during resync."
+      ;;
     * ) echo "You do not appear to be running an execution layer client. Nothing to do."; return 0;;
   esac
 
@@ -2477,6 +2489,12 @@ prune-history() {
       __min_ver="v3.0.12"
       __extra_msg="To prune pre-merge history, a full resync is required, which should take 2-3 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       __prune_marker=""
+      ;;
+    *ethrex.yml* )
+      __client="Ethrex"
+      __min_ver="v1.0.0"
+      __extra_msg="Ethrex always expires pre-merge history. This command will have no effect."
+      __prune_marker="/var/lib/ethrex/minimal-node"
       ;;
     * )
       echo "${__me} does not know how to prune pre-merge history on ${__client:-MysteryClient},"
@@ -3617,6 +3635,7 @@ __query_execution_client() {
     __choices+=("nethermind.yml" "Nethermind (.NET)")
     __choices+=("erigon.yml" "Erigon (Go)")
     __choices+=("geth.yml" "Geth (Go)")
+    __choices+=("ethrex.yml" "Ethrex (Rust)")
   fi
 
   if [[ "${__arch}" != *"riscv64"* ]] && [[ "${NETWORK}" =~ (hoodi|sepolia) ]]; then
@@ -4765,6 +4784,10 @@ version() {
       ;;&
     *nimbus-el.yml* )
       __docompose exec execution nimbus_execution_client --version
+      echo
+      ;;&
+    *ethrex.yml* )
+      __docompose exec execution ethrex --version
       echo
       ;;&
     *web3signer.yml* )

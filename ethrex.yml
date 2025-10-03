@@ -1,0 +1,85 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  execution:
+    restart: "unless-stopped"
+    build:
+      context: ./ethrex
+      dockerfile: ${ETHREX_DOCKERFILE}
+      args:
+        - BUILD_TARGET=${ETHREX_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+        - SRC_REPO=${ETHREX_SRC_REPO:-https://github.com/lambdaclass/ethrex}
+        - DOCKER_TAG=${ETHREX_DOCKER_TAG:-latest}
+        - DOCKER_REPO=${ETHREX_DOCKER_REPO:-ghcr.io/lambdaclass/ethrex}
+    stop_grace_period: 5m
+    image: ethrex:local
+    pull_policy: never
+    user: ethrex
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-}
+      - EL_EXTRAS=${EL_EXTRAS:-}
+      - ARCHIVE_NODE=${EL_ARCHIVE_NODE:-}
+      - MINIMAL_NODE=${EL_MINIMAL_NODE:-}
+      - NETWORK=${NETWORK}
+      - IPV6=${IPV6:-false}
+    volumes:
+      - ethrex-el-data:/var/lib/ethrex
+      - /etc/localtime:/etc/localtime:ro
+      - jwtsecret:/var/lib/ethrex/ee-secret
+    ports:
+      - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/tcp
+      - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/udp
+    networks:
+      default:
+        aliases:
+          - eth1
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${EL_ALIAS:-default-execution}
+    <<: *logging
+    entrypoint:
+      - docker-entrypoint.sh
+      - ethrex
+      - --datadir
+      - /var/lib/ethrex
+      - --p2p.enabled
+      - --p2p.port
+      - ${EL_P2P_PORT:-30303}
+      - --discovery.port
+      - ${EL_P2P_PORT:-30303}
+      - --http.addr
+      - 0.0.0.0
+      - --http.port
+      - ${EL_RPC_PORT:-8545}
+      - --metrics
+      - --metrics.addr
+      - 0.0.0.0
+      - --metrics.port
+      - "6060"
+      - --authrpc.jwtsecret
+      - /var/lib/ethrex/ee-secret/jwtsecret
+      - --authrpc.addr
+      - 0.0.0.0
+      - --authrpc.port
+      - ${EE_PORT:-8551}
+      - --log.level
+      - ${LOG_LEVEL}
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=6060
+      - metrics.instance=execution
+      - metrics.network=${NETWORK}
+
+volumes:
+  ethrex-el-data:
+  jwtsecret:
+
+networks:
+  default:
+    enable_ipv6: ${IPV6:-false}

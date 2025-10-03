@@ -1,0 +1,126 @@
+# hadolint global ignore=DL3007,DL3008,DL3059,DL4006
+
+# Unused, this is here to avoid build time complaints
+ARG DOCKER_TAG
+ARG DOCKER_REPO
+
+# This layer won't change a lot
+FROM rust:1.87.0-bookworm AS chef
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  build-essential \
+  libclang-dev \
+  libc6 \
+  libssl-dev \
+  ca-certificates \
+  bash \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN cargo install cargo-chef
+
+WORKDIR /ethrex
+
+
+# Layer holding the source code
+FROM debian:trixie-slim AS source
+
+ARG BUILD_TARGET
+ARG SRC_REPO
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  git \
+  git-lfs \
+  bash \
+  ca-certificates \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /
+
+RUN bash -o pipefail -c "git clone ${SRC_REPO} ethrex && cd ethrex \
+  && git config advice.detachedHead false && git fetch --all --tags \
+  && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:ethrex-pr; git checkout ethrex-pr; else git checkout ${BUILD_TARGET}; fi"
+
+
+# Plan the recipe
+FROM chef AS planner
+
+COPY --from=source /ethrex/crates ./crates
+COPY --from=source /ethrex/tooling ./tooling
+COPY --from=source /ethrex/metrics ./metrics
+COPY --from=source /ethrex/cmd ./cmd
+COPY --from=source /ethrex/Cargo.* .
+COPY --from=source /ethrex/.cargo/ ./.cargo
+
+RUN cargo chef prepare --recipe-path recipe.json
+
+
+# --- Builder Stage ---
+# Build the dependencies. This is the most time-consuming step.
+# This layer will be cached and only re-run if the recipe.json from the
+# previous stage has changed, which only happens when dependencies change.
+FROM chef AS builder
+
+COPY --from=planner /ethrex/recipe.json ./recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+
+RUN curl -L -o /usr/bin/solc https://github.com/ethereum/solidity/releases/download/v0.8.29/solc-static-linux \
+    && chmod +x /usr/bin/solc
+
+COPY --from=source /ethrex/crates ./crates
+COPY --from=source /ethrex/cmd ./cmd
+COPY --from=source /ethrex/metrics ./metrics
+COPY --from=source /ethrex/tooling ./tooling
+COPY --from=source /ethrex/fixtures/genesis ./fixtures/genesis
+COPY --from=source /ethrex/.git ./.git
+COPY --from=source /ethrex/Cargo.* ./
+COPY --from=source /ethrex/fixtures ./fixtures
+COPY --from=source /ethrex/.git ./.git
+COPY --from=source /ethrex/.cargo/ ./.cargo
+
+RUN cargo build --release
+
+
+# Pull all binaries into a deploy debian container
+FROM debian:trixie-slim
+
+ARG USER=ethrex
+ARG UID=10001
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  libssl3 \
+  ca-certificates \
+  tzdata \
+  gosu \
+  git \
+  git-lfs \
+  wget \
+  adduser \
+  jq \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# See https://stackoverflow.com/a/55757473/12429735RUN
+RUN adduser \
+  --disabled-password \
+  --gecos "" \
+  --shell "/sbin/nologin" \
+  --uid "${UID}" \
+  "${USER}"
+
+RUN mkdir -p /var/lib/ethrex/ee-secret && chown -R ${USER}:${USER} /var/lib/ethrex && chmod -R 700 /var/lib/ethrex && chmod 777 /var/lib/ethrex/ee-secret
+
+WORKDIR /usr/local/bin
+
+# Cannot assume buildkit, hence no chmod
+COPY --from=builder --chown=${USER}:${USER} /ethrex/target/release/ethrex .
+COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
+COPY --from=source --chown=${USER}:${USER} /ethrex/cmd/ethrex/networks ./cmd/ethrex/networks
+
+USER ${USER}
+
+ENTRYPOINT ["ethrex"]

@@ -126,6 +126,13 @@ case "$CLIENT" in
       rm "/etc/grafana/provisioning/dashboards/nethermind_dashboard.json"
     fi
     ;;&
+  *ethrex* )
+    # ethrex_dashboard
+    __url='https://raw.githubusercontent.com/lambdaclass/ethrex/refs/heads/main/metrics/provisioning/grafana/dashboards/common_dashboards/ethrex_l1_perf.json'
+    __file='/etc/grafana/provisioning/dashboards/ethrex_l1_perf.json'
+    wget -t 3 -T 10 -qcO - "${__url}" \
+      | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${__file}"
+    ;;&
   *web3signer* )
     # web3signer_dashboard
     __id=13687

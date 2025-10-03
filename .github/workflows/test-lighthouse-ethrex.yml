@@ -1,0 +1,45 @@
+name: Test Lighthouse and Ethrex
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+jobs:
+  test-lighthouse-ethrex:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'test-ethrex') ||
+      contains(github.event.pull_request.labels.*.name, 'test-all') ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Create .env file
+        run: cp default.env .env
+      - name: Set Lighthouse/Ethrex
+        run: |
+          source ./.github/helper.sh
+          COMPOSE_FILE=lighthouse.yml:ethrex.yml
+          var=COMPOSE_FILE
+          set_value_in_env
+          FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+          var=FEE_RECIPIENT
+          set_value_in_env
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
+      - name: Set Lighthouse/Ethrex w/ VC
+        run: |
+          source ./.github/helper.sh
+          COMPOSE_FILE=lighthouse-cl-only.yml:lighthouse-vc-only.yml:ethrex.yml
+          var=COMPOSE_FILE
+          set_value_in_env
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
