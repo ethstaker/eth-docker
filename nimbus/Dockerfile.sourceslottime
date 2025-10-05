@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 WORKDIR /usr/src
 RUN bash -o pipefail -c "git clone ${SRC_REPO} nimbus-eth2 && cd nimbus-eth2 \
   && git config advice.detachedHead false && git fetch --all --tags && git checkout ${BUILD_TARGET} \
-  && git submodule update --init --recursive && make -j$(nproc) update \
+  && git submodule update --init --recursive -j$(nproc) && make -j$(nproc) update \
   && make -j$(nproc) NIMFLAGS=\"-d:SECONDS_PER_SLOT=${SECONDS_PER_SLOT}\" nimbus_beacon_node nimbus_validator_client"
 
 # Pull all binaries into a second stage deploy debian container

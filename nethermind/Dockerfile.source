@@ -19,7 +19,7 @@ RUN bash -o pipefail -c "\
     if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:nm-pr; \
     git checkout nm-pr; else \
     git checkout ${BUILD_TARGET}; fi && \
-    git submodule update --init --recursive && \
+    git submodule update --init --recursive -j$(nproc) && \
     dotnet publish src/Nethermind/Nethermind.Runner -c release -o out"
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0

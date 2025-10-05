@@ -12,7 +12,7 @@ ARG SRC_REPO
 RUN apt-get update && apt-get install -y --no-install-recommends libclang-dev
 
 WORKDIR /src
-RUN bash -o pipefail -c "git clone --recurse-submodules -j8 ${SRC_REPO} reth && cd reth \
+RUN bash -o pipefail -c "git clone ${SRC_REPO} reth && cd reth \
     && git config advice.detachedHead false && git fetch --all --tags \
     && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:reth-pr; git checkout reth-pr; else git checkout ${BUILD_TARGET}; fi \
     && RUSTFLAGS='-C target-cpu=native' cargo build --profile maxperf --features jemalloc"

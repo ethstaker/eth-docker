@@ -14,10 +14,10 @@ ARG SRC_REPO
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates bash git-lfs cmake
 
 WORKDIR /usr/src
-RUN bash -o pipefail -c "git clone --recurse-submodules -j8 ${SRC_REPO} nimbus-eth2 && cd nimbus-eth2 \
+RUN bash -o pipefail -c "git clone ${SRC_REPO} nimbus-eth2 && cd nimbus-eth2 \
   && git config advice.detachedHead false && git fetch --all --tags \
   && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:nim-pr; git checkout nim-pr; else git checkout ${BUILD_TARGET}; fi \
-  && git submodule update --init --recursive && make -j$(nproc) update && make -j$(nproc) gnosis-build gnosis-vc-build"
+  && git submodule update --init --recursive -j$(nproc) && make -j$(nproc) update && make -j$(nproc) gnosis-build gnosis-vc-build"
 
 # Pull all binaries into a second stage deploy debian container
 FROM debian:trixie-slim AS consensus
