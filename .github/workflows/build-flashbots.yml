@@ -1,0 +1,48 @@
+name: Source build mev-boost
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  schedule:
+    - cron: "42 7 * * 2"  # Weekly Tuesday at 7:42 AM UTC
+  workflow_dispatch:
+
+jobs:
+  build-mev-boost:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Create .env file
+        run: cp default.env .env
+      - name: Set Prysm/Geth/mev-boost
+        run: |
+          source ./.github/helper.sh
+          COMPOSE_FILE=prysm.yml:geth.yml:mev-boost.yml
+          var=COMPOSE_FILE
+          set_value_in_env
+          FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+          var=FEE_RECIPIENT
+          set_value_in_env
+          CL_NODE=consensus:4000
+          var=CL_NODE
+          set_value_in_env
+          MEV_DOCKERFILE=Dockerfile.source
+          var=MEV_DOCKERFILE
+          set_value_in_env
+      - name: Build clients
+        run: ./ethd update --non-interactive
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
+      - name: Set Prysm/Geth/mev-boost w/ VC
+        run: |
+          source ./.github/helper.sh
+          COMPOSE_FILE=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml:mev-boost.yml
+          var=COMPOSE_FILE
+          set_value_in_env
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
