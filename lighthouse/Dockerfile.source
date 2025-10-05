@@ -8,7 +8,7 @@ ARG DOCKER_REPO
 
 ARG BUILD_TARGET
 ARG SRC_REPO
-ENV FEATURES modern,gnosis,slasher-lmdb,jemalloc
+ENV FEATURES portable,gnosis,slasher-lmdb,beacon-node-leveldb
 
 RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install-recommends cmake libclang-dev protobuf-compiler
 
