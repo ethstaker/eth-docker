@@ -1,6 +1,6 @@
 # hadolint global ignore=DL3007,DL3008,DL3018,DL3059,DL4006
 # Build in a stock Go build container
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Unused, this is here to avoid build time complaints
 ARG DOCKER_TAG

@@ -2,7 +2,7 @@
 ARG VENV_LOCATION="/opt/venv"
 
 # Build image
-FROM python:3.12-trixie AS builder
+FROM python:3.13-trixie AS builder
 
 # Unused but included to avoid warnings
 ARG DOCKER_TAG
@@ -26,7 +26,7 @@ RUN bash -o pipefail -c "git clone ${SRC_REPO} vero && cd vero && git config adv
   && uv pip sync --prefix ${VENV_LOCATION} requirements.txt"
 
 # App image
-FROM python:3.12-trixie
+FROM python:3.13-trixie
 
 ARG USER=vero
 ARG UID=10000
