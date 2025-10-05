@@ -6,7 +6,8 @@
 version: 2
 updates:
   - package-ecosystem: "pip"
-    directories: "*"
+    directories:
+      - "*"
     schedule:
       interval: "weekly"
     groups:
@@ -14,7 +15,8 @@ updates:
         patterns:
           - "*"
   - package-ecosystem: "docker"
-    directories: "*"
+    directories:
+      - "*"
     schedule:
       interval: "weekly"
     groups:
