@@ -1,5 +1,5 @@
 # hadolint global ignore=DL3007,DL3008,DL3059,DL4006
-FROM node:22-slim AS builder
+FROM node:24-slim AS builder
 
 # Here only to avoid build-time errors
 ARG DOCKER_TAG
@@ -16,7 +16,7 @@ RUN bash -o pipefail -c "cd .. && rm -rf app && git clone ${SRC_REPO} app && cd 
   && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:ls-pr; git checkout ls-pr; else git checkout ${BUILD_TARGET}; fi \
   && yarn install --non-interactive --frozen-lockfile && yarn build"
 
-FROM node:22-slim
+FROM node:24-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata bash gosu git git-lfs wget \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
