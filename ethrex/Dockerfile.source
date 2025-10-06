@@ -5,7 +5,7 @@ ARG DOCKER_TAG
 ARG DOCKER_REPO
 
 # This layer won't change a lot
-FROM rust:1.87.0-bookworm AS chef
+FROM rust:1.90.0-bookworm AS chef
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   build-essential \

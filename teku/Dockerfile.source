@@ -1,6 +1,6 @@
 # hadolint global ignore=DL3007,DL3008,DL3059,DL4006
 # Build Teku in a stock Ubuntu container
-FROM eclipse-temurin:21-jdk-noble AS builder
+FROM eclipse-temurin:24-jdk-noble AS builder
 
 # This is here to avoid build-time complaints
 ARG DOCKER_TAG
@@ -22,7 +22,7 @@ RUN bash -o pipefail -c "git clone ${SRC_REPO} teku \
   && ./gradlew installDist"
 
 # Pull all binaries into a second stage deploy Ubuntu container
-FROM eclipse-temurin:21-jre-noble
+FROM eclipse-temurin:24-jre-noble
 
 ARG USER=teku
 ARG UID=10002
