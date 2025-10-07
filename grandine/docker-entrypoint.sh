@@ -98,9 +98,9 @@ else
 fi
 
 # Check whether we should enable doppelganger protection
-if [ "${DOPPELGANGER}" = "true" ]; then
-  __doppel=""
-  echo "Doppelganger protection is not supported by Grandine"
+if [[ "${EMBEDDED_VC}" = "true" && "${DOPPELGANGER}" = "true" ]]; then
+  __doppel="--detect-doppelgangers"
+  echo "Doppelganger protection enabled"
 else
   __doppel=""
 fi
@@ -125,9 +125,9 @@ fi
 if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${CL_EXTRAS} ${VC_EXTRAS}
+  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} ${CL_EXTRAS} ${VC_EXTRAS}
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} --graffiti "${GRAFFITI}" ${CL_EXTRAS} ${VC_EXTRAS}
+  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} --graffiti "${GRAFFITI}" ${CL_EXTRAS} ${VC_EXTRAS}
 fi
