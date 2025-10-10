@@ -68,6 +68,14 @@ case "$CLIENT" in
       | jq '.templating.list[3].query |= "consensus" | .templating.list[4].query |= "validator"' \
       | jq 'walk(if . == "prometheus_local" then "Prometheus" else . end)' >"${__file}"
     ;;&
+  *grandine* )
+    #  grandine overview
+    __url='https://raw.githubusercontent.com/grandinetech/grandine/refs/heads/master/prometheus_metrics/dashboards/overview.json'
+    __file='/etc/grafana/provisioning/dashboards/grandine_dashboard.json'
+    wget -t 3 -T 10 -qcO - "${__url}" \
+      | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' \
+      >"${__file}"
+    ;;&
   *vero* )
     #  vero detailed
     __url='https://raw.githubusercontent.com/serenita-org/vero/refs/heads/master/grafana/vero-detailed.json'
