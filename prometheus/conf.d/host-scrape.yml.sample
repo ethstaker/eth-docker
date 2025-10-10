@@ -1,0 +1,8 @@
+scrape_configs:
+  # Give the job a name
+  - job_name: 'myjob'
+    # Override the global default and scrape targets from this job every 5 seconds.
+    scrape_interval: 5s
+    static_configs:
+      # Scrape something directly on the host. For a docker service, do "<service-name>:<port>" instead
+      - targets: ['host.docker.internal:9090']

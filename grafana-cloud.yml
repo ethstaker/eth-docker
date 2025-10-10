@@ -34,6 +34,8 @@ services:
       - --web.console.libraries=/usr/share/prometheus/console_libraries
       - --web.console.templates=/usr/share/prometheus/consoles
     <<: *logging
+    extra_hosts:  # So we can scrape targets on the host
+      - "host.docker.internal:host-gateway"
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics
