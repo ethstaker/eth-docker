@@ -43,6 +43,14 @@ scrape_configs:
           - __address__
           - __meta_docker_container_label_metrics_port
         target_label: __address__
+      # Optional: metrics.host overrides __address__
+      - action: replace
+        source_labels:
+          - __meta_docker_container_label_metrics_host
+          - __meta_docker_container_label_metrics_port
+        regex: (.+);(\d+)
+        replacement: $1:$2
+        target_label: __address__
       # Optional: Sets Prometheus 'job' label using metrics.job, otherwise uses the compose service name
       - action: replace
         regex: (.+)

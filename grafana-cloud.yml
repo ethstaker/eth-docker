@@ -61,22 +61,29 @@ services:
       - '--path.rootfs=/host'
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
-      # - '--collector.textfile.directory=/etc/node-exporter/'
-      - '--collector.filesystem.ignored-mount-points=${NODE_EXPORTER_IGNORE_MOUNT_REGEX}'
+      - '--collector.filesystem.mount-points-exclude=${NODE_EXPORTER_IGNORE_MOUNT_REGEX}'
       - '--no-collector.ipvs'
+      - '--collector.textfile.directory=${NODE_EXPORTER_COLLECTOR_MOUNT_PATH:-/dev/null}'
+      - '--collector.netdev.device-exclude=^(veth.*|docker.*|br-.*)$'
+      - '--web.listen-address=0.0.0.0:${NODE_EXPORTER_PORT:-9199}'
     pid: host
+    network_mode: host  # See all network interfaces
     restart: unless-stopped
+    environment:
+      - NODE_EXPORTER_COLLECTOR_MOUNT_PATH=${NODE_EXPORTER_COLLECTOR_MOUNT_PATH:-/dev/null}
     volumes:
       - /:/host:ro,rslave
       - /etc/hostname:/etc/nodename:ro
       - /proc:/host/proc:ro,rslave
       - /sys:/host/sys:ro,rslave
       - /etc/localtime:/etc/localtime:ro
+      - ${NODE_EXPORTER_COLLECTOR_MOUNT_PATH:-/dev/null}:${NODE_EXPORTER_COLLECTOR_MOUNT_PATH:-/dev/null}:ro
     <<: *logging
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics
-      - metrics.port=9100
+      - metrics.host=host.docker.internal
+      - metrics.port=${NODE_EXPORTER_PORT:-9199}
       - metrics.instance=node-exporter
       - metrics.network=${NETWORK}
 
