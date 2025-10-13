@@ -1,5 +1,5 @@
 # hadolint global ignore=DL3007,DL3008,DL3059,DL4006
-FROM python:3.13-trixie AS builder
+FROM python:3.14-trixie AS builder
 
 ARG BUILD_TARGET
 ARG SRC_REPO
@@ -15,7 +15,7 @@ WORKDIR /src
 RUN bash -o pipefail -c "git clone ${SRC_REPO} ethstaker-deposit-cli && cd ethstaker-deposit-cli && git config advice.detachedHead false && git fetch --all --tags \
   && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:deposit-pr; git checkout deposit-pr; else git checkout ${BUILD_TARGET}; fi"
 
-FROM python:3.13-trixie
+FROM python:3.14-trixie
 
 ARG USER=depcli
 ARG UID=1000
