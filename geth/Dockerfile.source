@@ -6,25 +6,41 @@ FROM golang:1.25-alpine AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
-ARG BUILD_TARGET
-ARG SRC_REPO
 
 RUN apk update && apk add --no-cache make gcc musl-dev linux-headers git bash
 
+ARG BUILD_TARGET
+ARG SRC_REPO
+
 WORKDIR /src
-RUN bash -o pipefail -c "git clone ${SRC_REPO} go-ethereum && cd go-ethereum && git config advice.detachedHead false && git fetch --all --tags && \
-if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:geth-pr; git checkout geth-pr; else git checkout ${BUILD_TARGET}; fi && \
-go run build/ci.go install -static"
+
+ARG SRC_DIR=go-ethereum
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  go run build/ci.go install -static
+EOF
+
 
 # Pull all binaries into a second stage deploy container
 FROM alpine:3
+
+RUN apk add --no-cache ca-certificates tzdata bash su-exec git git-lfs jq
 
 ARG USER=geth
 ARG UID=10001
 # GID 10002 is deliberate so it can exchange secret with CL
 ARG GID=10002
-
-RUN apk add --no-cache ca-certificates tzdata bash su-exec git git-lfs jq
 
 RUN addgroup \
     --gid "${GID}" \

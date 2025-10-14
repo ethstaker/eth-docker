@@ -8,41 +8,55 @@ FROM python:3.12-trixie AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
-ARG BUILD_TARGET=master
-ARG SRC_REPO=https://github.com/serenita-org/vero
-
-ARG VENV_LOCATION
-
 WORKDIR /build
 
 RUN apt-get update && apt-get install --no-install-recommends -y bash git && \
    apt-get clean && rm -rf /var/lib/apt/lists/*
 
+ARG BUILD_TARGET=master
+ARG SRC_REPO=https://github.com/serenita-org/vero
+ARG VENV_LOCATION
+
 ENV PATH="$VENV_LOCATION/bin:$PATH"
 # Pin uv to 0.6 until https://github.com/serenita-org/vero/pull/193 is in a release
 RUN pip install --no-cache-dir uv~=0.6.17 && uv venv ${VENV_LOCATION}
-RUN bash -o pipefail -c "git clone ${SRC_REPO} vero && cd vero && git config advice.detachedHead false && git fetch --all --tags \
-  && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:vero-pr; git checkout vero-pr; else git checkout ${BUILD_TARGET}; fi \
-  && uv pip sync --prefix ${VENV_LOCATION} requirements.txt"
+
+ARG SRC_DIR=vero
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  uv pip sync --prefix ${VENV_LOCATION} requirements.txt
+EOF
+
 
 # App image
 FROM python:3.12-trixie
 
-ARG USER=vero
-ARG UID=10000
+RUN set -eux; \
+  apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends gosu ca-certificates tzdata git wget curl \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG VENV_LOCATION
 COPY --from=builder $VENV_LOCATION $VENV_LOCATION
 ENV PATH="$VENV_LOCATION/bin:$PATH"
 
-RUN groupadd -g ${UID} ${USER} && \
-    useradd --no-create-home --shell /bin/false -l -u ${UID} -g ${USER} ${USER}
+ARG USER=vero
+ARG UID=10000
 
-RUN set -eux; \
-        apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends gosu ca-certificates tzdata git wget curl; \
-        rm -rf /var/lib/apt/lists/*; \
-# verify that the binary works
-        gosu nobody true
+RUN groupadd -g ${UID} ${USER} && \
+  useradd --no-create-home --shell /bin/false -l -u ${UID} -g ${USER} ${USER}
 
 RUN mkdir -p /vero && chown -R ${USER}:${USER} /vero
 WORKDIR /vero

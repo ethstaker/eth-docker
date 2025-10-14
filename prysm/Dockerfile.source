@@ -8,36 +8,47 @@ ARG DOCKER_VC_TAG
 ARG DOCKER_REPO
 ARG DOCKER_VC_REPO
 
+RUN apt-get update && apt-get install -y --no-install-recommends cmake libgmp-dev npm && npm install -g @bazel/bazelisk && bazel version && rm -rf /var/lib/apt/lists/*
+
 ARG BUILD_TARGET
 ARG SRC_REPO
 
-RUN apt-get update && apt-get install -y --no-install-recommends cmake libgmp-dev npm && npm install -g @bazel/bazelisk && bazel version && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /go/src
-RUN bash -o pipefail -c "git clone ${SRC_REPO} prysm && cd prysm && git config advice.detachedHead false && git fetch --all --tags && \
-if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:prysm-pr; git checkout prysm-pr; else git checkout ${BUILD_TARGET}; fi \
-&& bazel build --config=release //cmd/beacon-chain:beacon-chain && bazel build --config=release //cmd/validator:validator && bazel build --config=release //cmd/prysmctl:prysmctl \
-&& bazel build --config=release //cmd/client-stats:client-stats"
+
+ARG SRC_DIR=prysm
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  bazel build --config=release //cmd/beacon-chain:beacon-chain
+  bazel build --config=release //cmd/validator:validator
+  bazel build --config=release //cmd/prysmctl:prysmctl
+  bazel build --config=release //cmd/client-stats:client-stats
+EOF
+
 
 # Pull all binaries into a second stage deploy debian container
 FROM debian:trixie-slim AS consensus
 
-ARG USER=prysmconsensus
-ARG UID=10002
-
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
-  ca-certificates curl bash tzdata git git-lfs adduser \
+  ca-certificates curl bash tzdata git git-lfs adduser gosu \
+  && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 # rsync for migration
 RUN apt-get update && apt-get install -y --no-install-recommends rsync && rm -rf /var/lib/apt/lists/*
 
-RUN set -eux; \
-        apt-get update; \
-        apt-get install -y --no-install-recommends gosu; \
-        rm -rf /var/lib/apt/lists/*; \
-# verify that the binary works
-        gosu nobody true
+ARG USER=prysmconsensus
+ARG UID=10002
 
 # See https://stackoverflow.com/a/55757473/12429735RUN
 RUN adduser \

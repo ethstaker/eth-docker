@@ -10,16 +10,27 @@ ARG BUILD_TARGET
 ARG SRC_REPO
 
 WORKDIR /src
-RUN bash -o pipefail -c "git clone ${SRC_REPO} erigon && cd erigon && git config advice.detachedHead false && git fetch --all --tags && \
-if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:erigon-pr; git checkout erigon-pr; else git checkout ${BUILD_TARGET}; fi && make BUILD_TAGS=nosqlite,noboltdb,nosilkworm erigon"
+
+ARG SRC_DIR=erigon
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  make BUILD_TAGS=nosqlite,noboltdb,nosilkworm erigon
+EOF
+
 
 # Pull all binaries into a second stage deploy container
 FROM debian:trixie-slim
-
-ARG USER=erigon
-ARG UID=10001
-# GID 10002 is deliberate so it can exchange secret with CL
-ARG GID=10002
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   ca-certificates \
@@ -29,8 +40,14 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   git-lfs \
   jq \
   adduser \
+  && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
+
+ARG USER=erigon
+ARG UID=10001
+# GID 10002 is deliberate so it can exchange secret with CL
+ARG GID=10002
 
 RUN addgroup \
     --gid "${GID}" \

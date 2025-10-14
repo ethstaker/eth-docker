@@ -5,21 +5,38 @@ FROM node:22-slim AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git g++ make python3 python3-setuptools bash && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 ARG BUILD_TARGET
 ARG SRC_REPO
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git g++ make python3 python3-setuptools bash && apt-get clean && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /usr/app
-RUN bash -o pipefail -c "cd .. && rm -rf app && git clone ${SRC_REPO} app && cd app && git config advice.detachedHead false \
-  && git fetch --all --tags \
-  && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:ls-pr; git checkout ls-pr; else git checkout ${BUILD_TARGET}; fi \
-  && yarn install --non-interactive --frozen-lockfile && yarn build"
+
+ARG SRC_DIR=app
+RUN bash -eo pipefail <<'EOF'
+  cd ..
+  rm -rf app
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  yarn install --non-interactive --frozen-lockfile
+  yarn build
+EOF
+
 
 FROM node:22-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata bash gosu git git-lfs wget \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && gosu nobody true && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ARG USER=lsconsensus
 ARG UID=10002

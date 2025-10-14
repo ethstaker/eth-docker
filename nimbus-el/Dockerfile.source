@@ -6,32 +6,44 @@ FROM debian:trixie-slim AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
-ARG BUILD_TARGET
-ARG SRC_REPO
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates librocksdb-dev curl
 
+ARG BUILD_TARGET
+ARG SRC_REPO
+
 WORKDIR /usr/src
 
-RUN bash -o pipefail -c "git clone ${SRC_REPO} nimbus-eth1 && cd nimbus-eth1 && git config advice.detachedHead false && git fetch --all --tags && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:nim-pr; git checkout nim-pr; else git checkout ${BUILD_TARGET}; fi && make -j$(nproc) update && make -j$(nproc) nimbus_execution_client"
+ARG SRC_DIR=nimbus-eth1
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  make -j$(nproc) update
+  make -j$(nproc) nimbus_execution_client
+EOF
+
 
 # Pull all binaries into a second stage deploy debian container
 FROM debian:trixie-slim
 
-ARG USER=user
-ARG UID=10001
-
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
-  ca-certificates bash tzdata librocksdb-dev curl aria2 adduser \
+  ca-certificates bash tzdata librocksdb-dev curl aria2 adduser gosu \
+  && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-RUN set -eux; \
-        apt-get update; \
-        apt-get install -y --no-install-recommends gosu; \
-        rm -rf /var/lib/apt/lists/*; \
-# verify that the binary works
-        gosu nobody true
+ARG USER=user
+ARG UID=10001
 
 # See https://stackoverflow.com/a/55757473/12429735RUN
 RUN adduser \

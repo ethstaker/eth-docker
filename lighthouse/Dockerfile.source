@@ -6,24 +6,34 @@ FROM rust:trixie AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
+RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install-recommends cmake libclang-dev protobuf-compiler
+
 ARG BUILD_TARGET
 ARG SRC_REPO
 ENV FEATURES portable,gnosis,slasher-lmdb,beacon-node-leveldb
 
-RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install-recommends cmake libclang-dev protobuf-compiler
-
 WORKDIR /usr/src
-RUN bash -o pipefail -c "git clone ${SRC_REPO} lighthouse && cd lighthouse && git config advice.detachedHead false && git fetch --all --tags && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:lh-pr; git checkout lh-pr; else git checkout ${BUILD_TARGET}; fi && CROSS_PROFILE=maxperf make"
+
+ARG SRC_DIR=lighthouse
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  CROSS_PROFILE=maxperf make
+EOF
+
 
 # Pull all binaries into a second stage deploy debian container
 FROM debian:trixie-slim
-
-RUN set -eux; \
-        apt-get update; \
-        apt-get install -y --no-install-recommends gosu; \
-        rm -rf /var/lib/apt/lists/*; \
-# verify that the binary works
-        gosu nobody true
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   libssl-dev \
@@ -34,10 +44,10 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   git \
   git-lfs \
   adduser \
+  gosu \
+  && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
-# rsync for migration
-RUN apt-get update && apt-get install -y --no-install-recommends rsync && rm -rf /var/lib/apt/lists/*
 
 ARG USER=lhconsensus
 ARG UID=10002

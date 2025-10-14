@@ -8,34 +8,45 @@ ARG DOCKER_VC_TAG
 ARG DOCKER_REPO
 ARG DOCKER_VC_REPO
 
-ARG BUILD_TARGET
-ARG SRC_REPO
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates bash git-lfs cmake
 
+ARG BUILD_TARGET
+ARG SRC_REPO
+
 WORKDIR /usr/src
-RUN bash -o pipefail -c "git clone ${SRC_REPO} nimbus-eth2 && cd nimbus-eth2 \
-  && git config advice.detachedHead false && git fetch --all --tags \
-  && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:nim-pr; git checkout nim-pr; else git checkout ${BUILD_TARGET}; fi \
-  && git submodule update --init --recursive -j$(nproc) && make -j$(nproc) update && make -j$(nproc) gnosis-build gnosis-vc-build"
+
+ARG SRC_DIR=nimbus-eth2
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  git submodule update --init --recursive --jobs $(nproc)
+  make -j$(nproc) update
+  make -j$(nproc) gnosis-build gnosis-vc-build
+EOF
+
 
 # Pull all binaries into a second stage deploy debian container
 FROM debian:trixie-slim AS consensus
 
-ARG USER=user
-ARG UID=10002
-
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
-  ca-certificates bash tzdata git adduser \
+  ca-certificates bash tzdata git adduser gosu \
+  && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-RUN set -eux; \
-        apt-get update; \
-        apt-get install -y --no-install-recommends gosu; \
-        rm -rf /var/lib/apt/lists/*; \
-# verify that the binary works
-        gosu nobody true
+ARG USER=user
+ARG UID=10002
 
 # See https://stackoverflow.com/a/55757473/12429735RUN
 RUN adduser \
@@ -61,13 +72,14 @@ ENTRYPOINT ["nimbus_beacon_node"]
 
 FROM debian:trixie-slim AS validator
 
-ARG USER=user
-ARG UID=10000
-
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
-  adduser \
+  adduser gosu \
+  && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
+
+ARG USER=user
+ARG UID=10000
 
 # See https://stackoverflow.com/a/55757473/12429735RUN
 RUN adduser \

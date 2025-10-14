@@ -1,9 +1,6 @@
 # hadolint global ignore=DL3007,DL3008,DL3059,DL4006
 FROM python:3.13-trixie AS builder
 
-ARG BUILD_TARGET
-ARG SRC_REPO
-
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
@@ -11,11 +8,34 @@ RUN mkdir -p /src
 
 RUN apt-get update && apt-get install -y --no-install-recommends bash git
 
+ARG BUILD_TARGET
+ARG SRC_REPO
+
 WORKDIR /src
-RUN bash -o pipefail -c "git clone ${SRC_REPO} ethstaker-deposit-cli && cd ethstaker-deposit-cli && git config advice.detachedHead false && git fetch --all --tags \
-  && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:deposit-pr; git checkout deposit-pr; else git checkout ${BUILD_TARGET}; fi"
+
+ARG SRC_DIR=ethstaker-deposit-cli
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+EOF
+
 
 FROM python:3.13-trixie
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential bash gosu \
+    && gosu nobody true \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG USER=depcli
 ARG UID=1000
@@ -34,9 +54,6 @@ WORKDIR /app
 
 COPY --from=builder /src/ethstaker-deposit-cli/requirements.txt ./
 COPY --from=builder /src/ethstaker-deposit-cli/ethstaker_deposit ./ethstaker_deposit
-
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential bash gosu \
-    && rm -rf /var/lib/apt/lists/* && gosu nobody true
 
 RUN pip3 install --no-cache-dir -r requirements.txt
 
