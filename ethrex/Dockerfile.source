@@ -5,7 +5,7 @@ ARG DOCKER_TAG
 ARG DOCKER_REPO
 
 # This layer won't change a lot
-FROM rust:1.87.0-bookworm AS chef
+FROM rust:trixie AS chef
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   build-essential \
@@ -25,9 +25,6 @@ WORKDIR /ethrex
 # Layer holding the source code
 FROM debian:trixie-slim AS source
 
-ARG BUILD_TARGET
-ARG SRC_REPO
-
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   git \
   git-lfs \
@@ -38,9 +35,24 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
 
 WORKDIR /
 
-RUN bash -o pipefail -c "git clone ${SRC_REPO} ethrex && cd ethrex \
-  && git config advice.detachedHead false && git fetch --all --tags \
-  && if [[ ${BUILD_TARGET} =~ pr-.+ ]]; then git fetch origin pull/$(echo ${BUILD_TARGET} | cut -d '-' -f 2)/head:ethrex-pr; git checkout ethrex-pr; else git checkout ${BUILD_TARGET}; fi"
+ARG BUILD_TARGET
+ARG SRC_REPO
+
+ARG SRC_DIR=ethrex
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+EOF
 
 
 # Plan the recipe
@@ -85,9 +97,6 @@ RUN cargo build --release
 # Pull all binaries into a deploy debian container
 FROM debian:trixie-slim
 
-ARG USER=ethrex
-ARG UID=10001
-
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   libssl3 \
   ca-certificates \
@@ -100,6 +109,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   jq \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
+
+ARG USER=ethrex
+ARG UID=10001
 
 # See https://stackoverflow.com/a/55757473/12429735RUN
 RUN adduser \
