@@ -2480,7 +2480,7 @@ prune-history() {
       ;;
     *reth.yml* )
       __client="Reth"
-      __min_ver="v1.5.0"
+      __min_ver="v1.8.0"
       __extra_msg="Pruning pre-merge history does not require a resync and should be immediate.\nA resync saves more space than a prune: You can set \"EL_MINIMAL_NODE=true\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
       __prune_marker="/var/lib/reth/minimal-node"
       ;;
