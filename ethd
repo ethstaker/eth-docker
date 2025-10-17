@@ -1348,6 +1348,7 @@ __env_migrate() {
   fi
   if [[ "${__target_ver}" -gt "${__source_ver}" ]]; then
     echo "Migrating ${__env_file} to version ${__target_ver}"
+    echo "Note this is not an Eth Docker version, it is an internal config file version"
   fi
 
   ${__as_owner} cp "${__env_file}" "${__env_file}".source
