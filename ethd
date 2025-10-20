@@ -3668,12 +3668,6 @@ __query_execution_client() {
 
 
 __query_ssv_client() {
-  if [ ! "${NETWORK}" = "hoodi" ]; then
-    SSV_CLIENT="ssv.yml"
-    echo "Your SSV client file is:" "${SSV_CLIENT}"
-    return 0
-  fi
-
   __choices=()
   __arch=$(uname -m)
 
