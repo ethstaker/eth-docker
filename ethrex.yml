@@ -52,10 +52,17 @@ services:
       - ${EL_P2P_PORT:-30303}
       - --discovery.port
       - ${EL_P2P_PORT:-30303}
+      - --target.peers
+      - ${EL_MAX_PEER_COUNT:-100}
       - --http.addr
       - 0.0.0.0
       - --http.port
       - ${EL_RPC_PORT:-8545}
+      - --ws.enabled
+      - --ws.addr
+      - 0.0.0.0
+      - --ws.port
+      - ${EL_WS_PORT:-8546}
       - --metrics
       - --metrics.addr
       - 0.0.0.0
