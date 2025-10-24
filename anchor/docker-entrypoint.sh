@@ -13,6 +13,12 @@ else
   __ipv6=""
 fi
 
+if [ "${MEV_BOOST}" = "true" ]; then
+  __mev="--builder-proposals"
+else
+  __mev=""
+fi
+
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__ipv6} ${DVT_EXTRAS}
+exec "$@" ${__ipv6} ${__mev} ${DVT_EXTRAS}
