@@ -4027,6 +4027,46 @@ https://0x8c7d33605ecef85403f8b7289c8058f440cbb6bf72b055dfe2f3e2c6695b6a1ea5a9cd
   fi
 }
 
+
+__query_mev_factor() {
+  __var="MEV_BUILD_FACTOR"
+  __get_value_from_env "${__var}" "${__env_file}" "MEV_BUILD_FACTOR"
+#shellcheck disable=SC2076
+  if [[ -n "${MEV_BUILD_FACTOR}" || ! "${MEV_BOOST}" = "true" || "${CONSENSUS_CLIENT}" =~ "-cl-only.yml" ]]; then
+    return
+  fi
+
+  echo "Installing speedtest-cli"
+  ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y --no-install-recommends speedtest-cli
+  echo "Running speedtest"
+  set +e
+  __speed_json=$(speedtest-cli --secure --json)
+  __exitstatus=$?
+  set -e
+  if [ "$__exitstatus" -ne 0 ]; then
+    echo "Speedtest failed, skipping MEV Build Factor query"
+    return
+  fi
+  __down_speed=$(jq -r '.download' <<<"${__speed_json}" | awk '{print int($1 / 1000000)}')
+  __up_speed=$(jq -r '.upload' <<<"${__speed_json}" | awk '{print int($1 / 1000000)}')
+  echo "Measured download speed is ${__down_speed}"
+  echo
+  if [ "${__up_speed}" -lt 200 ]; then  # A bit of a guess at BPO5. Change before Glamsterdam
+    echo "Your upload speed is less than 200 Mbit/s, it is ${__up_speed}"
+    echo "Disabling local block building by setting MEV_BUILD_FACTOR to 100"
+    MEV_BUILD_FACTOR="100"
+  else
+    __message="Your upload speed is ${__up_speed} Mbit/s. Do you want to build local blocks, when the relay pays less than 10% more?"
+    __default=""
+    if (whiptail --title "MEV Build Factor" --yesno "${__message}" 10 65 "${__default}") then
+      MEV_BUILD_FACTOR="90"
+    else
+      MEV_BUILD_FACTOR="100"
+    fi
+  fi
+}
+
+
 __lido_withdrawal_credentials_address() {
     __lido_address=""
     case "${NETWORK}" in  # Lido Withdrawal Vault
@@ -4383,6 +4423,7 @@ config() {
 
     __query_checkpoint_sync
     __query_mev
+    __query_mev_factor
     __query_grafana
     __query_coinbase
     if [[ "${__deployment}" = "node" || "${__deployment}" = "lido_csm" ]]; then
@@ -4611,6 +4652,8 @@ config() {
     __update_value_in_env "${__var}" "custom-mev" "${__env_file}"
   fi
   __var=MEV_BOOST
+  __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
+  __var=MEV_BUILD_FACTOR
   __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
   __var=MEV_RELAYS
   __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"

@@ -26,6 +26,7 @@ services:
     stop_grace_period: 1m
     environment:
       - MEV_BOOST=${MEV_BOOST}
+      - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}
       - VC_EXTRAS=${VC_EXTRAS:-}
       - DOPPELGANGER=${DOPPELGANGER:-}
       - GRAFFITI=${GRAFFITI:-}

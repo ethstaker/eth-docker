@@ -57,6 +57,7 @@ fi
 if [ "${MEV_BOOST}" = "true" ]; then
   __mev_boost="--http-mev-relay=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
+  echo "No MEV Build Factor configured: Prysm doesn't support it, or Eth Docker doesn't know how."
 else
   __mev_boost=""
 fi

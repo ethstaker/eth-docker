@@ -33,6 +33,7 @@ services:
       - SSV_P2P_PORT_UDP=${SSV_P2P_PORT_UDP}
       - SSV_QUIC_PORT=${SSV_QUIC_PORT}
       - MEV_BOOST=${MEV_BOOST:-false}
+      - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR:-}
     <<: *logging
     entrypoint:
       - docker-entrypoint.sh
