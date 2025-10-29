@@ -23,7 +23,7 @@ services:
       - CLIENT=${COMPOSE_FILE}
     command:
       - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=40d
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-40d}
       - --web.console.libraries=/usr/share/prometheus/console_libraries
       - --web.console.templates=/usr/share/prometheus/consoles
     <<: *logging
