@@ -5,6 +5,14 @@ if [ "$(id -u)" = '0' ]; then
   exec gosu teku docker-entrypoint.sh "$@"
 fi
 
+__normalize_int() {
+    local v=$1
+    if [[ $v =~ ^[0-9]+$ ]]; then
+        v=$((10#$v))
+    fi
+    printf '%s' "$v"
+}
+
 if [ -f /var/lib/teku/teku-keyapi.keystore ]; then
     if [ "$(date +%s -r /var/lib/teku/teku-keyapi.keystore)" -lt "$(date +%s --date="300 days ago")" ]; then
        rm /var/lib/teku/teku-keyapi.keystore
@@ -83,10 +91,41 @@ fi
 
 # Check whether we should use MEV Boost
 if [ "${MEV_BOOST}" = "true" ]; then
-  __mev_boost="--validators-builder-registration-default-enabled --builder-endpoint=${MEV_NODE:-http://mev-boost:18550}"
+  __mev_boost="--builder-endpoint=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
+  if [ "${EMBEDDED_VC}" = "true" ]; then
+    __mev_boost+=" --validators-builder-registration-default-enabled"
+    __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+    case "${__build_factor}" in
+      0)
+        __mev_boost=""
+        __mev_factor=""
+        echo "Disabled MEV Boost because MEV_BUILD_FACTOR is 0."
+        echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
+        ;;
+      [1-9]|[1-9][0-9])
+        __mev_factor="--builder-bid-compare-factor=${__build_factor}"
+        echo "Enabled MEV Build Factor of ${__build_factor}"
+        ;;
+      100)
+        __mev_factor="--builder-bid-compare-factor=BUILDER_ALWAYS"
+        echo "Always prefer MEV builder blocks, build factor 100"
+        ;;
+      "")
+        __mev_factor=""
+        echo "Use default --builder-bid-compare-factor"
+        ;;
+      *)
+        __mev_factor=""
+        echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
+        ;;
+    esac
+  else
+    __mev_factor=""
+  fi
 else
   __mev_boost=""
+  __mev_factor=""
 fi
 
 # Check whether we should send stats to beaconcha.in
@@ -156,9 +195,9 @@ fi
 if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__doppel} ${__ipv6} ${CL_EXTRAS} ${VC_EXTRAS}
+  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__doppel} ${__ipv6} ${CL_EXTRAS} ${VC_EXTRAS}
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} "--validators-graffiti=${GRAFFITI}" ${__w3s_url} ${__mev_boost} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__doppel} ${__ipv6} ${CL_EXTRAS} ${VC_EXTRAS}
+  exec "$@" ${__network} "--validators-graffiti=${GRAFFITI}" ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__doppel} ${__ipv6} ${CL_EXTRAS} ${VC_EXTRAS}
 fi

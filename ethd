@@ -592,7 +592,7 @@ install() {
   echo "Installing packages that ${__me} requires or considers helpful"
   echo
   ${__auto_sudo} apt-get update
-  ${__auto_sudo} apt-get install -y ca-certificates curl gnupg whiptail chrony pkg-config screen ncdu gzip
+  ${__auto_sudo} apt-get install -y ca-certificates curl gnupg whiptail chrony pkg-config screen ncdu gzip speedtest-cli
 
   echo
   read -rp "Do you want to install Docker and make your user part of the docker group? (no/yes) " __yn
@@ -4021,11 +4021,64 @@ https://0x8c7d33605ecef85403f8b7289c8058f440cbb6bf72b055dfe2f3e2c6695b6a1ea5a9cd
     # Replace "\n" back to newlines to restore multi-line format
     MEV_RELAYS=$(printf '%s' "${__formatted_mev_relays}" | sed 's/\\n/\n/g')
     echo "Your MEV relay(s): ${MEV_RELAYS}"
+    __final_msg+="\nYou are configured to get block building bids remotely via relay(s)."
   else
     MEV_BOOST="false"
     MEV_RELAYS=""
+    __final_msg+="\nYou are configured to build blocks locally, only.\nPlease ensure you have 200 Mbit/s upload bandwidth or more."
   fi
 }
+
+
+__query_mev_factor() {
+  __var="MEV_BUILD_FACTOR"
+  __get_value_from_env "${__var}" "${__env_file}" "MEV_BUILD_FACTOR"
+#shellcheck disable=SC2076
+  if [[ -n "${MEV_BUILD_FACTOR}" || ! "${MEV_BOOST}" = "true" || "${CONSENSUS_CLIENT}" =~ "-cl-only.yml" ]]; then
+    return
+  fi
+
+  if ! [[ "${__distro}" =~ (ubuntu|debian) ]]; then
+    __final_msg+="\nCannot measure network speed on ${__distro}. Please ensure you have 200 Mbit/s up or set MEV_BUILD_FACTOR=100."
+    return
+  fi
+
+  if ! dpkg-query -W -f='${Status}' speedtest-cli 2>/dev/null | grep -q "ok installed"; then
+    echo "Installing speedtest-cli"
+    ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y --no-install-recommends speedtest-cli
+  fi
+  echo "Running speedtest"
+  set +e
+  __speed_json=$(speedtest-cli --secure --json)
+  __exitstatus=$?
+  set -e
+  if [ "$__exitstatus" -ne 0 ]; then
+    echo "Speedtest failed, skipping MEV Build Factor query"
+    return
+  fi
+  __down_speed=$(jq -r '.download' <<<"${__speed_json}" | awk '{print int($1 / 1000000)}')
+  __up_speed=$(jq -r '.upload' <<<"${__speed_json}" | awk '{print int($1 / 1000000)}')
+  echo "Measured download speed is ${__down_speed} Mbit/s."
+  echo
+  __final_msg+="\nYour measured upload speed is ${__up_speed} Mbit/s.\nYour measured download speed is ${__down_speed} Mbit/s."
+  if [ "${__up_speed}" -lt 200 ]; then  # A bit of a guess at BPO5. Change before Glamsterdam
+    echo "Your upload speed is less than 200 Mbit/s, it is ${__up_speed} Mbit/s"
+    echo "Disabling local block building by setting MEV_BUILD_FACTOR to 100"
+    MEV_BUILD_FACTOR="100"
+    __final_msg+="\nLocal block building was disabled, because your upload speed is low."
+  else
+    __message="Your upload speed is ${__up_speed} Mbit/s. Do you want to build local blocks, when the relay pays less than 10% more?"
+    __default=""
+    if (whiptail --title "MEV Build Factor" --yesno "${__message}" 10 65 "${__default}") then
+      MEV_BUILD_FACTOR="90"
+      __final_msg+="\nLocal block building is preferred, when the relay pays less than 10% more."
+    else
+      MEV_BUILD_FACTOR="100"
+      __final_msg+="\nLocal block building is disabled."
+    fi
+  fi
+}
+
 
 __lido_withdrawal_credentials_address() {
     __lido_address=""
@@ -4288,6 +4341,7 @@ config() {
   fi
 
   __during_config=1
+  __final_msg=""
 
   __check_legacy
   __query_network
@@ -4383,6 +4437,7 @@ config() {
 
     __query_checkpoint_sync
     __query_mev
+    __query_mev_factor
     __query_grafana
     __query_coinbase
     if [[ "${__deployment}" = "node" || "${__deployment}" = "lido_csm" ]]; then
@@ -4576,9 +4631,11 @@ config() {
 # This gets used, but shellcheck doesn't recognize that
 # shellcheck disable=SC2034
     DOCKER_EXT_NETWORK="rocketpool_net"
+    __final_msg+="\nYou are connected to the \"rocketpool_net\" Docker bridge network"
   fi
 
   echo "Your COMPOSE_FILE is:" "${COMPOSE_FILE}"
+  __final_msg+="\nYou are using these service files: ${COMPOSE_FILE}"
 
   __var=FEE_RECIPIENT
   __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
@@ -4611,6 +4668,8 @@ config() {
     __update_value_in_env "${__var}" "custom-mev" "${__env_file}"
   fi
   __var=MEV_BOOST
+  __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
+  __var=MEV_BUILD_FACTOR
   __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
   __var=MEV_RELAYS
   __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
@@ -4672,6 +4731,7 @@ config() {
   __pull_and_build
   __nag_os_version
 
+  echo -e "${__final_msg-}"
   echo
   echo "Your configuration file is: $(dirname "$(realpath "${BASH_SOURCE[0]}")")/${__env_file}"
   echo "You can change advanced config items with \"nano .env\" when in the $(dirname "$(realpath "${BASH_SOURCE[0]}")") directory."

@@ -6,6 +6,14 @@ if [ "$(id -u)" = '0' ]; then
   exec gosu lhvalidator docker-entrypoint-vc.sh "$@"
 fi
 
+__normalize_int() {
+    local v=$1
+    if [[ $v =~ ^[0-9]+$ ]]; then
+        v=$((10#$v))
+    fi
+    printf '%s' "$v"
+}
+
 if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
@@ -33,8 +41,35 @@ fi
 if [ "${MEV_BOOST}" = "true" ]; then
   __mev_boost="--builder-proposals"
   echo "MEV Boost enabled"
+
+  __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+  case "${__build_factor}" in
+    0)
+      __mev_boost=""
+      __mev_factor=""
+      echo "Disabled MEV Boost because MEV_BUILD_FACTOR is 0."
+      echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
+      ;;
+    [1-9]|[1-9][0-9])
+      __mev_factor="--builder-boost-factor ${__build_factor}"
+      echo "Enabled MEV Build Factor of ${__build_factor}"
+      ;;
+    100)
+      __mev_factor="--prefer-builder-proposals"
+      echo "Always prefer MEV builder blocks, build factor 100"
+      ;;
+    "")
+      __mev_factor=""
+      echo "Use default --builder-boost-factor"
+      ;;
+    *)
+      __mev_factor=""
+      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
+      ;;
+  esac
 else
   __mev_boost=""
+  __mev_factor=""
 fi
 
 # Check whether we should send stats to beaconcha.in
@@ -62,9 +97,9 @@ fi
 if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__mev_boost} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
+  exec "$@" ${__network} ${__mev_boost} ${__mev_factor} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} "--graffiti" "${GRAFFITI}" ${__mev_boost} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
+  exec "$@" ${__network} "--graffiti" "${GRAFFITI}" ${__mev_boost} ${__mev_factor} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
 fi

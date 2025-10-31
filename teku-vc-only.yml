@@ -29,6 +29,7 @@ services:
     environment:
       - JAVA_OPTS=${TEKU_HEAP:--Xmx2g}
       - MEV_BOOST=${MEV_BOOST}
+      - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}
       - VC_EXTRAS=${VC_EXTRAS:-}
       - DOPPELGANGER=${DOPPELGANGER:-}
       - GRAFFITI=${GRAFFITI:-}
