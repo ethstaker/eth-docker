@@ -1024,23 +1024,23 @@ __upgrade_postgres() {
   echo "In failure case, do not start Web3signer again, instead seek help on Ethstaker Discord."
   echo
 
-  __dodocker pull "pgautoupgrade/pgautoupgrade:${__target_pg}-debian"
+  __dodocker pull "pgautoupgrade/pgautoupgrade:${__target_pg}-trixie"
   __during_migrate=1
   __dodocker run --rm -v "${__source_vol}":"/var/lib/postgresql/data" \
    -e PGAUTO_ONESHOT=yes -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres \
-   "pgautoupgrade/pgautoupgrade:${__target_pg}-debian"
+   "pgautoupgrade/pgautoupgrade:${__target_pg}-trixie"
 
   __migrated=1
 
   echo
   echo "Adjusting PostgreSQL Docker tag"
-  if [ ! -f "${__env_file}.source" ]; then # update() didn't migrate env, let's make sure .env.source exists
+  if [ ! -f "${__env_file}.source" ]; then  # update() didn't migrate env, let's make sure .env.source exists
     cp "${__env_file}" "${__env_file}.source"
   fi
   __var="PG_DOCKER_TAG"
 # This gets used, but shellcheck doesn't recognize that
 # shellcheck disable=SC2034
-  PG_DOCKER_TAG=${__target_pg}-trixie # To debian to avoid collation errors - also a faster PostgreSQL
+  PG_DOCKER_TAG=${__target_pg}-trixie  # Match pgautoupgrade Debian version to avoid collation errors
   __update_value_in_env "${__var}" "${!__var}" "${__env_file}"
   echo "Web3signer has been stopped. You'll need to run \"${__me} update\" and \"${__me} up\" to start it again."
   echo
@@ -1395,7 +1395,7 @@ __env_migrate() {
         fi
       fi
 
-      if [[ "${__keep_targets}" -eq 0 && "$__var" =~ (_TAG|_REPO|_TARGET|_DOCKERFILE)$ ]]; then
+      if [[ "${__keep_targets}" -eq 0 && "$__var" =~ (_TAG|_REPO|_TARGET|_DOCKERFILE)$ && ! "$__var" = "PG_DOCKER_TAG" ]]; then
         __get_value_from_env "${__var}" "default.env" "__value"  # Reset build target to default.env value
       else
         if [[ "${__var}" = "PRYSM_DOCKER_REPO" && "${__value}" = "gcr.io/prysmaticlabs/prysm/beacon-chain" ]]; then  # Prysm new repo
