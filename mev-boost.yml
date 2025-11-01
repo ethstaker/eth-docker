@@ -35,4 +35,13 @@ services:
       - ${MEV_MIN_BID:-0}
       - -loglevel
       - ${LOG_LEVEL}
+      - -metrics
+      - -metrics-addr
+      - 0.0.0.0:18551
     <<: *logging
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=18551
+      - metrics.instance=mev-boost
+      - metrics.network=${NETWORK}
