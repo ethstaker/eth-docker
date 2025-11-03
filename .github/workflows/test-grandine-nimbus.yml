@@ -25,8 +25,11 @@ jobs:
       - name: Set Grandine/Nimbus EL
         run: |
           source ./.github/helper.sh
-          COMPOSE_FILE=grandine-allin1.yml:nimbus-el.yml
+          COMPOSE_FILE=grandine-allin1.yml:nimbus-el.yml:mev-boost.yml
           var=COMPOSE_FILE
+          set_value_in_env
+          MEV_BOOST=true
+          var=MEV_BOOST
           set_value_in_env
           FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
           var=FEE_RECIPIENT
@@ -44,7 +47,7 @@ jobs:
       - name: Set Grandine/Nimbus EL w/ Lighthouse VC
         run: |
           source ./.github/helper.sh
-          COMPOSE_FILE=grandine-cl-only.yml:lighthouse-vc-only.yml:nimbus-el.yml
+          COMPOSE_FILE=grandine-cl-only.yml:lighthouse-vc-only.yml:nimbus-el.yml:mev-boost.yml
           var=COMPOSE_FILE
           set_value_in_env
       - name: Test the stack
