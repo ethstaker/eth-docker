@@ -104,7 +104,7 @@ if [ "${IPV6}" = "true" ]; then
     __ipv6+=" --enr.ip6 ${__public_v6}"
   fi
 else
-  __ipv6=""
+  __ipv6="--listenAddress 0.0.0.0"
 fi
 
 # Word splitting is desired for the command line parameters
