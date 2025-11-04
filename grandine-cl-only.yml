@@ -80,7 +80,7 @@ services:
       - --quic-port
       - ${CL_QUIC_PORT:-9001}
       - --target-peers
-      - ${CL_MAX_PEER_COUNT:-80}
+      - ${CL_MAX_PEER_COUNT:-200}
       - --eth1-rpc-urls
       - ${EL_NODE}
       - --jwt-secret
