@@ -77,9 +77,8 @@ else
 fi
 
 __caplin=""
-if [[ "${COMPOSE_FILE}" =~ (prysm\.yml|prysm-cl-only\.yml|lighthouse\.yml|lighthouse-cl-only\.yml|lodestar\.yml|\
-lodestar-cl-only\.yml|nimbus\.yml|nimbus-cl-only\.yml|nimbus-allin1\.yml|teku\.yml|teku-cl-only\.yml|\
-teku-allin1\.yml|grandine\.yml|grandine-cl-only\.yml|grandine-allin1\.yml) ]]; then
+# shellcheck disable=SC2076
+if [[ ! "${COMPOSE_FILE}" =~ "caplin.yml" ]]; then
   __caplin="--externalcl=true"
 else
   echo "Running Erigon with internal Caplin consensus layer client"

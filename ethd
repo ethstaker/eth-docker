@@ -915,8 +915,8 @@ __source_build() {
 __migrate_compose_file() {
 # When this gets called $__var is COMPOSE_FILE and $__value is what is set in .env for it
 # Some files have been renamed and others removed altogether
-  __from_yml=( )
-  __to_yml=( )
+  __from_yml=( caplin-ports.yml )
+  __to_yml=( caplin.yml )
 
   IFS=":"
   set -o noglob
@@ -3473,7 +3473,7 @@ __query_consensus_client() {
     "lighthouse.yml" "Lighthouse (Rust) - consensus and validator client" \
     "lodestar.yml" "Lodestar (TypeScript) - consensus and validator client" \
     "nimbus.yml" "Nimbus (Nim) - consensus and validator client" \
-    "caplin" "Caplin (Go) - Erigon's built-in CL" \
+    "caplin.yml" "Caplin (Go) - Erigon's built-in CL" \
     3>&1 1>&2 2>&3)
   elif [ "${NETWORK}" = "ephemery" ]; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
@@ -3490,7 +3490,7 @@ __query_consensus_client() {
     "teku.yml" "Teku (Java) - consensus and validator client" \
     "lighthouse.yml" "Lighthouse (Rust) - consensus and validator client" \
     "prysm.yml" "Prysm (Go) - consensus and validator client" \
-    "caplin" "Caplin (Go) - Erigon's built-in CL" \
+    "caplin.yml" "Caplin (Go) - Erigon's built-in CL" \
      3>&1 1>&2 2>&3)
   elif uname -m | grep -q riscv64; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
@@ -3505,7 +3505,7 @@ __query_consensus_client() {
     "nimbus.yml" "Nimbus (Nim) - consensus and validator client" \
     "lighthouse.yml" "Lighthouse (Rust) - consensus and validator client" \
     "prysm.yml" "Prysm (Go) - consensus and validator client" \
-    "caplin" "Caplin (Go) - Erigon's built-in CL" \
+    "caplin.yml" "Caplin (Go) - Erigon's built-in CL" \
     3>&1 1>&2 2>&3)
   fi
 
@@ -3525,7 +3525,6 @@ __query_consensus_only_client() {
     "teku-cl-only.yml" "Teku (Java) - consensus client" \
     "lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client" \
     "nimbus-cl-only.yml" "Nimbus (Nim) - consensus client" \
-    "caplin" "Caplin (Go) - Erigon's built-in CL" \
     3>&1 1>&2 2>&3)
   elif [ "${NETWORK}" = "ephemery" ]; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
@@ -3542,7 +3541,6 @@ __query_consensus_only_client() {
     "lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client" \
     "teku-cl-only.yml" "Teku (Java) - consensus client" \
     "prysm-cl-only.yml" "Prysm (Go) - consensus client" \
-    "caplin" "Caplin (Go) - Erigon's built-in CL" \
     3>&1 1>&2 2>&3)
   elif uname -m | grep -q riscv64; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
@@ -3557,7 +3555,6 @@ __query_consensus_only_client() {
     "nimbus-cl-only.yml" "Nimbus (Nim) - consensus client" \
     "lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client" \
     "prysm-cl-only.yml" "Prysm (Go) - consensus client" \
-    "caplin" "Caplin (Go) - Erigon's built-in CL" \
     3>&1 1>&2 2>&3)
   fi
 
@@ -3600,7 +3597,7 @@ again or Cancel on the next screen." 10 65
 
 
 __query_execution_client() {
-  if [ "${CONSENSUS_CLIENT}" = "caplin" ]; then
+  if [ "${CONSENSUS_CLIENT}" = "caplin.yml" ]; then
     EXECUTION_CLIENT="erigon.yml"
     echo "Your execution client file is:" "${EXECUTION_CLIENT}"
 # This gets used, but shellcheck doesn't recognize that
@@ -4590,13 +4587,9 @@ config() {
     fi
   fi
 
-  if [ "${CONSENSUS_CLIENT}" = "caplin" ]; then
-    COMPOSE_FILE="${EXECUTION_CLIENT}:caplin-ports.yml"
-  else
-    COMPOSE_FILE="${CONSENSUS_CLIENT}"
-    if [ -n "${EXECUTION_CLIENT+x}" ]; then
-      COMPOSE_FILE="${COMPOSE_FILE}:${EXECUTION_CLIENT}"
-    fi
+  COMPOSE_FILE="${CONSENSUS_CLIENT}"
+  if [ -n "${EXECUTION_CLIENT+x}" ]; then
+    COMPOSE_FILE="${COMPOSE_FILE}:${EXECUTION_CLIENT}"
   fi
   if [[ "${__deployment}" = "ssv" || "${__deployment}" = "lido_ssv" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:${SSV_CLIENT}"
