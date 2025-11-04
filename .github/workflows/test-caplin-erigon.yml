@@ -27,7 +27,7 @@ jobs:
       - name: Set Caplin/Erigon
         run: |
           source ./.github/helper.sh
-          COMPOSE_FILE=erigon.yml:caplin-ports.yml:lodestar-vc-only.yml:mev-boost.yml
+          COMPOSE_FILE=caplin.yml:erigon.yml:lodestar-vc-only.yml:mev-boost.yml
           var=COMPOSE_FILE
           set_value_in_env
           MEV_BOOST=true
