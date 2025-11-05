@@ -728,6 +728,8 @@ __check_disk_space() {
   __get_value_from_env "${__var}" "${__env_file}" "__auto_prune"
   __var="NETWORK"
   __get_value_from_env "${__var}" "${__env_file}" "NETWORK"
+  __var="EL_MINIMAL_NODE"
+  __get_value_from_env "${__var}" "${__env_file}" "__minimal_node"
 
   if [ "${NETWORK}" = "mainnet" ] || [ "${NETWORK}" = "gnosis" ]; then
     __min_free=314572800
@@ -766,17 +768,25 @@ Full\". Free space:"
     echo "You are running Besu and have less than 50 GiB of free disk space."
     echo
     echo "If this is a long-running Besu, you may prune trie-logs with \"$__me prune-besu\"."
-    __display_docker_volumes
     echo
+    __display_docker_dir
+    __display_docker_volumes
   elif [[ "${__free_space}" -lt 52428800 ]]; then
     echo
     echo "You have less than 50 GiB of free disk space:"
     echo
     __display_docker_dir
-    echo
-    echo "Pruning does not appear an option for your client mix."
-    echo "If total space is less than 1.8 TiB, consider cloning to a larger drive."
     __display_docker_volumes
+  fi
+
+  if [ "${NETWORK}" = "mainnet" ]; then
+#shellcheck disable=SC2154
+    if [[ "${__minimal_node}" =~ (true|aggressive|rolling) ]]; then
+      echo "You are already configured to expire execution layer history."
+    else
+      echo "You are not configured to expire execution layer history. You can free space with \"$__me prune-history\"."
+      echo "If this is an RPC node that needs history, do not run that command."
+    fi
   fi
 }
 
