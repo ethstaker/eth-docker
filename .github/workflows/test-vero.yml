@@ -36,16 +36,5 @@ jobs:
           WEB3SIGNER=true
           var=WEB3SIGNER
           set_value_in_env
-      - name: Start the stack
-        run: ./ethd up
-      - name: Wait 5m
-        run: sleep 300
-      - name: Test CL
-        run: ./.github/check-service.sh consensus
-        shell: bash
-      - name: Test EL
-        run: ./.github/check-service.sh execution
-        shell: bash
-      - name: Test VC
-        run: ./.github/check-service.sh validator
-        shell: bash
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
