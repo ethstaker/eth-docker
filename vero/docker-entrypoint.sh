@@ -98,31 +98,6 @@ fi
 # Uppercase log level
 __log_level="--log-level ${LOG_LEVEL^^}"
 
-__nodes=$(echo "$CL_NODE" | tr ',' ' ')
-__cl_up=0
-__count=0
-while [ "${__count}" -lt 36 ]; do
-  for __node in $__nodes; do
-    if curl -s -m 5 "${__node}" &> /dev/null; then
-      echo "Consensus Layer client ${__node} is up, starting Vero"
-      __cl_up=1
-      break
-    else
-      echo "Consensus Layer client ${__node} is not yet up."
-    fi
-  done
-  if [[ "${__cl_up}" -eq 1 ]]; then
-    break
-  fi
-  echo "Waiting for Consensus Layer client to be reachable..."
-  sleep 5
-  (( ++__count ))
-done
-if [ "${__cl_up}" -eq 0 ]; then
-  echo "Consensus Layer client(s) ${CL_NODE} remained unreachable for 3 minutes. Please check its/their logs."
-  exit 1
-fi
-
 if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
