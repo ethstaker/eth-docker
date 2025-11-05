@@ -3606,7 +3606,6 @@ __query_execution_client() {
 # This gets used, but shellcheck doesn't recognize that
 # shellcheck disable=SC2034
     EL_NODE="http://execution:8551"
-    echo "Please remember to set your EL_WS_PORT to match EL_RPC_PORT for Erigon"
     return 0
   fi
 
@@ -3660,9 +3659,6 @@ __query_execution_client() {
 # This gets used, but shellcheck doesn't recognize that
 # shellcheck disable=SC2034
     EL_NODE="http://execution:8551"
-    if [ "${EXECUTION_CLIENT}" = "erigon.yml" ]; then
-        echo "Please remember to set your EL_WS_PORT to match EL_RPC_PORT for Erigon"
-    fi
   fi
 }
 

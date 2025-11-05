@@ -87,6 +87,8 @@ services:
       - --http.vhosts=*
       - --http.corsdomain=*
       - --ws
+      - --ws.port
+      - ${EL_WS_PORT}
       # Allow RocketPool >=1.9 watchtower queries
       - --rpc.returndata.limit
       - "1000000"
