@@ -60,7 +60,6 @@ FROM chef AS planner
 
 COPY --from=source /ethrex/benches ./benches
 COPY --from=source /ethrex/crates ./crates
-COPY --from=source /ethrex/tooling ./tooling
 COPY --from=source /ethrex/metrics ./metrics
 COPY --from=source /ethrex/cmd ./cmd
 COPY --from=source /ethrex/Cargo.* .
@@ -85,7 +84,6 @@ COPY --from=source /ethrex/benches ./benches
 COPY --from=source /ethrex/crates ./crates
 COPY --from=source /ethrex/cmd ./cmd
 COPY --from=source /ethrex/metrics ./metrics
-COPY --from=source /ethrex/tooling ./tooling
 COPY --from=source /ethrex/fixtures ./fixtures
 COPY --from=source /ethrex/Cargo.* ./
 COPY --from=source /ethrex/.git ./.git
