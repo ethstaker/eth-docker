@@ -61,11 +61,11 @@ else
   case ${NETWORK} in
     mainnet|sepolia )
       echo "Ethrex does not support full sync on ${NETWORK}. Running an expired node with snap sync"
-      __sync"--syncmode snap"
+      __sync="--syncmode snap"
       ;;
     *)
       echo "There is no pre-merge history for ${NETWORK} network, running a full sync as requested"
-      __sync"--syncmode full"
+      __sync="--syncmode full"
       ;;
   esac
 fi
