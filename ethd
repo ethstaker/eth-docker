@@ -97,13 +97,17 @@ __handle_docker() {
   set -e
 
   __docker_version=$(docker --version | awk '{ gsub(/,/, "", $3); print $3 }')
-  __docker_major_version=$(docker --version | awk '{ split($3, version, "."); print version[1]; }')
+  __docker_major_version=$(echo "$__docker_version" | awk '{ split($1, version, "."); print version[1]; }')
+  __docker_minor_version=$(echo "$__docker_version" | awk '{ split($1, version, "."); print version[2]; }')
+  __docker_patch_version=$(echo "$__docker_version" | awk '{ split($1, version, "."); print version[3]; }')
+
   if [ "${__docker_major_version}" -lt 23 ]; then
     __old_docker=1
     echo "Docker ${__docker_version} detected"
   else
     __old_docker=0
   fi
+
   __docker_sudo=""
   if ! docker images >/dev/null 2>&1; then
     if [ "$__cannot_sudo" -eq 1 ]; then
@@ -152,6 +156,45 @@ __handle_root() {
 }
 
 
+__upgrade_docker() {
+  if [ -n "${ETHDSECUNDO-}" ]  || [ ! "${__command}" = "update" ]; then  # Don't run this twice
+    if (( __docker_major_version < 28 )) ||
+       (( __docker_major_version == 28 && __docker_minor_version < 5 )) ||
+       (( __docker_major_version == 28 && __docker_minor_version == 5 && __docker_patch_version < 2 )); then
+      echo "Docker ${__docker_version} detected"
+
+      if [[ "$__distro" =~ (ubuntu|debian) ]]; then
+        if dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
+          echo "This version of Docker may have a vulnerable runc package/binary, but $__project_name does not know how to update docker.io's runc."
+        elif dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
+          echo "This version of Docker has a vulnerable runc binary."
+          __nag_os_version
+          if [ "${__eol_os}" -eq 1 ]; then
+            echo "${__project_name} cannot update Docker-CE on ${__distro} ${__os_major_version}."
+            return
+          fi
+          echo "It is recommended that you update Docker-CE"
+          if [ "${__non_interactive:-0}" -eq 0 ]; then
+            while true; do
+              read -rp "Do you want to update Docker-CE? (yes/no) " __yn
+              case $__yn in
+                [Nn]* ) echo "Please be sure to update Docker CE yourself!"; return;;
+                * )
+                  ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install --only-upgrade docker-ce containerd.io
+                  break
+                  ;;
+              esac
+            done
+          fi
+        fi
+      else
+        echo "This version of Docker may have a vulnerable runc package/binary, but $__project_name cannot update it on $__distro"
+      fi
+    fi
+  fi
+}
+
+
 __upgrade_compose() {
   if ! type -P docker-compose >/dev/null 2>&1; then
     echo "Docker Compose has already been updated to V2"
@@ -170,9 +213,9 @@ __upgrade_compose() {
     __old_compose=0
     __compose_upgraded=1
     if dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
-        ${__auto_sudo} apt-mark manual docker.io
+      ${__auto_sudo} apt-mark manual docker.io
     elif dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
-        ${__auto_sudo} apt-mark manual docker-ce
+      ${__auto_sudo} apt-mark manual docker-ce
     fi
     ${__auto_sudo} apt-get remove -y docker-compose
     echo "Removed docker-compose"
@@ -1830,6 +1873,7 @@ reset to defaults."
 
   __nag_os_version
   __nag_os_update
+  __upgrade_docker
 
   unset ETHDSECUNDO
   unset GITEXITCODE
