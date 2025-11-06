@@ -91,11 +91,11 @@ if [ "${MEV_BOOST}" = "true" ]; then
       ;;
     [1-9]|[1-9][0-9])
       __local_factor=$((100 - __build_factor))
-      __mev_factor="--local-block-value-boost ${__local_factor}"
+      __mev_factor="--local-block-value-boost=${__local_factor}"
       echo "Enabled MEV local block value boost of ${__local_factor}"
       ;;
     100)
-      __mev_factor="--local-block-value-boost 0"
+      __mev_factor="--local-block-value-boost=0"
       echo "Do not boost local blocks, build factor 100"
       echo "This may still build a local block, if it pays more than a builder block"
       ;;
