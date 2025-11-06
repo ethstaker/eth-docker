@@ -4859,6 +4859,10 @@ version() {
       __docompose exec mev-boost /app/mev-boost -version
       echo
       ;;&
+    *commit-boost-pbs.yml* )
+      __docompose exec cb-pbs commit-boost-pbs --version
+      echo
+      ;;&
     *grafana.yml* )
       __docompose exec prometheus /bin/prometheus --version
       echo
