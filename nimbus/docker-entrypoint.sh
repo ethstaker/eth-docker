@@ -81,37 +81,33 @@ fi
 if [ "${MEV_BOOST}" = "true" ]; then
   __mev_boost="--payload-builder=true --payload-builder-url=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
-  if [ "${EMBEDDED_VC}" = "true" ]; then
-    __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
-    case "${__build_factor}" in
-      0)
-        __mev_boost=""
-        __mev_factor=""
-        echo "Disabled MEV Boost because MEV_BUILD_FACTOR is 0."
-        echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
-        ;;
-      [1-9]|[1-9][0-9])
-        __local_factor=$((100 - __build_factor))
-        __mev_factor="--local-block-value-boost ${__local_factor}"
-        echo "Enabled MEV local block value boost of ${__local_factor}"
-        ;;
-      100)
-        __mev_factor="--local-block-value-boost 0"
-        echo "Do not boost local blocks, build factor 100"
-        echo "This may still build a local block, if it pays more than a builder block"
-        ;;
-      "")
-        __mev_factor=""
-        echo "Use default --local-block-value-boost"
-        ;;
-      *)
-        __mev_factor=""
-        echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
-        ;;
-    esac
-  else
-    __mev_factor=""
-  fi
+  __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+  case "${__build_factor}" in
+    0)
+      __mev_boost=""
+      __mev_factor=""
+      echo "Disabled MEV Boost because MEV_BUILD_FACTOR is 0."
+      echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
+      ;;
+    [1-9]|[1-9][0-9])
+      __local_factor=$((100 - __build_factor))
+      __mev_factor="--local-block-value-boost ${__local_factor}"
+      echo "Enabled MEV local block value boost of ${__local_factor}"
+      ;;
+    100)
+      __mev_factor="--local-block-value-boost 0"
+      echo "Do not boost local blocks, build factor 100"
+      echo "This may still build a local block, if it pays more than a builder block"
+      ;;
+    "")
+      __mev_factor=""
+      echo "Use default --local-block-value-boost"
+      ;;
+    *)
+      __mev_factor=""
+      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
+      ;;
+  esac
 else
   __mev_boost=""
   __mev_factor=""
