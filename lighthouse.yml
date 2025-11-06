@@ -73,7 +73,7 @@ services:
       - --quic-port
       - ${CL_QUIC_PORT:-9001}
       - --target-peers
-      - ${CL_MAX_PEER_COUNT:-100}
+      - ${CL_MAX_PEER_COUNT:-200}
       - --execution-endpoint
       - ${EL_NODE}
       - --execution-jwt
