@@ -55,8 +55,8 @@ services:
       - ${EL_P2P_PORT:-30303}
       - --Network.P2PPort
       - ${EL_P2P_PORT:-30303}
-      - --Network.MaxActivePeers
-      - ${EL_MAX_PEER_COUNT:-50}
+      - ${EL_MAX_PEER_COUNT:+--Network.MaxActivePeers}
+      - ${EL_MAX_PEER_COUNT:+${EL_MAX_PEER_COUNT}}
       - --HealthChecks.Enabled
       - "true"
       - --HealthChecks.UIEnabled

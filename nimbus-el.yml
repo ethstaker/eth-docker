@@ -62,7 +62,7 @@ services:
       - --engine-api-port=${EE_PORT:-8551}
       - --engine-api-address=0.0.0.0
       - --engine-api-ws
-      - --max-peers=${EL_MAX_PEER_COUNT:-25}
+      - ${EL_MAX_PEER_COUNT:+--max-peers=${EL_MAX_PEER_COUNT}}
       - --log-level=${LOG_LEVEL}
     labels:
       - metrics.scrape=true

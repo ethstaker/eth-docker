@@ -68,7 +68,7 @@ services:
       - --status-bar=false
       - --tcp-port=${CL_P2P_PORT:-9000}
       - --udp-port=${CL_P2P_PORT:-9000}
-      - --max-peers=${CL_MAX_PEER_COUNT:-160}
+      - ${CL_MAX_PEER_COUNT:+--max-peers=${CL_MAX_PEER_COUNT}}
       - --el=${EL_NODE}
       - --jwt-secret=/var/lib/nimbus/ee-secret/jwtsecret
       - --rest

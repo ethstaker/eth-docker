@@ -1,21 +1,35 @@
 name: "Test Client Stack"
 description: "A custom action to test CL, VC and EL"
 
+inputs:
+  test_cl:
+    type: string
+    default: "true"
+  test_vc:
+    type: string
+    default: "true"
+  test_el:
+    type: string
+    default: "true"
+
 runs:
   using: "composite"
   steps:
     - name: Start client combo
       run: ./ethd up
       shell: bash
-    - name: Pause for 30 seconds
-      run: sleep 30
+    - name: Pause for 15 seconds
+      run: sleep 15
       shell: bash
     - name: Test CL
+      if: ${{ inputs.test_cl == 'true' }}
       run: ./.github/check-service.sh consensus
       shell: bash
     - name: Test VC
+      if: ${{ inputs.test_vc == 'true' }}
       run: ./.github/check-service.sh validator
       shell: bash
     - name: Test EL
+      if: ${{ inputs.test_el == 'true' }}
       run: ./.github/check-service.sh execution
       shell: bash

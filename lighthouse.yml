@@ -72,8 +72,8 @@ services:
       - ${CL_P2P_PORT:-9000}
       - --quic-port
       - ${CL_QUIC_PORT:-9001}
-      - --target-peers
-      - ${CL_MAX_PEER_COUNT:-200}
+      - ${CL_MAX_PEER_COUNT:+--target-peers}
+      - ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}
       - --execution-endpoint
       - ${EL_NODE}
       - --execution-jwt

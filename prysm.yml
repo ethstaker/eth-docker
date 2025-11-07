@@ -78,8 +78,8 @@ services:
       - ${PRYSM_UDP_PORT}
       - --p2p-quic-port
       - ${CL_QUIC_PORT}
-      - --p2p-max-peers
-      - ${CL_MAX_PEER_COUNT:-70}
+      - ${CL_MAX_PEER_COUNT:+--p2p-max-peers}
+      - ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}
       - --verbosity
       - ${LOG_LEVEL}
       - --accept-terms-of-use

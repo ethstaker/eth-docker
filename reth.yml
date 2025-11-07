@@ -85,8 +85,8 @@ services:
       - ${EE_PORT:-8551}
       - --authrpc.jwtsecret
       - /var/lib/reth/ee-secret/jwtsecret
-      - --max-outbound-peers
-      - ${EL_MAX_PEER_COUNT:-100}
+      - ${EL_MAX_PEER_COUNT:+--max-outbound-peers}
+      - ${EL_MAX_PEER_COUNT:+${EL_MAX_PEER_COUNT}}
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics

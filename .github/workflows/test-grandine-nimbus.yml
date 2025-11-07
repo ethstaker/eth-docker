@@ -11,7 +11,7 @@ on:
     branches: [main]
 
 jobs:
-  test-grandine-nimbus:
+  test-client-combo:
     if: |
       contains(github.event.pull_request.labels.*.name, 'test-grandine') ||
       contains(github.event.pull_request.labels.*.name, 'test-nimbus-el') ||
@@ -28,22 +28,13 @@ jobs:
           COMPOSE_FILE=grandine-allin1.yml:nimbus-el.yml:mev-boost.yml
           var=COMPOSE_FILE
           set_value_in_env
-          MEV_BOOST=true
-          var=MEV_BOOST
-          set_value_in_env
           FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
           var=FEE_RECIPIENT
           set_value_in_env
-      - name: Start Grandine/Nimbus EL
-        run: ./ethd up
-      - name: Pause for 30 seconds
-        run: sleep 30
-      - name: Test Nimbus EL
-        run: ./.github/check-service.sh execution
-      - name: Test Grandine CL
-        run: ./.github/check-service.sh consensus
-      # - name: Test Grandine VC
-      #   run: ./.github/check-service.sh validator
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
+        with:
+          test_vc: false
       - name: Set Grandine/Nimbus EL w/ Lighthouse VC
         run: |
           source ./.github/helper.sh
@@ -52,3 +43,15 @@ jobs:
           set_value_in_env
       - name: Test the stack
         uses: ./.github/actions/test_client_stack
+      - name: Upload .env file
+        uses: actions/upload-artifact@v5
+        with:
+          name: env-file
+          path: .env
+          include-hidden-files: true
+          overwrite: true
+
+  test-env-variations:
+    uses: ./.github/workflows/test-env-variations.yml
+    needs: test-client-combo
+    if: ${{ needs.test-client-combo.result == 'success' }}

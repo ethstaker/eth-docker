@@ -62,8 +62,8 @@ services:
       - 0.0.0.0
       - --rpc-ws-port
       - ${EL_WS_PORT:-8546}
-      - --max-peers
-      - ${EL_MAX_PEER_COUNT:-25}
+      - ${EL_MAX_PEER_COUNT:+--max-peers}
+      - ${EL_MAX_PEER_COUNT:+${EL_MAX_PEER_COUNT}}
       - --host-allowlist=*
       - --engine-host-allowlist=*
       - --engine-jwt-secret=/var/lib/besu/ee-secret/jwtsecret

@@ -73,8 +73,8 @@ services:
       - /var/lib/teku/ee-secret/jwtsecret
       - --eth1-deposit-contract-max-request-size=1000
       - --p2p-port=${CL_P2P_PORT:-9000}
-      - --p2p-peer-upper-bound=${CL_MAX_PEER_COUNT:-100}
-      - --p2p-peer-lower-bound=${CL_MIN_PEER_COUNT:-64}
+      - ${CL_MAX_PEER_COUNT:+--p2p-peer-upper-bound=${CL_MAX_PEER_COUNT}}
+      - ${CL_MIN_PEER_COUNT:+--p2p-peer-lower-bound=${CL_MIN_PEER_COUNT}}
       - --validator-keys=/var/lib/teku/validator-keys:/var/lib/teku/validator-passwords
       - --logging=${LOG_LEVEL}
       - --rest-api-host-allowlist=*

@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "$(id -u)" -eq 0 ]]; then
+  chown -R user:user /var/lib/nimbus
+  exec gosu user docker-entrypoint.sh "$@"
+fi
+
+
+# Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
+__strip_empty_args() {
+  local __arg
+  __args=()
+  for __arg in "$@"; do
+    if [[ -n "$__arg" ]]; then
+      __args+=("$__arg")
+    fi
+  done
+}
+
+
 __download_era_files() {
 # Copyright (c) 2025 Status Research & Development GmbH. Licensed under
 # either of:
@@ -80,11 +98,6 @@ __download_era_files() {
   echo "✅ All files downloaded to: $DOWNLOAD_DIR"
 }
 
-
-if [ "$(id -u)" = '0' ]; then
-  chown -R user:user /var/lib/nimbus
-  exec gosu user docker-entrypoint.sh "$@"
-fi
 
 if [ -n "${JWT_SECRET}" ]; then
   echo -n "${JWT_SECRET}" > /var/lib/nimbus/ee-secret/jwtsecret
@@ -177,6 +190,9 @@ if [[ ! -d /var/lib/nimbus/nimbus && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fr
     rm -rf /var/lib/nimbus/era1
   fi
 fi
+
+__strip_empty_args "$@"
+set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086

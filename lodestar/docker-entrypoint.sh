@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
 
-if [ "$(id -u)" = '0' ]; then
+if [[ "$(id -u)" -eq 0 ]]; then
   chown -R lsconsensus:lsconsensus /var/lib/lodestar
   exec gosu lsconsensus docker-entrypoint.sh "$@"
 fi
+
+
+# Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
+__strip_empty_args() {
+  local __arg
+  __args=()
+  for __arg in "$@"; do
+    if [[ -n "$__arg" ]]; then
+      __args+=("$__arg")
+    fi
+  done
+}
+
 
 # Remove old low-entropy token, related to Sigma Prime security audit
 # This detection isn't perfect - a user could recreate the token without ./ethd update
@@ -106,6 +119,9 @@ if [ "${IPV6}" = "true" ]; then
 else
   __ipv6="--listenAddress 0.0.0.0"
 fi
+
+__strip_empty_args "$@"
+set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086

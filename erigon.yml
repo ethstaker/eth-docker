@@ -99,8 +99,8 @@ services:
       - --authrpc.vhosts=*
       - --authrpc.jwtsecret
       - /var/lib/erigon/ee-secret/jwtsecret
-      - --maxpeers
-      - ${EL_MAX_PEER_COUNT:-100}
+      - ${EL_MAX_PEER_COUNT:+--maxpeers}
+      - ${EL_MAX_PEER_COUNT:+${EL_MAX_PEER_COUNT}}
     labels:
       - metrics.scrape=true
       - metrics.path=/debug/metrics/prometheus

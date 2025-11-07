@@ -1,0 +1,92 @@
+on:
+  workflow_call:
+    inputs:
+      test_cl:
+        type: string
+        default: "true"
+      test_vc:
+        type: string
+        default: "true"
+      test_el:
+        type: string
+        default: "true"
+
+jobs:
+  test-env-variations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Fetch .env file
+        uses: actions/download-artifact@v6
+        with:
+          name: env-file
+          path: .
+      - name: Set MEV Boost
+        run: |
+          source ./.github/helper.sh
+          MEV_BOOST=true
+          var=MEV_BOOST
+          set_value_in_env
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
+        with:
+          test_cl: ${{ inputs.test_cl }}
+          test_vc: ${{ inputs.test_vc }}
+          test_el: ${{ inputs.test_el }}
+      - name: Set MEV Factor 90
+        run: |
+          source ./.github/helper.sh
+          MEV_BUILD_FACTOR=90
+          var=MEV_BUILD_FACTOR
+          set_value_in_env
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
+        with:
+          test_cl: ${{ inputs.test_cl }}
+          test_vc: ${{ inputs.test_vc }}
+          test_el: ${{ inputs.test_el }}
+      - name: Set MEV Factor 100
+        run: |
+          source ./.github/helper.sh
+          MEV_BUILD_FACTOR=100
+          var=MEV_BUILD_FACTOR
+          set_value_in_env
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
+        with:
+          test_cl: ${{ inputs.test_cl }}
+          test_vc: ${{ inputs.test_vc }}
+          test_el: ${{ inputs.test_el }}
+      - name: Set MEV Factor 0
+        run: |
+          source ./.github/helper.sh
+          MEV_BUILD_FACTOR=0
+          var=MEV_BUILD_FACTOR
+          set_value_in_env
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
+        with:
+          test_cl: ${{ inputs.test_cl }}
+          test_vc: ${{ inputs.test_vc }}
+          test_el: ${{ inputs.test_el }}
+      - name: Set CL and EL MAX and MIN peers
+        run: |
+          source ./.github/helper.sh
+          CL_MAX_PEER_COUNT=100
+          var=CL_MAX_PEER_COUNT
+          set_value_in_env
+          CL_MIN_PEER_COUNT=20
+          var=CL_MIN_PEER_COUNT
+          set_value_in_env
+          EL_MAX_PEER_COUNT=10
+          var=EL_MAX_PEER_COUNT
+          set_value_in_env
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
+        with:
+          test_cl: ${{ inputs.test_cl }}
+          test_vc: ${{ inputs.test_vc }}
+          test_el: ${{ inputs.test_el }}

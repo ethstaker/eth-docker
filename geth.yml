@@ -75,8 +75,8 @@ services:
       - --authrpc.port
       - ${EE_PORT:-8551}
       - --authrpc.vhosts=*
-      - --maxpeers
-      - ${EL_MAX_PEER_COUNT:-50}
+      - ${EL_MAX_PEER_COUNT:+--maxpeers}
+      - ${EL_MAX_PEER_COUNT:+${EL_MAX_PEER_COUNT}}
     labels:
       - metrics.scrape=true
       - metrics.path=/debug/metrics/prometheus

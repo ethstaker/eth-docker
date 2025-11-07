@@ -11,7 +11,7 @@ on:
     branches: [main]
 
 jobs:
-  test-teku-besu:
+  test-client-combo:
     if: |
       contains(github.event.pull_request.labels.*.name, 'test-teku') ||
       contains(github.event.pull_request.labels.*.name, 'test-besu') ||
@@ -31,9 +31,6 @@ jobs:
           COMPOSE_FILE=teku.yml:besu.yml:mev-boost.yml
           var=COMPOSE_FILE
           set_value_in_env
-          MEV_BOOST=true
-          var=MEV_BOOST
-          set_value_in_env
           FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
           var=FEE_RECIPIENT
           set_value_in_env
@@ -47,3 +44,15 @@ jobs:
           set_value_in_env
       - name: Test the stack
         uses: ./.github/actions/test_client_stack
+      - name: Upload .env file
+        uses: actions/upload-artifact@v5
+        with:
+          name: env-file
+          path: .env
+          include-hidden-files: true
+          overwrite: true
+
+  test-env-variations:
+    uses: ./.github/workflows/test-env-variations.yml
+    needs: test-client-combo
+    if: ${{ needs.test-client-combo.result == 'success' }}

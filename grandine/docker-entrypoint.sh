@@ -1,10 +1,23 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [ "$(id -u)" = '0' ]; then
+if [[ "$(id -u)" -eq 0 ]]; then
   chown -R gdconsensus:gdconsensus /var/lib/grandine
   exec gosu gdconsensus docker-entrypoint.sh "$@"
 fi
+
+
+# Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
+__strip_empty_args() {
+  local __arg
+  __args=()
+  for __arg in "$@"; do
+    if [[ -n "$__arg" ]]; then
+      __args+=("$__arg")
+    fi
+  done
+}
+
 
 __normalize_int() {
     local v=$1
@@ -159,6 +172,9 @@ if [[ "${EMBEDDED_VC}" = "true" && "${WEB3SIGNER}" = "true" ]]; then
 else
   __w3s_url=""
 fi
+
+__strip_empty_args "$@"
+set -- "${__args[@]}"
 
 if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
 # Word splitting is desired for the command line parameters

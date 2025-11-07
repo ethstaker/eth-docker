@@ -1,10 +1,23 @@
 #!/bin/bash
 set -Eeuo pipefail
 
-if [ "$(id -u)" = '0' ]; then
+if [[ "$(id -u)" -eq 0 ]]; then
   chown -R besu:besu /var/lib/besu
   exec gosu besu "${BASH_SOURCE[0]}" "$@"
 fi
+
+
+# Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
+__strip_empty_args() {
+  local __arg
+  __args=()
+  for __arg in "$@"; do
+    if [[ -n "$__arg" ]]; then
+      __args+=("$__arg")
+    fi
+  done
+}
+
 
 if [ -n "${JWT_SECRET}" ]; then
   echo -n "${JWT_SECRET}" > /var/lib/besu/ee-secret/jwtsecret
@@ -97,6 +110,9 @@ if [ "${IPV6:-false}" = "true" ]; then
 else
   __ipv6=""
 fi
+
+__strip_empty_args "$@"
+set -- "${__args[@]}"
 
 if [ -f /var/lib/besu/prune-history-marker ]; then
   rm -f /var/lib/besu/prune-history-marker

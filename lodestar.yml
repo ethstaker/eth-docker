@@ -76,8 +76,8 @@ services:
       - ${EL_NODE}
       - --jwtSecret
       - /var/lib/lodestar/consensus/ee-secret/jwtsecret
-      - --targetPeers
-      - ${CL_MAX_PEER_COUNT:-200}
+      - ${CL_MAX_PEER_COUNT:+--targetPeers}
+      - ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}
       - --logLevel
       - ${LOG_LEVEL}
       - --suggestedFeeRecipient
