@@ -1,0 +1,198 @@
+name: Test Client Combination
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+jobs:
+  test-client-combo:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        combo:
+          - label1: test-vero
+            label2: na
+            env: |-
+              COMPOSE_FILE=nimbus-cl-only.yml:vero-vc-only.yml:nethermind.yml:web3signer.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+              WEB3SIGNER=true
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-caplin
+            label2: na
+            env: |-
+              COMPOSE_FILE=caplin.yml:erigon.yml:lodestar-vc-only.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+              CL_NODE=http://execution:5052
+              EL_EXTRAS=--torrent.download.rate 1mb
+            test_cl: false
+            test_el: true
+            test_vc: true
+          - label1: test-grandine
+            label2: test-nimbus-el
+            env: |-
+              COMPOSE_FILE=grandine-allin1.yml:nimbus-el.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: false
+          - label1: test-grandine
+            label2: na
+            env: |-
+              COMPOSE_FILE=grandine-cl-only.yml:lighthouse-vc-only.yml:nimbus-el.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-ethrex
+            label2: na
+            env: |-
+              COMPOSE_FILE=lighthouse.yml:ethrex.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-lighthouse
+            label2: test-reth
+            env: |-
+              COMPOSE_FILE=lighthouse.yml:reth.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-lighthouse
+            label2: na
+            env: |-
+              COMPOSE_FILE=lighthouse-cl-only.yml:lighthouse-vc-only.yml:reth.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-lodestar
+            label2: test-erigon
+            env: |-
+              COMPOSE_FILE=lodestar.yml:erigon.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-lodestar
+            label2: na
+            env: |-
+              COMPOSE_FILE=lodestar-cl-only.yml:lodestar-vc-only.yml:erigon.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-nimbus
+            label2: test-nethermind
+            env: |-
+              COMPOSE_FILE=nimbus.yml:nethermind.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-nimbus
+            label2: na
+            env: |-
+              COMPOSE_FILE=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-prysm
+            label2: test-geth
+            env: |-
+              COMPOSE_FILE=prysm.yml:geth.yml:mev-boost.yml
+              CL_NODE=consensus:4000
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-prysm
+            label2: na
+            env: |-
+              COMPOSE_FILE=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml:mev-boost.yml
+              CL_NODE=consensus:4000
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-teku
+            label2: test-besu
+            env: |-
+              COMPOSE_FILE=teku.yml:besu.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - label1: test-teku
+            label2: na
+            env: |-
+              COMPOSE_FILE=teku-cl-only.yml:teku-vc-only.yml:besu.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+        env-var:
+          - MEV_BOOST=false
+          - "MEV_BOOST=true MEV_BUILD_FACTOR="
+          - "MEV_BOOST=true MEV_BUILD_FACTOR=90"
+          - "MEV_BOOST=true MEV_BUILD_FACTOR=100"
+          - "MEV_BOOST=true MEV_BUILD_FACTOR=0"
+          - "CL_MAX_PEER_COUNT=100 CL_MIN_PEER_COUNT=20 EL_MAX_PEER_COUNT=10"
+          - IPV6=true
+          - IPV6=false
+          - EL_MINIMAL_NODE=false
+          - CHECKPOINT_SYNC_URL=
+    steps:
+      - name: Check PR labels
+        id: label-check
+        run: |
+          labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | paste -sd " " -)
+          if [[ "${GITHUB_EVENT_NAME}" == "push" \
+                || "$labels" =~ (${{ matrix.combo.label1 }}|${{ matrix.combo.label2 }}|test-all) ]]; then
+            echo "run_job=true" >> $GITHUB_OUTPUT
+          else
+            echo "Skipping job"
+            echo "run_job=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Checkout
+        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        uses: actions/checkout@v5
+      - name: Set up Docker buildx
+        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        uses: docker/setup-buildx-action@v3
+      - name: Create .env file
+        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        run: cp default.env .env
+      - name: Set env variables
+        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        run: |
+          source ./.github/helper.sh
+          while IFS= read -r varpair; do
+            IFS='=' read var val <<< "$varpair"
+            export "$var=$val"
+            var=$var
+            set_value_in_env
+          done <<< "${{ matrix.combo.env }}"
+          for varpair in ${{ matrix.env-var }}; do
+            IFS="=" read var val <<< "$varpair"
+            export "$var=$val"
+            var=$var
+            set_value_in_env
+          done
+      - name: Test the stack
+        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        uses: ./.github/actions/test_client_stack
+        with:
+          test_cl: ${{ matrix.combo.test_cl }}
+          test_el: ${{ matrix.combo.test_el }}
+          test_vc: ${{ matrix.combo.test_vc }}
