@@ -76,16 +76,15 @@ if [ "${MEV_BOOST}" = "true" ]; then
       echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
       ;;
     [1-9]|[1-9][0-9])
-      __mev_factor="--builder-bid-compare-factor=${__build_factor}"
-      echo "Enabled MEV Build Factor of ${__build_factor}"
+      __mev_factor=""
+      echo "Teku VC does not support setting a builder boost factor"
       ;;
     100)
-      __mev_factor="--builder-bid-compare-factor=BUILDER_ALWAYS"
-      echo "Always prefer MEV builder blocks, build factor 100"
+      __mev_factor=""
+      echo "Teku VC does not support setting a builder boost factor"
       ;;
     "")
       __mev_factor=""
-      echo "Use default --builder-bid-compare-factor"
       ;;
     *)
       __mev_factor=""

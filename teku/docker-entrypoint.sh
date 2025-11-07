@@ -93,36 +93,32 @@ fi
 if [ "${MEV_BOOST}" = "true" ]; then
   __mev_boost="--builder-endpoint=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
-  if [ "${EMBEDDED_VC}" = "true" ]; then
-    __mev_boost+=" --validators-builder-registration-default-enabled"
-    __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
-    case "${__build_factor}" in
-      0)
-        __mev_boost=""
-        __mev_factor=""
-        echo "Disabled MEV Boost because MEV_BUILD_FACTOR is 0."
-        echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
-        ;;
-      [1-9]|[1-9][0-9])
-        __mev_factor="--builder-bid-compare-factor=${__build_factor}"
-        echo "Enabled MEV Build Factor of ${__build_factor}"
-        ;;
-      100)
-        __mev_factor="--builder-bid-compare-factor=BUILDER_ALWAYS"
-        echo "Always prefer MEV builder blocks, build factor 100"
-        ;;
-      "")
-        __mev_factor=""
-        echo "Use default --builder-bid-compare-factor"
-        ;;
-      *)
-        __mev_factor=""
-        echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
-        ;;
-    esac
-  else
-    __mev_factor=""
-  fi
+  __mev_boost+=" --validators-builder-registration-default-enabled"
+  __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+  case "${__build_factor}" in
+    0)
+      __mev_boost=""
+      __mev_factor=""
+      echo "Disabled MEV Boost because MEV_BUILD_FACTOR is 0."
+      echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
+      ;;
+    [1-9]|[1-9][0-9])
+      __mev_factor="--builder-bid-compare-factor=${__build_factor}"
+      echo "Enabled MEV Build Factor of ${__build_factor}"
+      ;;
+    100)
+      __mev_factor="--builder-bid-compare-factor=BUILDER_ALWAYS"
+      echo "Always prefer MEV builder blocks, build factor 100"
+      ;;
+    "")
+      __mev_factor=""
+      echo "Use default --builder-bid-compare-factor"
+      ;;
+    *)
+      __mev_factor=""
+      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
+      ;;
+  esac
 else
   __mev_boost=""
   __mev_factor=""
