@@ -256,6 +256,12 @@ jobs:
       - name: Build Docker images
         if: ${{ steps.label-check.outputs.run_job == 'true' }}
         run: ./ethd update --non-interactive
+      - name: Debug .env file
+        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        run: |
+          echo "=== .env file contents ==="
+          cat .env
+          echo "=== End of .env ==="
       - name: Save Docker images
         if: ${{ steps.label-check.outputs.run_job == 'true' }}
         run: |
