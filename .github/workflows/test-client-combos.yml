@@ -226,7 +226,7 @@ jobs:
       - name: Check PR labels
         id: label-check
         run: |
-          labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | paste -sd " " -)
+          labels=$(jq -r '.pull_request.labels[]?.name // empty' "$GITHUB_EVENT_PATH" | paste -sd " " -)
           if [[ "${GITHUB_EVENT_NAME}" == "push" \
                 || "$labels" =~ (${{ matrix.combo.label1 }}|${{ matrix.combo.label2 }}|test-all) ]]; then
             echo "run_job=true" >> $GITHUB_OUTPUT
@@ -283,7 +283,7 @@ jobs:
       - name: Check PR labels
         id: label-check
         run: |
-          labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | paste -sd " " -)
+          labels=$(jq -r '.pull_request.labels[]?.name // empty' "$GITHUB_EVENT_PATH" | paste -sd " " -)
           if [[ "${GITHUB_EVENT_NAME}" == "push" \
                 || "$labels" =~ (${{ matrix.combo.label1 }}|${{ matrix.combo.label2 }}|test-all) ]]; then
             echo "run_job=true" >> $GITHUB_OUTPUT
