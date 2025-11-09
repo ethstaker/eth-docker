@@ -247,12 +247,12 @@ jobs:
         if: ${{ steps.label-check.outputs.run_job == 'true' }}
         run: |
           source ./.github/helper.sh
-          while IFS= read -r varpair; do
+          echo '${{ toJSON(matrix.combo.env) }}' | jq -r '.[]' | while IFS= read -r varpair; do
             IFS='=' read var val <<< "$varpair"
             export "$var=$val"
             var=$var
             set_value_in_env
-          done <<< "${{ join(matrix.combo.env, '\n') }}"
+          done
       - name: Build Docker images
         if: ${{ steps.label-check.outputs.run_job == 'true' }}
         run: ./ethd update --non-interactive
@@ -313,12 +313,12 @@ jobs:
         if: ${{ steps.label-check.outputs.run_job == 'true' }}
         run: |
           source ./.github/helper.sh
-          while IFS= read -r varpair; do
+          echo '${{ toJSON(matrix.combo.env) }}' | jq -r '.[]' | while IFS= read -r varpair; do
             IFS='=' read var val <<< "$varpair"
             export "$var=$val"
             var=$var
             set_value_in_env
-          done <<< "${{ join(matrix.combo.env, '\n') }}"
+          done
           for varpair in ${{ matrix.env-var }}; do
             IFS="=" read var val <<< "$varpair"
             export "$var=$val"
