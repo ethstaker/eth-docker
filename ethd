@@ -63,8 +63,10 @@ __determine_distro() {
     fi
     if [[ -n "$(command -v lsb_release 2>/dev/null)" ]]; then
       __os_major_version=$(lsb_release -r | cut -d: -f2 | sed s/'^\t'// | cut -d. -f1)
+      __os_minor_version=$(lsb_release -r | cut -d: -f2 | sed s/'^\t'// | cut -d. -f2)
     else
-      __os_major_version=24 # Without sudo and lsb_release let's just skip the check
+      __os_major_version=24  # Without sudo and lsb_release let's just skip the check
+      __os_minor_version=04
     fi
   elif [[ "$__distro" =~ "debian" ]]; then
     if [[ "$__cannot_sudo" -eq 0 ]]; then
@@ -75,8 +77,10 @@ __determine_distro() {
     fi
     if [[ -n "$(command -v lsb_release 2>/dev/null)" && $(lsb_release -r | cut -f2 2>/dev/null) =~ ^[0-9]+$ ]]; then
       __os_major_version=$(lsb_release -r | cut -f2)
+      __os_minor_version=0
     else
-      __os_major_version=12 # Without sudo and lsb_release let's just skip the check
+      __os_major_version=12  # Without sudo and lsb_release let's just skip the check
+      __os_minor_version=0
     fi
   fi
 }
@@ -103,7 +107,6 @@ __handle_docker() {
 
   if [[ "${__docker_major_version}" -lt 23 ]]; then
     __old_docker=1
-    echo "Docker ${__docker_version} detected"
   else
     __old_docker=0
   fi
@@ -335,24 +338,56 @@ __check_compose_version() {
   else
     __old_compose=1
     __compose_version=$($__docker_sudo docker-compose --version | sed -n -E -e "s/.*version [v]?([0-9.-]*).*/\1/ip")
+    __compose_major=${__compose_version%%.*}
+    __compose_minor=${__compose_version#*.}
+    __compose_minor=${__compose_minor%%.*}
   fi
-  if [[ "${__old_compose}" -eq 1 ]]; then
-    if [[ -n "${ETHDSECUNDO-}" || ! "${__command}" = "update" ]]; then # Don't run this twice
+  if [ "${__old_compose}" -eq 1 ]; then
+    if [[ "${__compose_major}" -eq 1 ]]; then
+      # This runs before the actual update command, in the main section. ethd exits if it can't upgrade, therefore
+      # no check for ${ETHDSECUNDO} or command update, here
       echo
-      if [[ "${__compose_major}" -eq 1 ]]; then
-        echo "You are using docker-compose ${__compose_version}, which is unsupported by Docker, Inc."
-        echo "${__project_name} only supports Compose V2."
-        echo
+      echo "You are using docker-compose ${__compose_version}, which is unsupported by Docker, Inc."
+      echo "${__project_name} only supports Compose V2."
+      echo
+      if [[ "${__distro}" = "ubuntu" ]]; then
         echo "It is recommended that you replace Compose V1 with Compose V2."
-        while true; do
-          read -rp "Do you want to update Docker Compose to V2? (yes/no) " __yn
-          case $__yn in
-            [Nn]* ) echo "Please be sure to update Docker Compose yourself!"; break;;
-             * ) __upgrade_compose; break;;
-          esac
-        done
+        if [[ "${__non_interactive}" -eq 0 ]]; then
+          while true; do
+            read -rp "Do you want to update Docker Compose to V2? (yes/no) " __yn
+            case "${__yn}" in
+              [Nn]* )
+                echo "Please be sure to update Docker Compose yourself!"
+                echo "You can install it with \"sudo apt update && sudo apt install docker-compose-v2\"."
+                echo "You can remove the old docker-compose:"
+                echo "\"sudo apt-mark manual docker.io && sudo apt --autoremove remove docker-compose\""
+                break
+                ;;
+              * ) __upgrade_compose; break;;
+            esac
+          done
+        fi
+      elif [[ "${__distro}" =~ debian ]]; then
+        if dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
+          if [[ "${__os_major_version}" -lt 13 ]]; then
+            echo "Debian ${__os_major_version}'s docker.io does not ship with Compose V2. Please replace docker.io with docker-ce"
+            echo "See https://ethdocker.com/Usage/Prerequisites#switching-from-dockerio-to-docker-ce"
+          else
+            echo "Debian ${__os_major_version} ships with Compose V2."
+            echo "This is very unexpected, and ${__project_name} is not sure what to recommend."
+            echo "Please come to ethstaker Discord: http://discord.gg/ethstaker"
+          fi
+        else
+          echo "You appear to be using Docker CE, which ships with Compose V2."
+          echo "This is very unexpected, and ${__project_name} is not sure what to recommend."
+          echo "Please come to ethstaker Discord: http://discord.gg/ethstaker"
+        fi
       else
-        true  # Nothing now; maybe in future we'll do the update for the user
+        echo "${__project_name} does not know how to update Docker Compose on ${__distro}"
+      fi
+    else  # Old Compose V2
+      if [[ -n "${ETHDSECUNDO-}" || ! "${__command}" = "update" ]]; then  # Don't run this twice
+        true  # Nothing now for old V2; maybe in future we'll do the update for the user
       fi
     fi
   fi
@@ -436,7 +471,7 @@ __check_for_snap() {
     echo "but in a nutshell \"$__me stop\" followed by \"sudo snap remove --purge docker\" followed by a reboot,"
     echo "and as needed install docker-ce or docker.io with apt."
     echo
-    echo "Do join us on EthStaker Discord to work through this issue."
+    echo "Do join us on EthStaker Discord at http://discord.gg/ethstaker to work through this issue."
     echo
     echo "Aborting, this is not safe"
     exit 1
@@ -1146,7 +1181,7 @@ __upgrade_postgres() {
   echo
   echo "Migrating database from PostgreSQL ${__source_pg} to PostgreSQL ${__target_pg}"
   echo "If this step fails, the Web3signer slashing protection database is no longer protecting you."
-  echo "In failure case, do not start Web3signer again, instead seek help on Ethstaker Discord."
+  echo "In failure case, do not start Web3signer again, instead seek help on Ethstaker Discord: http://discord.gg/ethstaker"
   echo
 
   __dodocker pull "pgautoupgrade/pgautoupgrade:${__target_pg}-trixie"
@@ -4175,8 +4210,8 @@ __query_mev_factor() {
     echo "Speedtest failed, skipping MEV Build Factor query"
     return
   fi
-  __down_speed=$(jq -r '.download' <<<"${__speed_json}" | awk '{print int($1 / 1000000)}')
-  __up_speed=$(jq -r '.upload' <<<"${__speed_json}" | awk '{print int($1 / 1000000)}')
+  __down_speed=$(jq -r '.download' <<< "${__speed_json}" | awk '{print int($1 / 1000000)}')
+  __up_speed=$(jq -r '.upload' <<< "${__speed_json}" | awk '{print int($1 / 1000000)}')
   echo "Measured download speed is ${__down_speed} Mbit/s."
   echo
   __final_msg+="\nYour measured upload speed is ${__up_speed} Mbit/s.\nYour measured download speed is ${__down_speed} Mbit/s."
@@ -5136,13 +5171,6 @@ __handle_docker
 __check_compose_version
 
 if [[ "${__old_compose}" -eq 1 && "${__compose_major}" -eq 1 ]]; then
-  echo
-  echo "You are using docker-compose ${__compose_version}, which is unsupported by Docker, Inc."
-  echo "${__project_name} only supports Compose V2."
-  echo
-  echo "You can install it with \"sudo apt update && sudo apt install docker-compose-v2\"."
-  echo "You can remove the old docker-compose:"
-  echo "\"sudo apt-mark manual docker.io && sudo apt --autoremove remove docker-compose\"."
   exit 0
 fi
 
@@ -5150,9 +5178,40 @@ if [[ "${__old_docker}" -eq 1 ]]; then
   echo
   echo "Docker version ${__docker_version} detected. This version is no longer supported."
   echo "Please update to a current version. Supported versions can be seen at https://endoflife.date/docker-engine."
-  echo
-  echo "This should be as simple as \"sudo apt update && sudo apt dist-upgrade\" on Debian/Ubuntu"
-  echo "or updating Docker Desktop on macOS and Windows."
+  if [[ "$__distro" = *"debian"* ]]; then
+    echo
+    if dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
+      if [[ "${__os_major_version}" -lt 13 ]]; then
+        echo "Debian ${__os_major_version}'s docker.io is old. Please replace docker.io with docker-ce"
+        echo "See https://ethdocker.com/Usage/Prerequisites#switching-from-dockerio-to-docker-ce"
+        echo "Alternatively, upgrade to Debian 13 or later."
+      else
+        echo "Debian ${__os_major_version} ships with a newer docker.io."
+        echo "This is very unexpected, and ${__project_name} is not sure what to recommend."
+        echo "Please come to ethstaker Discord: http://discord.gg/ethstaker"
+      fi
+    else
+      echo "This should be as simple as \"sudo apt update && sudo apt dist-upgrade\""
+    fi
+  elif [[ "${__distro}" = "ubuntu" ]]; then
+    echo
+    if dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
+      if [[ "$__os_major_version" -lt 25 ]]; then
+        echo "Ubuntu ${__os_major_version}.${__os_minor_version}'s docker.io is old. Please replace docker.io with docker-ce"
+        echo "See https://ethdocker.com/Usage/Prerequisites#switching-from-dockerio-to-docker-ce"
+        echo "Alternatively, upgrade to Ubuntu 26.04 or later."
+      else
+        echo "Ubuntu ${__os_major_version}.${__os_minor_version} ships with a newer docker.io."
+        echo "This is very unexpected, and ${__project_name} is not sure what to recommend."
+        echo "Please come to ethstaker Discord: http://discord.gg/ethstaker"
+      fi
+    else
+      echo "This should be as simple as \"sudo apt update && sudo apt dist-upgrade\""
+    fi
+  else
+    echo
+    echo "${__project_name} doesn't know what to recommend on ${__distro}, to effect a Docker upgrade."
+  fi
   exit 0
 fi
 
