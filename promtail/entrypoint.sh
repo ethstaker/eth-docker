@@ -3,7 +3,7 @@
 # Start fresh every time
 cp /etc/promtail/global.yml /promtail-config.yml
 
-# Add custom loki urls to config with indentation to make sure its valid yml
+# Add custom loki urls to config with indentation to make sure it's valid yml
 if [ -s "/etc/promtail/custom-lokiurl.yml" ]; then
   echo "/etc/promtail/custom-lokiurl.yml" | xargs sed 's/^/  /' >> /promtail-config.yml
 else

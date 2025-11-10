@@ -8,7 +8,7 @@ FROM ${DOCKER_REPO}:${DOCKER_TAG} AS clsource
 
 FROM debian:trixie-slim AS consensus
 
-#Included here to avoid build-time complaints
+# Included here to avoid build-time complaints
 ARG BUILD_TARGET
 ARG SRC_REPO
 
@@ -29,7 +29,7 @@ RUN set -eux; \
 # verify that the binary works
         gosu nobody true
 
-# See https://stackoverflow.com/a/55757473/12429735RUN
+# See https://stackoverflow.com/a/55757473/12429735
 RUN adduser \
     --disabled-password \
     --gecos "" \
@@ -60,7 +60,7 @@ ARG USER=prysmvalidator
 ARG UID=10000
 USER root
 
-# See https://stackoverflow.com/a/55757473/12429735RUN
+# See https://stackoverflow.com/a/55757473/12429735
 RUN adduser \
     --disabled-password \
     --gecos "" \
