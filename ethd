@@ -161,13 +161,74 @@ __upgrade_docker() {
     if (( __docker_major_version < 28 )) ||
        (( __docker_major_version == 28 && __docker_minor_version < 5 )) ||
        (( __docker_major_version == 28 && __docker_minor_version == 5 && __docker_patch_version < 2 )); then
-      echo "Docker ${__docker_version} detected"
+      __runc_version=$(runc --version | awk '{ gsub(/[-\+~]/, " ", $3); $0=$0; print $3 }')
+      __runc_major_version=$(echo "$__runc_version" | awk '{ split($1, version, "."); print version[1]; }')
+      __runc_minor_version=$(echo "$__runc_version" | awk '{ split($1, version, "."); print version[2]; }')
+      __runc_patch_version=$(echo "$__runc_version" | awk '{ split($1, version, "."); print version[3]; }')
 
       if [[ "$__distro" =~ (ubuntu|debian) ]]; then
         if dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
-          echo "This version of Docker may have a vulnerable runc package/binary, but $__project_name does not know how to update docker.io's runc."
+          if [[ "$__distro" =~ debian ]]; then
+            if [[ "$__os_major_version" -gt 13 ]]; then  # Assume Debian 14 and up are fine
+              return
+            fi
+            __runc_dpkg_version=$(dpkg-query -W -f='${Version}\n' runc)
+            case $__os_major_version in
+# These fixed versions are a guess and have not been released
+              13) __runc_fixed_version="1.1.15+ds1-2+deb13u1";;
+              12) __runc_fixed_version="1.1.5+ds1-1+deb12u2";;  # I don't expect to hit this, because docker.io is old
+              11) __runc_fixed_version="1.0.0~rc93+ds1-5+deb11u6";;  # I don't expect to hit this, because docker.io is old
+              *) echo "Cannot check runc on Debian $__os_major_version. Please update to $__min_debian or later"; return;;
+            esac
+            if dpkg --compare-versions "${__runc_dpkg_version}" lt "${__runc_fixed_version}"; then
+              echo
+              echo "Docker ${__docker_version} with runc ${__runc_version} detected"
+              echo "This version of runc is vulnerable"
+              echo "It is recommended that you update runc"
+# Commented out until fixed versions have actually been released
+#              if [ "${__non_interactive:-0}" -eq 0 ]; then
+#                while true; do
+#                  read -rp "Do you want to update runc (yes/no) " __yn
+#                  case $__yn in
+#                    [Nn]* ) echo "Please be sure to update runc yourself!"; return;;
+#                    * )
+#                      ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install --only-upgrade runc
+#                      break
+#                      ;;
+#                  esac
+#                done
+#              fi
+            fi
+          else  # This is Ubuntu and they fixed it with runc 1.3.3
+            if (( __runc_major_version == 1 &&  __runc_minor_version < 3 )) ||
+               (( __runc_major_version == 1 && __runc_minor_version == 3 && __runc_patch_version < 3 )); then
+              echo
+              echo "Docker ${__docker_version} with runc ${__runc_version} detected"
+              echo "This version of runc is vulnerable"
+              __nag_os_version
+              if [ "${__eol_os}" -eq 1 ]; then
+                echo "${__project_name} cannot update runc on Ubuntu ${__os_major_version}."
+                return
+              fi
+              echo "It is recommended that you update runc"
+              if [ "${__non_interactive:-0}" -eq 0 ]; then
+                while true; do
+                  read -rp "Do you want to update runc (yes/no) " __yn
+                  case $__yn in
+                    [Nn]* ) echo "Please be sure to update runc yourself!"; return;;
+                    * )
+                      ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install --only-upgrade runc
+                      break
+                      ;;
+                  esac
+                done
+              fi
+            fi
+          fi
         elif dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
-          echo "This version of Docker has a vulnerable runc binary."
+          echo
+          echo "Docker ${__docker_version} detected"
+          echo "This version of Docker has a vulnerable runc binary"
           __nag_os_version
           if [ "${__eol_os}" -eq 1 ]; then
             echo "${__project_name} cannot update Docker-CE on ${__distro} ${__os_major_version}."
@@ -188,7 +249,13 @@ __upgrade_docker() {
           fi
         fi
       else
-        echo "This version of Docker may have a vulnerable runc package/binary, but $__project_name cannot update it on $__distro"
+        if (( __runc_major_version == 1 && __runc_minor_version < 2 )) ||
+           (( __runc_major_version == 1 && __runc_minor_version == 2 && __runc_patch_version < 8 )) ||
+           (( __runc_major_version == 1 && __runc_minor_version == 3 && __runc_patch_version < 3 )); then
+          echo
+          echo "Docker ${__docker_version} with runc ${__runc_version} detected"
+          echo "This version of runc may be vulnerable, but $__project_name cannot update it on $__distro"
+        fi
       fi
     fi
   fi
