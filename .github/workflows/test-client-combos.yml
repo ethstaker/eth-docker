@@ -153,28 +153,33 @@ jobs:
           - EL_MINIMAL_NODE=false
           - CHECKPOINT_SYNC_URL=
     steps:
-      - name: Check PR labels
-        id: label-check
-        run: |
-          labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | paste -sd " " -)
-          if [[ "${GITHUB_EVENT_NAME}" == "push" \
-                || "$labels" =~ (${{ matrix.combo.label1 }}|${{ matrix.combo.label2 }}|test-all) ]]; then
-            echo "run_job=true" >> $GITHUB_OUTPUT
-          else
-            echo "Skipping job"
-            echo "run_job=false" >> $GITHUB_OUTPUT
-          fi
       - name: Checkout
-        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        if: >
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
+          contains(github.event.pull_request.labels.*.name, 'test-all') ||
+          github.event_name == 'push'
         uses: actions/checkout@v5
       - name: Set up Docker buildx
-        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        if: >
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
+          contains(github.event.pull_request.labels.*.name, 'test-all') ||
+          github.event_name == 'push'
         uses: docker/setup-buildx-action@v3
       - name: Create .env file
-        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        if: >
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
+          contains(github.event.pull_request.labels.*.name, 'test-all') ||
+          github.event_name == 'push'
         run: cp default.env .env
       - name: Set env variables
-        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        if: >
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
+          contains(github.event.pull_request.labels.*.name, 'test-all') ||
+          github.event_name == 'push'
         run: |
           source ./.github/helper.sh
           while IFS= read -r varpair; do
@@ -190,7 +195,11 @@ jobs:
             set_value_in_env
           done
       - name: Test the stack
-        if: ${{ steps.label-check.outputs.run_job == 'true' }}
+        if: >
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
+          contains(github.event.pull_request.labels.*.name, 'test-all') ||
+          github.event_name == 'push'
         uses: ./.github/actions/test_client_stack
         with:
           test_cl: ${{ matrix.combo.test_cl }}
