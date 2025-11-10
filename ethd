@@ -1647,16 +1647,18 @@ update() {
     set -x
   fi
 
+  if [[ ! "$OSTYPE" = "darwin"* ]]; then
 # Only one copy of update() should run per Eth Docker stack
-  local __script_dir
-  __script_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-  local __uniq_id="${__script_dir//\//_}"
-  local __lock_file="${__uniq_id}_lock"
-  ${__as_owner} touch "/tmp/${__lock_file}"
-  exec 200<"/tmp/${__lock_file}"
-  if ! flock -n 200; then
-      echo "Another instance of \"${__me} update\" is running. Aborting."
-      exit 1
+    local __script_dir
+    __script_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+    local __uniq_id="${__script_dir//\//_}"
+    local __lock_file="${__uniq_id}_lock"
+    ${__as_owner} touch "/tmp/${__lock_file}"
+    exec 200<"/tmp/${__lock_file}"
+    if ! flock -n 200; then
+        echo "Another instance of \"${__me} update\" is running. Aborting."
+        exit 1
+    fi
   fi
 
   __during_update=1
@@ -1892,9 +1894,11 @@ reset to defaults."
     echo "Please make sure to run compatible client versions."
   fi
 
+  if [[ ! "$OSTYPE" = "darwin"* ]]; then
 # Release lock and remove lock file
-  exec 200<&-
-  ${__as_owner} rm -f "/tmp/${__lock_file}"
+    exec 200<&-
+    ${__as_owner} rm -f "/tmp/${__lock_file}"
+  fi
 
   if [[ -n "${STY:-}" || -n "${TMUX:-}" ]]; then
     echo
