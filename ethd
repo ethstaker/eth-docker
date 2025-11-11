@@ -1253,7 +1253,7 @@ __enable_v6() {
   __dodocker network rm ip6net_ethd_test
 
   if [ "${__v6_works}" = "true" ]; then
-    echo "Enabling IPv4/6 dual-stack for your Eth Docker setup"
+    echo "Enabling IPv4/6 dual-stack for your ${__project_name} setup"
     IPV6="true"
     __update_value_in_env "${__var}" "${!__var}" "${__env_file}"
   else
@@ -1473,7 +1473,7 @@ __env_migrate() {
   fi
   if [[ "${__target_ver}" -gt "${__source_ver}" ]]; then
     echo "Migrating ${__env_file} to version ${__target_ver}"
-    echo "Note this is not an Eth Docker version, it is an internal config file version"
+    echo "Note this is not an ${__project_name} version, it is an internal config file version"
   fi
 
   ${__as_owner} cp "${__env_file}" "${__env_file}".source
@@ -1577,7 +1577,7 @@ __env_migrate() {
       if [ "${__non_interactive:-0}" -eq 0 ]; then
         whiptail --msgbox "A fee recipient ETH wallet address is required in order to start the client. This is \
   for priority fees and, optionally, MEV. Please enter a valid ETH address in the next screen. Refer to \
-  Eth Docker docs (https://ethdocker.com/About/Rewards) for more information.\n\nCAUTION: \"$__me up\" will fail if no \
+  ${__project_name} docs (https://ethdocker.com/About/Rewards) for more information.\n\nCAUTION: \"$__me up\" will fail if no \
   valid address is set" 12 75
         __query_coinbase
         __update_value_in_env "${__var}" "${!__var}" "${__env_file}"
@@ -1714,16 +1714,18 @@ update() {
     set -x
   fi
 
+  if [[ ! "$OSTYPE" = "darwin"* ]]; then
 # Only one copy of update() should run per Eth Docker stack
-  local __script_dir
-  __script_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-  local __uniq_id="${__script_dir//\//_}"
-  local __lock_file="${__uniq_id}_lock"
-  ${__as_owner} touch "/tmp/${__lock_file}"
-  exec 200<"/tmp/${__lock_file}"
-  if ! flock -n 200; then
-      echo "Another instance of \"${__me} update\" is running. Aborting."
-      exit 1
+    local __script_dir
+    __script_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+    local __uniq_id="${__script_dir//\//_}"
+    local __lock_file="${__uniq_id}_lock"
+    ${__as_owner} touch "/tmp/${__lock_file}"
+    exec 200<"/tmp/${__lock_file}"
+    if ! flock -n 200; then
+        echo "Another instance of \"${__me} update\" is running. Aborting."
+        exit 1
+    fi
   fi
 
   __during_update=1
@@ -1959,9 +1961,11 @@ reset to defaults."
     echo "Please make sure to run compatible client versions."
   fi
 
+  if [[ ! "$OSTYPE" = "darwin"* ]]; then
 # Release lock and remove lock file
-  exec 200<&-
-  ${__as_owner} rm -f "/tmp/${__lock_file}"
+    exec 200<&-
+    ${__as_owner} rm -f "/tmp/${__lock_file}"
+  fi
 
   if [[ -n "${STY:-}" || -n "${TMUX:-}" ]]; then
     echo
@@ -3508,7 +3512,7 @@ __query_deployment() {
     "rocket" "Validator client only - integrate with RocketPool" \
     "ssv" "SSV node - consensus, execution and ssv-node" 3>&1 1>&2 2>&3)
   else
-    echo "Eth Docker does not recognize this CPU architecture. Aborting."
+    echo "${__project_name} does not recognize this CPU architecture. Aborting."
     echo "Output of uname -m"
     uname -m
     exit 1
@@ -3528,7 +3532,7 @@ __query_deployment() {
       "lido_ssv" "[Simple DVT] SSV node - Consensus, execution and ssv-node" \
       "lido_obol" "[Simple DVT] Obol node - Nodes, validator client and charon node (obol middleware)" 3>&1 1>&2 2>&3)
     else
-      echo "Eth Docker does not support Lido on this CPU architecture. Aborting."
+      echo "${__project_name} does not support Lido on this CPU architecture. Aborting."
       echo "Output of uname -m"
       uname -m
       exit 1
@@ -4695,7 +4699,7 @@ config() {
 (right-click to paste)" 10 60 3>&1 1>&2 2>&3)
     if [ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]; then
       OBOL_CLUSTER_NAME=$(whiptail --title "Obol cluster name" --inputbox "Put your Obol cluster name \
-(right-click to paste)" 10 60 "Eth Docker" 3>&1 1>&2 2>&3)
+(right-click to paste)" 10 60 "${__project_name}" 3>&1 1>&2 2>&3)
       OBOL_CLUSTER_PEER=$(whiptail --title "Obol cluster peer" --inputbox "Put your Obol cluster peer \
 (right-click to paste)" 10 60 "eth-docker" 3>&1 1>&2 2>&3)
     else
@@ -4998,9 +5002,9 @@ version() {
 __update_help() {
   echo "usage: $__me update [--refresh-targets] [--non-interactive]"
   echo
-  echo "Updates Eth Docker itself, as required the contents of \".env\", and the clients."
+  echo "Updates ${__project_name} itself, as required the contents of \".env\", and the clients."
   echo
-  echo "A combination of \"git pull\" for Eth Docker, some bash scripting to bring new variables from \"default.env\","
+  echo "A combination of \"git pull\" for ${__project_name}, some bash scripting to bring new variables from \"default.env\","
   echo "and \"docker compose pull\" as well as \"docker compose build\" for the clients."
   echo
   echo "If warranted, will also offer resync when clients require it, or upgrade of PostgreSQL version."
