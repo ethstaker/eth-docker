@@ -3,7 +3,7 @@
 # without deleting the grafana docker volume
 # Expects a full grafana command with parameters as argument(s)
 
-if [ "$(id -u)" = '0' ]; then
+if [[ "$(id -u)" -eq 0 ]]; then
   chown -R grafana:root /var/lib/grafana
   chown -R grafana:root /etc/grafana
   exec su-exec grafana "$0" "$@"
@@ -130,8 +130,8 @@ case "$CLIENT" in
     wget -t 3 -T 10 -qcO - "${__url}" \
       | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${__file}"
     # uid changed, removing this may undo the damage
-    if [ -f "/etc/grafana/provisioning/dashboards/nethermind_dashboard.json" ]; then
-      rm "/etc/grafana/provisioning/dashboards/nethermind_dashboard.json"
+    if [[ -f /etc/grafana/provisioning/dashboards/nethermind_dashboard.json ]]; then
+      rm /etc/grafana/provisioning/dashboards/nethermind_dashboard.json
     fi
     ;;&
   *ethrex* )

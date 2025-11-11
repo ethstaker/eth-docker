@@ -24,21 +24,21 @@ if [[ -f /var/lib/lodestar/consensus/api-token.txt  && "$(date +%s -r /var/lib/l
     rm /var/lib/lodestar/consensus/api-token.txt
 fi
 
-if [ ! -f /var/lib/lodestar/consensus/api-token.txt ]; then
+if [[ ! -f /var/lib/lodestar/consensus/api-token.txt ]]; then
     __token=api-token-0x$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
     echo "$__token" > /var/lib/lodestar/consensus/api-token.txt
 fi
 
-if [ -n "${JWT_SECRET}" ]; then
+if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/lodestar/consensus/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
 fi
 
-if [[ -O "/var/lib/lodestar/consensus/ee-secret" ]]; then
+if [[ -O /var/lib/lodestar/consensus/ee-secret ]]; then
   # In case someone specifies JWT_SECRET but it's not a distributed setup
   chmod 777 /var/lib/lodestar/consensus/ee-secret
 fi
-if [[ -O "/var/lib/lodestar/consensus/ee-secret/jwtsecret" ]]; then
+if [[ -O /var/lib/lodestar/consensus/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/lodestar/consensus/ee-secret/jwtsecret
 fi
 
@@ -50,7 +50,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
   # For lack of something more sophisticated, let's just fail if git fails to pull this
   set -e
-  if [ ! -d "/var/lib/lodestar/consensus/testnet/${config_dir}" ]; then
+  if [[ ! -d "/var/lib/lodestar/consensus/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/lodestar/consensus/testnet
     cd /var/lib/lodestar/consensus/testnet
     git init --initial-branch="${branch}"
@@ -68,7 +68,7 @@ else
 fi
 
 # Check whether we should use MEV Boost
-if [ "${MEV_BOOST}" = "true" ]; then
+if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--builder --builder.url=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
 else
@@ -76,7 +76,7 @@ else
 fi
 
 # Check whether we should send stats to beaconcha.in
-if [ -n "${BEACON_STATS_API}" ]; then
+if [[ -n "${BEACON_STATS_API}" ]]; then
   __beacon_stats="--monitoring.endpoint https://beaconcha.in/api/v1/client/metrics?apikey=${BEACON_STATS_API}&machine=${BEACON_STATS_MACHINE}"
   echo "Beacon stats API enabled"
 else
@@ -84,8 +84,8 @@ else
 fi
 
 # Check whether we should rapid sync
-if [ -n "${CHECKPOINT_SYNC_URL}" ]; then
-  if [ "${ARCHIVE_NODE}" = "true" ]; then
+if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
+  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
     echo "Lodestar archive node cannot use checkpoint sync: Syncing from genesis."
     __checkpoint_sync="--chain.archiveBlobEpochs Infinity --serveHistoricalState"
   else
@@ -95,17 +95,17 @@ if [ -n "${CHECKPOINT_SYNC_URL}" ]; then
 else
   __checkpoint_sync=""
 fi
-if [ "${MINIMAL_NODE}" = "true" ]; then
-  if [ ! -d /var/lib/lodestar/consensus/chain-db ]; then  # It's a fresh sync - pruneHistory is too intense to run on an existing DB
+if [[ "${MINIMAL_NODE}" = "true" ]]; then
+  if [[ ! -d /var/lib/lodestar/consensus/chain-db ]]; then  # It's a fresh sync - pruneHistory is too intense to run on an existing DB
     touch /var/lib/lodestar/consensus/prune-marker
   fi
 fi
 
-if [ -f /var/lib/lodestar/consensus/prune-marker ]; then  # This gets set above
+if [[ -f /var/lib/lodestar/consensus/prune-marker ]]; then  # This gets set above
   __checkpoint_sync+=" --chain.pruneHistory"
 fi
 
-if [ "${IPV6}" = "true" ]; then
+if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Lodestar to listen on IPv6 ports"
   __ipv6="--listenAddress 0.0.0.0 --listenAddress6 :: --port6 ${CL_P2P_PORT:-9000}"
 # ENR discovery on v6 is not yet working, likely too few peers. Manual for now

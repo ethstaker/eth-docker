@@ -12,28 +12,28 @@ foundnonint=0
 uid=1000
 folder="validator_keys"
 for var in "$@"; do
-  if [ "$var" = '--uid' ]; then
+  if [[ "$var" = '--uid' ]]; then
     foundu=1
     continue
   fi
-  if [ "$var" = '--folder' ]; then
+  if [[ "$var" = '--folder' ]]; then
     foundf=1
     continue
   fi
-  if [ "$var" = '--non_interactive' ]; then
+  if [[ "$var" = '--non_interactive' ]]; then
     foundnonint=1
     continue
   fi
-  if [ "$foundu" = '1' ]; then
+  if [[ "$foundu" -eq 1 ]]; then
     foundu=0
-    if ! [[ $var =~ ^[0-9]+$ ]] ; then
+    if ! [[ "$var" =~ ^[0-9]+$ ]] ; then
       echo "error: Passed user ID is not a number, ignoring"
       continue
     fi
     uid="$var"
     continue
   fi
-  if [ "$foundf" = '1' ]; then
+  if [[ "$foundf" -eq 1 ]]; then
     foundf=0
     folder="$var"
     continue
@@ -42,8 +42,8 @@ for var in "$@"; do
 done
 
 for i in "${!ARGS[@]}"; do
-  if [ "${ARGS[$i]}" = '/app/staking_deposit/deposit.py' ]; then
-    if [ "$foundnonint" = '1' ]; then
+  if [[ "${ARGS[$i]}" = '/app/staking_deposit/deposit.py' ]]; then
+    if [[ "$foundnonint" -eq 1 ]]; then
       # the flag should be before the command
       ARGS=("${ARGS[@]:0:$i+1}" "--non_interactive" "${ARGS[@]:$i+1}")
     fi

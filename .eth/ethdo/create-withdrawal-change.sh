@@ -4,7 +4,7 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 __arch=$(uname -m)
 if [[ "${__arch}" = "aarch64" || "${__arch}" = "arm64" ]]; then
     __arch_dir=arm64
-elif [ "${__arch}" = "x86_64" ]; then
+elif [[ "${__arch}" = "x86_64" ]]; then
     __arch_dir=amd64
 else
     echo "Architecture ${__arch} not recognized - unsure which ethdo to use. Aborting."
@@ -22,14 +22,14 @@ cp "${__arch_dir}/jq" ~/bin/
 chmod +x ~/bin/*
 set +e
 
-if [ ! -f "${__ethdo}" ]; then
+if [[ ! -f "${__ethdo}" ]]; then
     echo "Unable to find ethdo executable at \"${__ethdo}\". Aborting."
     exit 1
 fi
 echo "Checking whether Bluetooth is enabled"
 systemctl status bluetooth >/dev/null
 result=$?
-if [ "${result}" -eq 0 ]; then
+if [[ "${result}" -eq 0 ]]; then
     echo "Bluetooth found, disabling"
     sudo systemctl stop bluetooth
 fi
@@ -37,7 +37,7 @@ echo "Checking whether machine is online"
 echo
 ping -c 4 1.1.1.1 && { echo; echo "Machine is online, please disconnect from Internet"; exit 1; }
 __code=$?
-if [ "$__code" -eq 2 ]; then
+if [[ "$__code" -eq 2 ]]; then
   echo "Safely offline. Running ethdo to prep withdrawal address change."
 else
   echo "Ping failed, but with error code $__code - the machine may not be offline. Aborting."
@@ -63,7 +63,7 @@ echo "This can only be changed once."
 echo
 while true; do
     read -rp "What is your validator mnemonic? : " __mnemonic
-    if [ ! "$(echo "$__mnemonic" | wc -w)" -eq 24 ] && [ ! "$(echo "$__mnemonic" | wc -w)" -eq 12 ]; then
+    if [[ ! "$(echo "$__mnemonic" | wc -w)" -eq 24 && ! "$(echo "$__mnemonic" | wc -w)" -eq 12 ]]; then
         echo "The mnemonic needs to be 24 or 12 words. You can try again or hit Ctrl-C to abort."
         continue
     else
@@ -112,7 +112,7 @@ case "${__advancedCommand}" in
 esac
 
 result=$?
-if ! [ "$result" -eq 0 ]; then
+if ! [[ "$result" -eq 0 ]]; then
     echo "Command failed"
     exit "$result"
 fi
@@ -122,6 +122,6 @@ echo
 echo "Please shut down this machine and continue online, with the created change-operations.json file"
 echo "You can submit it to https://beaconcha.in/tools/broadcast, for example"
 echo
-if [ -f "${__jq}" ]; then
+if [[ -f "${__jq}" ]]; then
     echo "There are change messages for $(${__jq} 'length' change-operations.json) validators in change-operations.json"
 fi

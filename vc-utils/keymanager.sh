@@ -2,8 +2,8 @@
 
 call_api() {
     set +e
-    if [ -z "${__api_data}" ]; then
-        if [ "${__api_tls}" = "true" ]; then
+    if [[ -z "${__api_data}" ]]; then
+        if [[ "${__api_tls}" = "true" ]]; then
             __code=$(curl -k -m 60 -s --show-error -o /tmp/result.txt -w "%{http_code}" -X "${__http_method}" -H "Accept: application/json" -H "Authorization: Bearer $__token" \
                 https://"${__api_container}":"${__api_port}"/"${__api_path}")
         else
@@ -11,7 +11,7 @@ call_api() {
                 http://"${__api_container}":"${__api_port}"/"${__api_path}")
         fi
     else
-        if [ "${__api_tls}" = "true" ]; then
+        if [[ "${__api_tls}" = "true" ]]; then
             __code=$(curl -k -m 60 -s --show-error -o /tmp/result.txt -w "%{http_code}" -X "${__http_method}" -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: Bearer $__token" \
                 --data "${__api_data}" https://"${__api_container}":"${__api_port:-7500}"/"${__api_path}")
         else
@@ -20,28 +20,28 @@ call_api() {
         fi
     fi
     __return=$?
-    if [ "${__debug}" -eq 1 ]; then
+    if [[ "${__debug}" -eq 1 ]]; then
       echo "Called ${__api_container}:${__api_port}/${__api_path} with method ${__http_method} and the following data"
-      if [ -n "${__api_data}" ]; then
+      if [[ -n "${__api_data}" ]]; then
         echo "${__api_data}"
       else
         echo "This was a call without data"
       fi
       echo "The token was ${__token} from ${__token_file}"
       echo "The return code was ${__code} and if we had result data, here it is."
-      if [ -f /tmp/result.txt ]; then
+      if [[ -f /tmp/result.txt ]]; then
         cat /tmp/result.txt
         echo
       fi
     fi
 
-    if [ $__return -ne 0 ]; then
+    if [[ $__return -ne 0 ]]; then
         echo "Error encountered while trying to call the keymanager API via curl."
         echo "Please make sure the ${__service} service is up and its logs show the key manager API, port ${__api_port}, enabled."
         echo "Error code $__return"
         exit $__return
     fi
-    if [ -f /tmp/result.txt ]; then
+    if [[ -f /tmp/result.txt ]]; then
         __result=$(cat /tmp/result.txt)
     else
         echo "Error encountered while trying to call the keymanager API via curl."
@@ -52,7 +52,7 @@ call_api() {
 
 call_cl_api() {
   set +e
-  if [ -z "${__api_data}" ]; then
+  if [[ -z "${__api_data}" ]]; then
     __code=$(curl -m 60 -s --show-error -o /tmp/result.txt -w "%{http_code}" -X "${__http_method}" -H "Accept: application/json" \
         "${CL_NODE}"/"${__api_path}")
   else
@@ -60,13 +60,13 @@ call_cl_api() {
         --data "${__api_data}" "${CL_NODE}"/"${__api_path}")
   fi
   __return=$?
-  if [ $__return -ne 0 ]; then
+  if [[ $__return -ne 0 ]]; then
     echo "Error encountered while trying to call the consensus client REST API via curl."
     echo "Please make sure the ${CL_NODE} URL is reachable."
     echo "Error code $__return"
     exit $__return
   fi
-  if [ -f /tmp/result.txt ]; then
+  if [[ -f /tmp/result.txt ]]; then
     __result=$(cat /tmp/result.txt)
   else
     echo "Error encountered while trying to call the consensus client REST API via curl."
@@ -79,12 +79,12 @@ get-token() {
 set +e
   __token=$(tail -n 1 "${__token_file}")
   __return=$?
-  if [ $__return -ne 0 ]; then
+  if [[ $__return -ne 0 ]]; then
     echo "Error encountered while trying to get the keymanager API token."
     echo "Please make sure the ${__service} service is up and its logs show the key manager API, port ${__api_port}, enabled."
     exit $__return
   fi
-  if [ -z "${__token}" ]; then
+  if [[ -z "${__token}" ]]; then
     echo "The keymnanager API token in ${__token_file_client} is empty."
     echo "The token path is relative to the ${__service} container."
     echo "This could happen if the file ends with an empty line, which is a client bug."
@@ -100,7 +100,7 @@ print-api-token() {
 }
 
 __check_pubkey() {
-  if [ -z "$1" ]; then
+  if [[ -z "$1" ]]; then
     echo "Please specify a validator public key"
     exit 0
   fi
@@ -119,7 +119,7 @@ __check_pubkey() {
 }
 
 __check_address() {
-  if [ -z "$1" ]; then
+  if [[ -z "$1" ]]; then
     echo "Please specify an Ethereum address"
     exit 0
   fi
@@ -138,7 +138,7 @@ __check_address() {
 }
 
 get-prysm-wallet() {
-    if [ -f /var/lib/prysm/password.txt ]; then
+    if [[ -f /var/lib/prysm/password.txt ]]; then
         echo "The password for the Prysm wallet is:"
         cat /var/lib/prysm/password.txt
     else
@@ -147,7 +147,7 @@ get-prysm-wallet() {
 }
 
 get-grandine-wallet() {
-    if [ -f /var/lib/grandine/wallet-password.txt ]; then
+    if [[ -f /var/lib/grandine/wallet-password.txt ]]; then
         echo "The password for the Grandine wallet is:"
         cat /var/lib/grandine/wallet-password.txt
     else
@@ -228,7 +228,7 @@ gas-get() {
 
 gas-set() {
     __check_pubkey "${__pubkey}"
-    if [ -z "$__limit" ]; then
+    if [[ -z "$__limit" ]]; then
       echo "Please specify a gas limit"
       exit 0
     fi
@@ -290,7 +290,7 @@ graffiti-get() {
 
 graffiti-set() {
     __check_pubkey "${__pubkey}"
-    if [ -z "$__graffiti" ]; then
+    if [[ -z "$__graffiti" ]]; then
       echo "Please specify a graffiti string"
       exit 0
     fi
@@ -333,17 +333,17 @@ graffiti-delete() {
 }
 
 exit-sign() {
-    if [ -z "${__pubkey}" ]; then
+    if [[ -z "${__pubkey}" ]]; then
       echo "Please specify a validator public key to sign an exit message for, or \"all\""
       exit 0
     fi
-    if [ ! "${__pubkey}" = "all" ]; then
+    if [[ ! "${__pubkey}" = "all" ]]; then
       __check_pubkey "${__pubkey}"
     fi
     __pubkeys=()
     __api_path=eth/v1/keystores
-    if [ "${__pubkey}" = "all" ]; then
-      if [ "${WEB3SIGNER}" = "true" ]; then
+    if [[ "${__pubkey}" = "all" ]]; then
+      if [[ "${WEB3SIGNER}" = "true" ]]; then
         __token=NIL
         __vc_api_container=${__api_container}
         __api_container=${__w3s_container}
@@ -357,7 +357,7 @@ exit-sign() {
         get-token
       fi
       __validator-list-call
-      if [ "$(echo "$__result" | jq '.data | length')" -eq 0 ]; then
+      if [[ "$(echo "$__result" | jq '.data | length')" -eq 0 ]]; then
         echo "No keys loaded, cannot sign anything"
         return
       else
@@ -365,7 +365,7 @@ exit-sign() {
 # Word splitting is desired for the array
 # shellcheck disable=SC2206
         __pubkeys+=( ${__keys_to_array} )
-        if [ "${WEB3SIGNER}" = "true" ]; then
+        if [[ "${WEB3SIGNER}" = "true" ]]; then
             __api_container=${__vc_api_container}
             __api_port=${__vc_api_port}
             __api_tls=${__vc_api_tls}
@@ -404,7 +404,7 @@ exit-sign() {
       echo "${__result}" >"/exit_messages/${__pubkey::10}--${__pubkey:90}-exit.json"
 # shellcheck disable=SC2320
       exitstatus=$?
-      if [ "${exitstatus}" -eq 0 ]; then
+      if [[ "${exitstatus}" -eq 0 ]]; then
         echo "Writing the exit message into file ./.eth/exit_messages/${__pubkey::10}--${__pubkey:90}-exit.json succeeded"
       else
         echo "Error writing exit json to file ./.eth/exit_messages/${__pubkey::10}--${__pubkey:90}-exit.json"
@@ -465,7 +465,7 @@ __validator-list-call() {
 
 validator-list() {
     __api_path=eth/v1/keystores
-    if [ "${WEB3SIGNER}" = "true" ]; then
+    if [[ "${WEB3SIGNER}" = "true" ]]; then
         __token=NIL
         __vc_api_container=${__api_container}
         __api_container=${__w3s_container}
@@ -479,13 +479,13 @@ validator-list() {
         get-token
     fi
     __validator-list-call
-    if [ "$(echo "$__result" | jq '.data | length')" -eq 0 ]; then
+    if [[ "$(echo "$__result" | jq '.data | length')" -eq 0 ]]; then
         echo "No keys loaded into ${__service}"
     else
         echo "Validator public keys loaded into ${__service}"
         echo "$__result" | jq -r '.data[].validating_pubkey'
     fi
-    if [ "${WEB3SIGNER}" = "true" ]; then
+    if [[ "${WEB3SIGNER}" = "true" ]]; then
         get-token
         __api_path=eth/v1/remotekeys
         __api_container=${__vc_api_container}
@@ -493,7 +493,7 @@ validator-list() {
         __api_port=${__vc_api_port}
         __api_tls=${__vc_api_tls}
         __validator-list-call
-        if [ "$(echo "$__result" | jq '.data | length')" -eq 0 ]; then
+        if [[ "$(echo "$__result" | jq '.data | length')" -eq 0 ]]; then
             echo "No remote keys registered with ${__service}"
         else
             echo "Remote keys registered with ${__service}"
@@ -504,7 +504,7 @@ validator-list() {
 
 validator-count() {
     __api_path=eth/v1/keystores
-    if [ "${WEB3SIGNER}" = "true" ]; then
+    if [[ "${WEB3SIGNER}" = "true" ]]; then
         __token=NIL
         __vc_api_container=${__api_container}
         __api_container=${__w3s_container}
@@ -523,7 +523,7 @@ validator-count() {
 
     __vals="$__result"
 
-    if [ "${WEB3SIGNER}" = "true" ]; then
+    if [[ "${WEB3SIGNER}" = "true" ]]; then
         get-token
         __api_path=eth/v1/remotekeys
         __api_container=${__vc_api_container}
@@ -533,7 +533,7 @@ validator-count() {
         __validator-list-call
         remote_key_count=$(echo "$__result" | jq -r '.data | length')
         echo "Remote Validator keys registered with ${__service}: $remote_key_count"
-        if [ "${key_count}" -ne "${remote_key_count}" ]; then
+        if [[ "${key_count}" -ne "${remote_key_count}" ]]; then
           echo "WARNING: The number of keys loaded into Web3signer and registered with the validator client differ."
           echo "Please run \"./ethd keys register\""
         fi
@@ -558,38 +558,38 @@ validator-count() {
       esac
     done
 
-    if [ "${__vals_active}" -gt 0 ]; then
+    if [[ "${__vals_active}" -gt 0 ]]; then
       echo "Active, unslashed validators: ${__vals_active}"
     fi
-    if [ "${__vals_exiting}" -gt 0 ]; then
+    if [[ "${__vals_exiting}" -gt 0 ]]; then
       echo "Active, exiting validators: ${__vals_exiting}"
     fi
-    if [ "${__vals_exited}" -gt 0 ]; then
+    if [[ "${__vals_exited}" -gt 0 ]]; then
       echo "Exited and/or withdrawn validators: ${__vals_exited}"
     fi
-    if [ "${__vals_pending}" -gt 0 ]; then
+    if [[ "${__vals_pending}" -gt 0 ]]; then
       echo "Pending validators: ${__vals_pending}"
     fi
-    if [ "${__vals_slashed}" -gt 0 ]; then
+    if [[ "${__vals_slashed}" -gt 0 ]]; then
       echo "Slashed validators: ${__vals_slashed}"
     fi
-    if [ "${__vals_unknown}" -gt 0 ]; then
+    if [[ "${__vals_unknown}" -gt 0 ]]; then
       echo "Unknown validators, no deposit: ${__vals_unknown}"
     fi
 }
 
 validator-delete() {
-    if [ -z "${__pubkey}" ]; then
+    if [[ -z "${__pubkey}" ]]; then
       echo "Please specify a validator public key to delete, or \"all\""
       exit 0
     fi
-    if [ ! "${__pubkey}" = "all" ]; then
+    if [[ ! "${__pubkey}" = "all" ]]; then
       __check_pubkey "${__pubkey}"
     fi
     __pubkeys=()
     __api_path=eth/v1/keystores
-    if [ "${__pubkey}" = "all" ]; then
-        if [ "${WEB3SIGNER}" = "true" ]; then
+    if [[ "${__pubkey}" = "all" ]]; then
+        if [[ "${WEB3SIGNER}" = "true" ]]; then
             echo "WARNING - this will delete all currently loaded keys from web3signer and the validator client."
         else
             echo "WARNING - this will delete all currently loaded keys from the validator client."
@@ -600,7 +600,7 @@ validator-delete() {
             [Yy][Ee][Ss]) ;;
             * ) echo "Aborting key deletion"; exit 130;;
         esac
-        if [ "${WEB3SIGNER}" = "true" ]; then
+        if [[ "${WEB3SIGNER}" = "true" ]]; then
             __token=NIL
             __vc_api_container=${__api_container}
             __api_container=${__w3s_container}
@@ -613,7 +613,7 @@ validator-delete() {
         fi
 
         __validator-list-call
-        if [ "$(echo "$__result" | jq '.data | length')" -eq 0 ]; then
+        if [[ "$(echo "$__result" | jq '.data | length')" -eq 0 ]]; then
             echo "No keys loaded, cannot delete anything"
             return
         else
@@ -621,7 +621,7 @@ validator-delete() {
 # Word splitting is desired for the array
 # shellcheck disable=SC2206
             __pubkeys+=( ${__keys_to_array} )
-            if [ "${WEB3SIGNER}" = "true" ]; then
+            if [[ "${WEB3SIGNER}" = "true" ]]; then
                 __api_container=${__vc_api_container}
                 __api_port=${__vc_api_port}
                 __api_tls=${__vc_api_tls}
@@ -633,8 +633,8 @@ validator-delete() {
 
     for __pubkey in "${__pubkeys[@]}"; do
         # Remove remote registration, with a path not to
-        if [ "${WEB3SIGNER}" = "true" ]; then
-          if [ -z "${W3S_NOREG+x}" ]; then
+        if [[ "${WEB3SIGNER}" = "true" ]]; then
+          if [[ -z "${W3S_NOREG+x}" ]]; then
             get-token
             __api_path=eth/v1/remotekeys
             __api_data="{\"pubkeys\":[\"$__pubkey\"]}"
@@ -674,7 +674,7 @@ to delete it:"
           fi
         fi
 
-        if [ "${WEB3SIGNER}" = "true" ]; then
+        if [[ "${WEB3SIGNER}" = "true" ]]; then
             __token=NIL
             __vc_api_container=${__api_container}
             __api_container=${__w3s_container}
@@ -727,7 +727,7 @@ to delete it:"
                 exit 70
                 ;;
         esac
-        if [ "${WEB3SIGNER}" = "true" ]; then
+        if [[ "${WEB3SIGNER}" = "true" ]]; then
             __api_container=${__vc_api_container}
             __api_port=${__vc_api_port}
             __api_tls=${__vc_api_tls}
@@ -742,14 +742,14 @@ validator-import() {
     __key_root_dir=/validator_keys
 
     __num_dirs=$(find /validator_keys -maxdepth 1 -type d -name '0x*' | wc -l)
-    if [ "$__pass" -eq 1 ] && [ "$__num_dirs" -gt 0 ]; then
+    if [[ "$__pass" -eq 1 && "$__num_dirs" -gt 0 ]]; then
         echo "Found $__num_dirs directories starting with 0x. If these are from eth2-val-tools, please copy the keys \
 and secrets directories into .eth/validator_keys instead."
         echo
     fi
 
-    if [ "$__pass" -eq 1 ] && [ -d /validator_keys/keys ]; then
-        if [ -d /validator_keys/secrets ]; then
+    if [[ "$__pass" -eq 1 && -d /validator_keys/keys ]]; then
+        if [[ -d /validator_keys/secrets ]]; then
             echo "keys and secrets directories found, assuming keys generated by eth2-val-tools"
             echo "Keystore files directly under .eth/validator_keys will be imported in a second pass"
             echo
@@ -762,15 +762,15 @@ and secrets directories into .eth/validator_keys instead."
         fi
     fi
     __num_files=$(find "$__key_root_dir" -maxdepth "$__depth" -type f -name '*keystore*.json' | wc -l)
-    if [ "$__num_files" -eq 0 ]; then
-        if [ "$__pass" -eq 1 ]; then
+    if [[ "$__num_files" -eq 0 ]]; then
+        if [[ "$__pass" -eq 1 ]]; then
             echo "No *keystore*.json files found in .eth/validator_keys/"
             echo "Nothing to do"
         fi
         exit 0
     fi
 
-    if [ "$__pass" -eq 2 ]; then
+    if [[ "$__pass" -eq 2 ]]; then
         echo
         echo "Now importing keystore files directly under .eth/validator_keys"
         echo
@@ -781,7 +781,7 @@ and secrets directories into .eth/validator_keys instead."
       __non_interactive=1
     fi
 
-    if [ ${__non_interactive} = 1 ]; then
+    if [[ ${__non_interactive} = 1 ]]; then
         __password="${KEYSTORE_PASSWORD}"
         __justone=1
     else
@@ -797,7 +797,7 @@ and secrets directories into .eth/validator_keys instead."
                 * ) echo "Please answer yes or no.";;
             esac
         done
-        if [ "$__eth2_val_tools" -eq 0 ] && [ "$__num_files" -gt 1 ]; then
+        if [[ "$__eth2_val_tools" -eq 0 && "$__num_files" -gt 1 ]]; then
             while true; do
                 read -rp "Do all validator keys have the same password? (y/n) " yn
                 case $yn in
@@ -809,13 +809,13 @@ and secrets directories into .eth/validator_keys instead."
         else
             __justone=1
         fi
-        if [ "$__eth2_val_tools" -eq 0 ] && [ "$__justone" -eq 1 ]; then
+        if [[ "$__eth2_val_tools" -eq 0 && "$__justone" -eq 1 ]]; then
             while true; do
                 read -srp "Please enter the password for your validator key(s): " __password
                 echo
                 read -srp "Please re-enter the password: " __password2
                 echo
-                if [ "$__password" == "$__password2" ]; then
+                if [[ "$__password" == "$__password2" ]]; then
                     break
                 else
                     echo "The two entered passwords do not match, please try again."
@@ -835,10 +835,10 @@ and secrets directories into .eth/validator_keys instead."
 # Using file descriptor 3 so this doesn't conflict with the "different passwords" read
 # Could also use dialog, but would need to make sure it exists
     while IFS= read -r -u 3 __keyfile; do
-        [ -f "$__keyfile" ] || continue
+        [[ -f "$__keyfile" ]] || continue
         __keydir=$(dirname "$__keyfile")
         __pubkey=0x$(jq -r '.pubkey' "$__keyfile")
-        if [ "$__pubkey" = "0xnull" ]; then
+        if [[ "$__pubkey" = "0xnull" ]]; then
             echo "The file $__keyfile does not specify a pubkey. Maybe it is a Prysm wallet file?"
             echo "Even for Prysm, please use the individual keystore files as generated by staking-deposit-cli, or for eth2-val-tools copy the keys and secrets directories into .eth/validator_keys."
             echo "Skipping."
@@ -846,8 +846,8 @@ and secrets directories into .eth/validator_keys instead."
             (( __skipped+=1 ))
             continue
         fi
-        if [ $__eth2_val_tools -eq 1 ]; then
-            if [ -f /validator_keys/secrets/"$(basename "$__keydir")" ]; then
+        if [[ "$__eth2_val_tools" -eq 1 ]]; then
+            if [[ -f /validator_keys/secrets/"$(basename "$__keydir")" ]]; then
                 __password=$(</validator_keys/secrets/"$(basename "$__keydir")")
             else
                 echo "Password file /validator_keys/secrets/$(basename "$__keydir") not found. Skipping key import."
@@ -855,10 +855,10 @@ and secrets directories into .eth/validator_keys instead."
                 continue
             fi
         fi
-        if [ "$__eth2_val_tools" -eq 0 ] && [ "$__justone" -eq 0 ]; then
+        if [[ "$__eth2_val_tools" -eq 0 && "$__justone" -eq 0 ]]; then
             while true; do
                 __passfile=${__keyfile/.json/.txt}
-                if [ -f "$__passfile" ]; then
+                if [[ -f "$__passfile" ]]; then
                     echo "Password file is found: $__passfile"
                     __password=$(< "$__passfile")
                     break
@@ -869,7 +869,7 @@ and secrets directories into .eth/validator_keys instead."
                 echo
                 read -srp "Please re-enter the password: " __password2
                 echo
-                if [ "$__password" == "$__password2" ]; then
+                if [[ "$__password" == "$__password2" ]]; then
                     break
                 else
                     echo "The two entered passwords do not match, please try again."
@@ -881,12 +881,12 @@ and secrets directories into .eth/validator_keys instead."
         __do_a_protec=0
         __found_one=0
         for __protectfile in "$__keydir"/slashing_protection*.json; do
-            [ -f "$__protectfile" ] || continue
+            [[ -f "$__protectfile" ]] || continue
             if grep -q "$__pubkey" "$__protectfile"; then
                 __found_one=1
                 echo "Found slashing protection import file $__protectfile for $__pubkey"
-                if [ "$(jq ".data[] | select(.pubkey==\"$__pubkey\") | .signed_blocks | length" < "$__protectfile")" -gt 0 ] \
-                    || [ "$(jq ".data[] | select(.pubkey==\"$__pubkey\") | .signed_attestations | length" < "$__protectfile")" -gt 0 ]; then
+                if [[ "$(jq ".data[] | select(.pubkey==\"$__pubkey\") | .signed_blocks | length" < "$__protectfile")" -gt 0 \
+                    || "$(jq ".data[] | select(.pubkey==\"$__pubkey\") | .signed_attestations | length" < "$__protectfile")" -gt 0 ]]; then
                     __do_a_protec=1
                     echo "It will be imported"
                 else
@@ -896,20 +896,20 @@ and secrets directories into .eth/validator_keys instead."
                 break
             fi
         done
-        if [ "$__eth2_val_tools" -eq 0 ] && [ "${__found_one}" -eq 0 ]; then
+        if [[ "$__eth2_val_tools" -eq 0 && "${__found_one}" -eq 0 ]]; then
                 echo "No viable slashing protection import file found for $__pubkey."
                 echo "This is expected if this is a new key."
                 echo "Proceeding without slashing protection import."
         fi
         __keystore_json=$(< "$__keyfile")
-        if [ "$__do_a_protec" -eq 1 ]; then
+        if [[ "$__do_a_protec" -eq 1 ]]; then
             __protect_json=$(jq "select(.data[].pubkey==\"$__pubkey\") | tojson" < "$__protectfile")
         else
             __protect_json=""
         fi
         echo "$__protect_json" > /tmp/protect.json
 
-        if [ "${__debug}" -eq 1 ]; then
+        if [[ "${__debug}" -eq 1 ]]; then
           echo "The keystore reads as $__keystore_json"
           echo "And your password is $__password"
           set +e
@@ -917,13 +917,13 @@ and secrets directories into .eth/validator_keys instead."
           jq --arg keystore_value "$__keystore_json" --arg password_value "$__password" '. | .keystores += [$keystore_value] | .passwords += [$password_value]' <<< '{}'
           set -e
         fi
-        if [ "$__do_a_protec" -eq 0 ]; then
+        if [[ "$__do_a_protec" -eq 0 ]]; then
             jq --arg keystore_value "$__keystore_json" --arg password_value "$__password" '. | .keystores += [$keystore_value] | .passwords += [$password_value]' <<< '{}' >/tmp/apidata.txt
         else
             jq --arg keystore_value "$__keystore_json" --arg password_value "$__password" --slurpfile protect_value /tmp/protect.json '. | .keystores += [$keystore_value] | .passwords += [$password_value] | . += {slashing_protection: $protect_value[0]}' <<< '{}' >/tmp/apidata.txt
         fi
 
-        if [ "${WEB3SIGNER}" = "true" ]; then
+        if [[ "${WEB3SIGNER}" = "true" ]]; then
             __token=NIL
             __vc_api_container=${__api_container}
             __api_container=${__w3s_container}
@@ -975,8 +975,8 @@ and secrets directories into .eth/validator_keys instead."
                 ;;
         esac
         # Add remote registration, with a path not to
-        if [ "${WEB3SIGNER}" = "true" ]; then
-          if [ -z "${W3S_NOREG+x}" ]; then
+        if [[ "${WEB3SIGNER}" = "true" ]]; then
+          if [[ -z "${W3S_NOREG+x}" ]]; then
             __api_container=${__vc_api_container}
             __api_port=${__vc_api_port}
             __api_tls=${__vc_api_tls}
@@ -1028,17 +1028,17 @@ and secrets directories into .eth/validator_keys instead."
     done 3< <(find "$__key_root_dir" -maxdepth "$__depth" -name '*keystore*.json')
 
     echo "Imported $__imported keys"
-    if [ "$WEB3SIGNER" = "true" ]; then
+    if [[ "$WEB3SIGNER" = "true" ]]; then
         echo "Registered $__registered keys with the validator client"
     fi
     echo "Skipped $__skipped keys"
-    if [ "$WEB3SIGNER" = "true" ]; then
+    if [[ "$WEB3SIGNER" = "true" ]]; then
         echo "Skipped registration of $__reg_skipped keys"
     fi
-    if [ $__errored -gt 0 ]; then
+    if [[ "$__errored" -gt 0 ]]; then
         echo "$__errored keys caused an error during import"
     fi
-    if [ $__reg_errored -gt 0 ]; then
+    if [[ "$__reg_errored" -gt 0 ]]; then
         echo "$__reg_errored keys caused an error during registration"
     fi
     echo
@@ -1047,13 +1047,13 @@ and secrets directories into .eth/validator_keys instead."
 }
 
 validator-register() {
-    if [ ! "${WEB3SIGNER}" = "true" ]; then
+    if [[ ! "${WEB3SIGNER}" = "true" ]]; then
         echo "WEB3SIGNER is not \"true\" in .env, cannot register web3signer keys with the validator client."
         echo "Aborting."
         exit 1
     fi
 
-    if [ "${W3S_NOREG:-false}" = "true" ]; then
+    if [[ "${W3S_NOREG:-false}" = "true" ]]; then
         echo "This client loads web3signer keys at startup, skipping registration via keymanager."
         exit 0
     fi
@@ -1067,7 +1067,7 @@ validator-register() {
     __vc_api_tls=${__api_tls}
     __api_tls=false
     __validator-list-call
-    if [ "$(echo "$__result" | jq '.data | length')" -eq 0 ]; then
+    if [[ "$(echo "$__result" | jq '.data | length')" -eq 0 ]]; then
         echo "No keys loaded in web3signer, aborting."
         exit 1
     fi
@@ -1127,7 +1127,7 @@ validator-register() {
 
     echo "Registered $__registered keys with the validator client"
     echo "Skipped registration of $__reg_skipped keys"
-    if [ $__reg_errored -gt 0 ]; then
+    if [[ "$__reg_errored" -gt 0 ]]; then
         echo "$__reg_errored keys caused an error during registration"
     fi
     echo
@@ -1139,7 +1139,7 @@ __web3signer_check() {
         get-token
         __api_path=eth/v1/remotekeys
         __validator-list-call
-        if [ ! "$(echo "$__result" | jq '.data | length')" -eq 0 ]; then
+        if [[ ! "$(echo "$__result" | jq '.data | length')" -eq 0 ]]; then
             echo "WEB3SIGNER is not \"true\" in .env, but there are web3signer keys registered."
             echo "This is not safe. Set WEB3SIGNER=true and remove web3signer keys first. Aborting."
             exit 1
@@ -1233,7 +1233,7 @@ else
   __debug=0
 fi
 
-if [ "$(id -u)" = '0' ]; then
+if [[ "$(id -u)" -eq 0 ]]; then
     __token_file=$1
     __api_container=$2
     case "$__api_container" in  # It's either consensus or some alias for the validator service
@@ -1241,7 +1241,7 @@ if [ "$(id -u)" = '0' ]; then
         *) __service=validator;;
     esac
     __api_port=${KEY_API_PORT:-7500}
-    if [ -z "${TLS:+x}" ]; then
+    if [[ -z "${TLS:+x}" ]]; then
         __api_tls=false
     else
         __api_tls=true
@@ -1264,11 +1264,11 @@ if [ "$(id -u)" = '0' ]; then
             exit 0
             ;;
     esac
-    if [ -z "$3" ]; then
+    if [[ -z "$3" ]]; then
         usage
         exit 0
     fi
-    if [ -f "$__token_file" ]; then
+    if [[ -f "$__token_file" ]]; then
         chmod 1777 /tmp  # A user had 755 and root:984. Root cause unknown; work around it
         cp "$__token_file" /tmp/api-token.txt
         chown "${OWNER_UID:-1000}":"${OWNER_UID:-1000}" /tmp/api-token.txt
@@ -1285,7 +1285,7 @@ __api_container=$2
 __api_port=${KEY_API_PORT:-7500}
 __w3s_container=$(echo "${W3S_NODE}" | awk -F[/:] '{print $4}')
 __w3s_port=$(echo "${W3S_NODE}" | awk -F[/:] '{print $5}')
-if [ -z "${TLS:+x}" ]; then
+if [[ -z "${TLS:+x}" ]]; then
     __api_tls=false
 else
     __api_tls=true
@@ -1314,7 +1314,7 @@ case "$3" in
         shift 3
         __pass=1
         validator-import "$@"
-        if [ $__eth2_val_tools -eq 1 ]; then
+        if [[ "$__eth2_val_tools" -eq 1 ]]; then
             __pass=2
             validator-import "$@"
         fi

@@ -6,7 +6,7 @@ __password=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256
 echo "$__password" >/tmp/password.txt
 echo "Wallet password created"
 set +e
-if [ "${WEB3SIGNER}" = "true" ]; then
+if [[ "${WEB3SIGNER}" = "true" ]]; then
     __kind=web3signer
     echo "No need to create a permanent wallet when using web3signer with Prysm. Aborting."
     exit 0

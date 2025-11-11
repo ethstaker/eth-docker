@@ -27,15 +27,15 @@ __normalize_int() {
 }
 
 
-if [ -f /var/lib/teku/teku-keyapi.keystore ]; then
-    if [ "$(date +%s -r /var/lib/teku/teku-keyapi.keystore)" -lt "$(date +%s --date="300 days ago")" ]; then
+if [[ -f /var/lib/teku/teku-keyapi.keystore ]]; then
+    if [[ "$(date +%s -r /var/lib/teku/teku-keyapi.keystore)" -lt "$(date +%s --date="300 days ago")" ]]; then
        rm /var/lib/teku/teku-keyapi.keystore
     elif ! openssl x509 -noout -ext subjectAltName -in /var/lib/teku/teku-keyapi.crt | grep -q 'DNS:consensus'; then
        rm /var/lib/teku/teku-keyapi.keystore
     fi
 fi
 
-if [ ! -f /var/lib/teku/teku-keyapi.keystore ]; then
+if [[ ! -f /var/lib/teku/teku-keyapi.keystore ]]; then
     __password=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum| head -c 32)
     echo "$__password" > /var/lib/teku/teku-keyapi.password
     openssl req -x509 -newkey rsa:4096 -sha256 -days 365 -nodes -keyout /var/lib/teku/teku-keyapi.key -out /var/lib/teku/teku-keyapi.crt -subj '/CN=teku-keyapi-cert' -extensions san -config <( \
@@ -46,25 +46,25 @@ if [ ! -f /var/lib/teku/teku-keyapi.keystore ]; then
     openssl pkcs12 -export -in /var/lib/teku/teku-keyapi.crt -inkey /var/lib/teku/teku-keyapi.key -out /var/lib/teku/teku-keyapi.keystore -name teku-keyapi -passout pass:"$__password"
 fi
 
-if [ -n "${JWT_SECRET}" ]; then
+if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/teku/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
 fi
 
-if [[ -O "/var/lib/teku/ee-secret" ]]; then
+if [[ -O /var/lib/teku/ee-secret ]]; then
   # In case someone specifies JWT_SECRET but it's not a distributed setup
   chmod 777 /var/lib/teku/ee-secret
 fi
-if [[ -O "/var/lib/teku/ee-secret/jwtsecret" ]]; then
+if [[ -O /var/lib/teku/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/teku/ee-secret/jwtsecret
 fi
 
 # Check whether we should rapid sync
-if [ -n "${CHECKPOINT_SYNC_URL:+x}" ]; then
-    if [ "${ARCHIVE_NODE}" = "true" ]; then
+if [[ -n "${CHECKPOINT_SYNC_URL:+x}" ]]; then
+    if [[ "${ARCHIVE_NODE}" = "true" ]]; then
         echo "Teku archive node cannot use checkpoint sync: Syncing from genesis."
         __checkpoint_sync="--ignore-weak-subjectivity-period-enabled=true"
-      if [ "${NETWORK}" = "hoodi" ]; then
+      if [[ "${NETWORK}" = "hoodi" ]]; then
         __checkpoint_sync+=" --initial-state=https://checkpoint-sync.hoodi.ethpandaops.io/eth/v2/debug/beacon/states/genesis"
       fi
     else
@@ -73,7 +73,7 @@ if [ -n "${CHECKPOINT_SYNC_URL:+x}" ]; then
     fi
 else
     __checkpoint_sync="--ignore-weak-subjectivity-period-enabled=true"
-    if [ "${NETWORK}" = "hoodi" ]; then
+    if [[ "${NETWORK}" = "hoodi" ]]; then
       __checkpoint_sync+=" --initial-state=https://checkpoint-sync.hoodi.ethpandaops.io/eth/v2/debug/beacon/states/genesis"
     fi
 fi
@@ -86,7 +86,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
   # For want of something more amazing, let's just fail if git fails to pull this
   set -e
-  if [ ! -d "/var/lib/teku/testnet/${config_dir}" ]; then
+  if [[ ! -d "/var/lib/teku/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/teku/testnet
     cd /var/lib/teku/testnet
     git init --initial-branch="${branch}"
@@ -104,7 +104,7 @@ else
 fi
 
 # Check whether we should use MEV Boost
-if [ "${MEV_BOOST}" = "true" ]; then
+if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--builder-endpoint=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
   __mev_boost+=" --validators-builder-registration-default-enabled"
@@ -139,7 +139,7 @@ else
 fi
 
 # Check whether we should send stats to beaconcha.in
-if [ -n "${BEACON_STATS_API}" ]; then
+if [[ -n "${BEACON_STATS_API}" ]]; then
   __beacon_stats="--metrics-publish-endpoint=https://beaconcha.in/api/v1/client/metrics?apikey=${BEACON_STATS_API}&machine=${BEACON_STATS_MACHINE}"
   echo "Beacon stats API enabled"
 else
@@ -147,14 +147,14 @@ else
 fi
 
 # Check whether we should enable doppelganger protection
-if [ "${DOPPELGANGER}" = "true" ]; then
+if [[ "${DOPPELGANGER}" = "true" ]]; then
   __doppel="--doppelganger-detection-enabled=true"
   echo "Doppelganger protection enabled, VC will pause for 2 epochs"
 else
   __doppel=""
 fi
 
-if [ "${ARCHIVE_NODE}" = "true" ]; then
+if [[ "${ARCHIVE_NODE}" = "true" ]]; then
   echo "Teku archive node without pruning"
   __prune="--data-storage-mode=ARCHIVE"
 else
@@ -177,7 +177,7 @@ else
   __w3s_url=""
 fi
 
-if [ "${IPV6}" = "true" ]; then
+if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Teku to listen on IPv6 ports"
   __ipv6="--p2p-interface 0.0.0.0,:: --p2p-port-ipv6 ${CL_IPV6_P2P_PORT:-9090}"
 # ENR discovery on v6 is not yet working, likely too few peers. Manual for now
@@ -192,7 +192,7 @@ if [ "${IPV6}" = "true" ]; then
     __valid_v4=1
   fi
   if [[ "$__public_v6" =~ $__ipv6_pattern ]]; then
-    if [ "${__valid_v4}" -eq 1 ]; then
+    if [[ "${__valid_v4}" -eq 1 ]]; then
       __ipv6+=" --p2p-advertised-ips ${__public_v4},${__public_v6}"
     else
       __ipv6+=" --p2p-advertised-ip ${__public_v6}"
@@ -205,7 +205,7 @@ fi
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
-if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
+if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
   exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__doppel} ${__ipv6} ${CL_EXTRAS} ${VC_EXTRAS}

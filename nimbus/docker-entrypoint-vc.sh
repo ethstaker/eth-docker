@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ "$(id -u)" = '0' ]; then
+if [[ "$(id -u)" -eq 0 ]]; then
   chown -R user:user /var/lib/nimbus
   exec su-exec user docker-entrypoint-vc.sh "$@"
 fi
@@ -19,13 +19,13 @@ if [[ -f /var/lib/nimbus/api-token.txt && "$(date +%s -r /var/lib/nimbus/api-tok
     rm /var/lib/nimbus/api-token.txt
 fi
 
-if [ ! -f /var/lib/nimbus/api-token.txt ]; then
+if [[ ! -f /var/lib/nimbus/api-token.txt ]]; then
     __token=api-token-0x$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
     echo "$__token" > /var/lib/nimbus/api-token.txt
 fi
 
 # Check whether we should enable doppelganger protection
-if [ "${DOPPELGANGER}" = "true" ]; then
+if [[ "${DOPPELGANGER}" = "true" ]]; then
   __doppel="--doppelganger-detection=true"
   echo "Doppelganger protection enabled, VC will pause for 2 epochs"
 else
@@ -33,7 +33,7 @@ else
 fi
 
 # Check whether we should use MEV Boost
-if [ "${MEV_BOOST}" = "true" ]; then
+if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--payload-builder=true"
   echo "MEV Boost enabled"
   __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
@@ -78,7 +78,7 @@ done
 __log_level="--log-level=${LOG_LEVEL^^}"
 
 # Web3signer URL
-if [ "${WEB3SIGNER}" = "true" ]; then
+if [[ "${WEB3SIGNER}" = "true" ]]; then
   __w3s_url="--web3-signer-url=${W3S_NODE}"
   while true; do
     if curl -s -m 5 "${W3S_NODE}" &> /dev/null; then
@@ -94,13 +94,13 @@ else
 fi
 
 # Distributed attestation aggregation
-if [ "${ENABLE_DIST_ATTESTATION_AGGR}" =  "true" ]; then
+if [[ "${ENABLE_DIST_ATTESTATION_AGGR}" =  "true" ]]; then
   __att_aggr="--distributed"
 else
   __att_aggr=""
 fi
 
-if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
+if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
   exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} ${__log_level} ${__doppel} ${__mev_boost} ${__mev_factor} ${__att_aggr} ${VC_EXTRAS}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ "$(id -u)" = '0' ]; then
+if [[ "$(id -u)" -eq 0 ]]; then
   chown -R teku:teku /var/lib/teku
   exec gosu teku docker-entrypoint-vc.sh "$@"
 fi
@@ -21,7 +21,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
   # For want of something more amazing, let's just fail if git fails to pull this
   set -e
-  if [ ! -d "/var/lib/teku/testnet/${config_dir}" ]; then
+  if [[ ! -d "/var/lib/teku/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/teku/testnet
     cd /var/lib/teku/testnet
     git init --initial-branch="${branch}"
@@ -36,15 +36,15 @@ else
   __network="--network=${NETWORK}"
 fi
 
-if [ -f /var/lib/teku/teku-keyapi.keystore ]; then
-    if [ "$(date +%s -r /var/lib/teku/teku-keyapi.keystore)" -lt "$(date +%s --date="300 days ago")" ]; then
+if [[ -f /var/lib/teku/teku-keyapi.keystore ]]; then
+    if [[ "$(date +%s -r /var/lib/teku/teku-keyapi.keystore)" -lt "$(date +%s --date="300 days ago")" ]]; then
        rm /var/lib/teku/teku-keyapi.keystore
     elif ! openssl x509 -noout -ext subjectAltName -in /var/lib/teku/teku-keyapi.crt | grep -q "DNS:${VC_ALIAS}"; then
        rm /var/lib/teku/teku-keyapi.keystore
     fi
 fi
 
-if [ ! -f /var/lib/teku/teku-keyapi.keystore ]; then
+if [[ ! -f /var/lib/teku/teku-keyapi.keystore ]]; then
     __password=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
     echo "$__password" > /var/lib/teku/teku-keyapi.password
     openssl req -x509 -newkey rsa:4096 -sha256 -days 365 -nodes -keyout /var/lib/teku/teku-keyapi.key -out /var/lib/teku/teku-keyapi.crt -subj '/CN=teku-keyapi-cert' -extensions san -config <( \
@@ -56,7 +56,7 @@ if [ ! -f /var/lib/teku/teku-keyapi.keystore ]; then
 fi
 
 # Check whether we should enable doppelganger protection
-if [ "${DOPPELGANGER}" = "true" ]; then
+if [[ "${DOPPELGANGER}" = "true" ]]; then
   __doppel="--doppelganger-detection-enabled=true"
   echo "Doppelganger protection enabled, VC will pause for 2 epochs"
 else
@@ -64,7 +64,7 @@ else
 fi
 
 # Check whether we should use MEV Boost
-if [ "${MEV_BOOST}" = "true" ]; then
+if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--validators-builder-registration-default-enabled"
   echo "MEV Boost enabled"
   __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
@@ -97,7 +97,7 @@ else
 fi
 
 # Web3signer URL
-if [ "${WEB3SIGNER}" = "true" ]; then
+if [[ "${WEB3SIGNER}" = "true" ]]; then
   __w3s_url="--validators-external-signer-url ${W3S_NODE}"
 #  while true; do
 #    if curl -s -m 5 ${W3S_NODE} &> /dev/null; then
@@ -113,13 +113,13 @@ else
 fi
 
 # Distributed attestation aggregation
-if [ "${ENABLE_DIST_ATTESTATION_AGGR}" =  "true" ]; then
+if [[ "${ENABLE_DIST_ATTESTATION_AGGR}" =  "true" ]]; then
   __att_aggr="--Xobol-dvt-integration-enabled=true"
 else
   __att_aggr=""
 fi
 
-if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
+if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
   exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__doppel} ${__att_aggr} ${VC_EXTRAS}

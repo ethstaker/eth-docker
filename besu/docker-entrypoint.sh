@@ -19,7 +19,7 @@ __strip_empty_args() {
 }
 
 
-if [ -n "${JWT_SECRET}" ]; then
+if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/besu/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
 fi
@@ -31,11 +31,11 @@ if [[ ! -f /var/lib/besu/ee-secret/jwtsecret ]]; then
   echo -n "${__secret1}""${__secret2}" > /var/lib/besu/ee-secret/jwtsecret
 fi
 
-if [[ -O "/var/lib/besu/ee-secret" ]]; then
+if [[ -O /var/lib/besu/ee-secret ]]; then
   # In case someone specifies JWT_SECRET but it's not a distributed setup
   chmod 777 /var/lib/besu/ee-secret
 fi
-if [[ -O "/var/lib/besu/ee-secret/jwtsecret" ]]; then
+if [[ -O /var/lib/besu/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/besu/ee-secret/jwtsecret
 fi
 
@@ -47,7 +47,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
   # For want of something more amazing, let's just fail if git fails to pull this
   set -e
-  if [ ! -d "/var/lib/besu/testnet/${config_dir}" ]; then
+  if [[ ! -d "/var/lib/besu/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/besu/testnet
     cd /var/lib/besu/testnet
     git init --initial-branch="${branch}"
@@ -63,16 +63,16 @@ else
   __network="--network ${NETWORK}"
 fi
 
-if [ "${ARCHIVE_NODE}" = "true" ]; then
+if [[ "${ARCHIVE_NODE}" = "true" ]]; then
   echo "Besu archive node without pruning"
   __prune="--data-storage-format=FOREST --sync-mode=FULL"
-elif [ "${MINIMAL_NODE}" = "true" ]; then
+elif [[ "${MINIMAL_NODE}" = "true" ]]; then
   case "${NETWORK}" in
     mainnet | sepolia )
       echo "Besu minimal node with pre-merge history expiry"
       __prune="--snapsync-server-enabled"
       __timestamp_file="/var/lib/besu/prune-history-timestamp.txt"
-      if [ -f "${__timestamp_file}" ]; then
+      if [[ -f "${__timestamp_file}" ]]; then
         __saved_ts=$(<"${__timestamp_file}")
         __current_ts=$(date +%s)
         __diff=$((__current_ts - __saved_ts))
@@ -97,14 +97,14 @@ else
 fi
 
 # New or old datadir
-if [ -d /var/lib/besu-og/database ]; then
+if [[ -d /var/lib/besu-og/database ]]; then
   __datadir="--data-path /var/lib/besu-og"
 else
   __datadir="--data-path /var/lib/besu"
 fi
 
 # DiscV5 for IPV6
-if [ "${IPV6:-false}" = "true" ]; then
+if [[ "${IPV6:-false}" = "true" ]]; then
   echo "Configuring Besu for discv5 for IPv6 advertisements"
   __ipv6="--Xv5-discovery-enabled"
 else
@@ -114,9 +114,9 @@ fi
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
-if [ -f /var/lib/besu/prune-history-marker ]; then
+if [[ -f /var/lib/besu/prune-history-marker ]]; then
   rm -f /var/lib/besu/prune-history-marker
-  if [ "${ARCHIVE_NODE}" = "true" ]; then
+  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
     echo "Besu is an archive node. Not attempting to prune history: Aborting."
     exit 1
   fi
@@ -125,9 +125,9 @@ if [ -f /var/lib/besu/prune-history-marker ]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
   exec /opt/besu/bin/besu ${__datadir} ${__network} storage prune-pre-merge-blocks
-elif [ -f /var/lib/besu/prune-marker ]; then
+elif [[ -f /var/lib/besu/prune-marker ]]; then
   rm -f /var/lib/besu/prune-marker
-  if [ "${ARCHIVE_NODE}" = "true" ]; then
+  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
     echo "Besu is an archive node. Not attempting to prune trie-logs: Aborting."
     exit 1
   fi

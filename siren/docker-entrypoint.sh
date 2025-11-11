@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [ ! -f /var/lib/lighthouse/validators/api-token.txt ]; then
+if [[ ! -f /var/lib/lighthouse/validators/api-token.txt ]]; then
   echo "Validator client API token not found. Waiting 30s before restarting."
   sleep 30
   exit 1

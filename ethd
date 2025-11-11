@@ -37,9 +37,9 @@ __determine_distro() {
 # Determine OS platform
   __uname=$(uname | tr "[:upper:]" "[:lower:]")
 # If Linux, try to determine specific distribution
-  if [ "$__uname" = "linux" ]; then
+  if [[ "$__uname" = "linux" ]]; then
 # If available, use LSB to identify distribution
-    if [ -n "$(command -v lsb_release 2>/dev/null)" ]; then
+    if [[ -n "$(command -v lsb_release 2>/dev/null)" ]]; then
       __distro=$(lsb_release -i | cut -d: -f2 | sed s/'^\t'//)
 # Otherwise, use release info file
     else
@@ -50,24 +50,24 @@ __determine_distro() {
     __distro=""
   fi
 # For everything else (or if above failed), just use generic identifier
-  [ "$__distro" = "" ] && __distro=$__uname
+  [[ -z "$__distro" ]] && __distro=$__uname
   unset __uname
   __distro=$(echo "$__distro" | tr "[:upper:]" "[:lower:]")
 
   if [[ "$__distro" = "ubuntu" ]]; then
-    if [ "$__cannot_sudo" -eq 0 ]; then
+    if [[ "$__cannot_sudo" -eq 0 ]]; then
       if ! dpkg-query -W -f='${Status}' lsb-release 2>/dev/null | grep -q "ok installed"; then
         echo "Installing lsb-release"
         ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get -y install lsb-release
       fi
     fi
-    if [ -n "$(command -v lsb_release 2>/dev/null)" ]; then
+    if [[ -n "$(command -v lsb_release 2>/dev/null)" ]]; then
       __os_major_version=$(lsb_release -r | cut -d: -f2 | sed s/'^\t'// | cut -d. -f1)
     else
       __os_major_version=24 # Without sudo and lsb_release let's just skip the check
     fi
   elif [[ "$__distro" =~ "debian" ]]; then
-    if [ "$__cannot_sudo" -eq 0 ]; then
+    if [[ "$__cannot_sudo" -eq 0 ]]; then
       if ! dpkg-query -W -f='${Status}' lsb-release 2>/dev/null | grep -q "ok installed"; then
         echo "Installing lsb-release"
         ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get -y install lsb-release
@@ -87,7 +87,7 @@ __handle_docker() {
   if [[ ( "$__distro" =~ "debian" || "$__distro" = "ubuntu" ) ]] && ! grep -qi microsoft /proc/version; then
     systemctl status docker >/dev/null
     __result=$?
-    if [ ! "${__result}" -eq 0 ]; then
+    if [[ ! "${__result}" -eq 0 ]]; then
       echo "The Docker daemon is not running. Please check Docker installation."
       echo "\"sudo systemctl status docker\" and \"sudo journalctl -fu docker\" will be helpful."
       echo "Aborting."
@@ -101,7 +101,7 @@ __handle_docker() {
   __docker_minor_version=$(echo "$__docker_version" | awk '{ split($1, version, "."); print version[2]; }')
   __docker_patch_version=$(echo "$__docker_version" | awk '{ split($1, version, "."); print version[3]; }')
 
-  if [ "${__docker_major_version}" -lt 23 ]; then
+  if [[ "${__docker_major_version}" -lt 23 ]]; then
     __old_docker=1
     echo "Docker ${__docker_version} detected"
   else
@@ -110,7 +110,7 @@ __handle_docker() {
 
   __docker_sudo=""
   if ! docker images >/dev/null 2>&1; then
-    if [ "$__cannot_sudo" -eq 1 ]; then
+    if [[ "$__cannot_sudo" -eq 1 ]]; then
       echo "Cannot call Docker and cannot use sudo. Please make your user part of the docker group"
       exit 1
     fi
@@ -141,7 +141,7 @@ __handle_docker() {
 
 __handle_root() {
   __cannot_sudo=0
-  if [ "${EUID}" -eq 0 ]; then
+  if [[ "${EUID}" -eq 0 ]]; then
     __as_owner="sudo -u ${OWNER}"
     __auto_sudo=""
   else
@@ -157,7 +157,7 @@ __handle_root() {
 
 
 __upgrade_docker() {
-  if [ -n "${ETHDSECUNDO-}" ]  || [ ! "${__command}" = "update" ]; then  # Don't run this twice
+  if [[ -n "${ETHDSECUNDO-}" || ! "${__command}" = "update" ]]; then  # Don't run this twice
     if (( __docker_major_version < 28 )) ||
        (( __docker_major_version == 28 && __docker_minor_version < 5 )) ||
        (( __docker_major_version == 28 && __docker_minor_version == 5 && __docker_patch_version < 2 )); then
@@ -169,12 +169,12 @@ __upgrade_docker() {
         elif dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
           echo "This version of Docker has a vulnerable runc binary."
           __nag_os_version
-          if [ "${__eol_os}" -eq 1 ]; then
+          if [[ "${__eol_os}" -eq 1 ]]; then
             echo "${__project_name} cannot update Docker-CE on ${__distro} ${__os_major_version}."
             return
           fi
           echo "It is recommended that you update Docker-CE"
-          if [ "${__non_interactive:-0}" -eq 0 ]; then
+          if [[ "${__non_interactive:-0}" -eq 0 ]]; then
             while true; do
               read -rp "Do you want to update Docker-CE? (yes/no) " __yn
               case $__yn in
@@ -203,7 +203,7 @@ __upgrade_compose() {
   echo "Updating Docker Compose to V2"
   if [[ "$__distro" = "ubuntu" ]]; then
     __nag_os_version
-    if [ "${__eol_os}" -eq 1 ]; then
+    if [[ "${__eol_os}" -eq 1 ]]; then
       echo "${__project_name} cannot update Docker Compose on Ubuntu ${__os_major_version}."
       exit 1
     fi
@@ -222,7 +222,7 @@ __upgrade_compose() {
   elif [[ "$__distro" =~ "debian" ]]; then
     ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get -y install ca-certificates curl gnupg
     __nag_os_version
-    if [ "${__eol_os}" -eq 1 ]; then
+    if [[ "${__eol_os}" -eq 1 ]]; then
       echo "${__project_name} cannot update Docker Compose on Debian ${__os_major_version}."
       exit 1
     fi
@@ -269,8 +269,8 @@ __check_compose_version() {
     __old_compose=1
     __compose_version=$($__docker_sudo docker-compose --version | sed -n -E -e "s/.*version [v]?([0-9.-]*).*/\1/ip")
   fi
-  if [ "${__old_compose}" -eq 1 ]; then
-    if [ -n "${ETHDSECUNDO-}" ]  || [ ! "${__command}" = "update" ]; then # Don't run this twice
+  if [[ "${__old_compose}" -eq 1 ]]; then
+    if [[ -n "${ETHDSECUNDO-}" || ! "${__command}" = "update" ]]; then # Don't run this twice
       echo
       if [[ "${__compose_major}" -eq 1 ]]; then
         echo "You are using docker-compose ${__compose_version}, which is unsupported by Docker, Inc."
@@ -294,7 +294,7 @@ __check_compose_version() {
 
 __prep_conffiles() {
 # Create custom-prom.yml if it doesn't exist
-  if [ ! -f "./prometheus/custom-prom.yml" ]; then
+  if [[ ! -f "./prometheus/custom-prom.yml" ]]; then
     ${__as_owner} touch "./prometheus/custom-prom.yml"
   fi
 # Make sure the prometheus dir and its contents are accessible to user nobody
@@ -305,10 +305,10 @@ __prep_conffiles() {
     find prometheus -name '*.yml' -exec chmod 664 {} \;
   fi
 # Create config.yaml if it doesn't exist
-  if [ ! -f "ssv-config/config.yaml" ]; then
+  if [[ ! -f "ssv-config/config.yaml" ]]; then
     ${__as_owner} cp ssv-config/config.yaml.sample ssv-config/config.yaml
   fi
-  if [ ! -f "ssv-config/dkg-config.yaml" ]; then
+  if [[ ! -f "ssv-config/dkg-config.yaml" ]]; then
     ${__as_owner} cp ssv-config/dkg-config.yaml.sample ssv-config/dkg-config.yaml
   fi
 # Make sure ssv-config yaml files are 664
@@ -320,7 +320,7 @@ __prep_conffiles() {
   fi
 # Make sure local user owns the dkg output dir and everything in it
   if find .eth/dkg_output \! -user "${OWNER}" -o \! -group "${OWNER_GROUP}" | grep -q .; then
-    if [ "$__cannot_sudo" -eq 0 ]; then
+    if [[ "$__cannot_sudo" -eq 0 ]]; then
       echo "Fixing ownership of .eth/dkg_output"
       ${__auto_sudo} chown -R "${OWNER}:${OWNER_GROUP}" .eth/dkg_output
       ${__auto_sudo} chmod 755 .eth/dkg_output
@@ -338,16 +338,16 @@ __prep_conffiles() {
   fi
 
 # Create cb-config.toml if it doesn't exist
-  if [ ! -f "commit-boost/cb-config.toml" ]; then
+  if [[ ! -f "commit-boost/cb-config.toml" ]]; then
     ${__as_owner} cp commit-boost/cb-config.toml.sample commit-boost/cb-config.toml
   fi
 # Make sure local user owns .env
   if find . -name .env \! -user "${OWNER}" -o \! -group "${OWNER_GROUP}" | grep -q ./.env; then
-    if [ "$__cannot_sudo" -eq 0 ]; then
+    if [[ "$__cannot_sudo" -eq 0 ]]; then
       echo "Fixing ownership of .env"
       ${__auto_sudo} chown -R "${OWNER}:${OWNER_GROUP}" .env
       ${__auto_sudo} chmod -R 644 .env
-      if [ -f .env.tmp ]; then
+      if [[ -f .env.tmp ]]; then
         ${__auto_sudo} rm -f .env.tmp
       fi
     else
@@ -381,7 +381,7 @@ __install_bash_completions() {
   if [[ "$OSTYPE" = "darwin"* ]]; then
     echo "Skipping installation of tab completions (not supported on macOS)"
   else
-    if [ ! -f "$(pkg-config --variable=completionsdir bash-completion)/ethd" ]; then
+    if [[ ! -f "$(pkg-config --variable=completionsdir bash-completion)/ethd" ]]; then
       echo "Installing bash completions for ethd"
       ${__auto_sudo} ln -sf "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/bash-completion" \
       "$(pkg-config --variable=completionsdir bash-completion)/ethd" || true
@@ -507,7 +507,7 @@ __optimize_host() {
     echo "Remounting ${__docker_mount} with \"noatime\""
     ${__auto_sudo} mount -o remount,noatime "${__docker_mount}" || true
     __exit_code=$?
-    if [ ${__exit_code} -eq 0 ]; then
+    if [[ ${__exit_code} -eq 0 ]]; then
       __fstab_noatime "${__docker_mount}"
     else
       echo "Applying \"noatime\" to ${__docker_mount} failed"
@@ -515,13 +515,13 @@ __optimize_host() {
   fi
 
   __swappiness=$(${__auto_sudo} sysctl -n vm.swappiness)
-  if [ "${__swappiness}" -gt 1 ]; then
+  if [[ "${__swappiness}" -gt 1 ]]; then
     echo "Adjusting swappiness down to 1 from ${__swappiness}"
     ${__auto_sudo} sysctl -w vm.swappiness=1
-    if [ -d /etc/sysctl.d ]; then
+    if [[ -d /etc/sysctl.d ]]; then
       echo "Persisting vm.swappiness=1 in /etc/sysctl.d/10-swappiness.conf"
       echo "vm.swappiness=1" | ${__auto_sudo} tee /etc/sysctl.d/10-swappiness.conf >/dev/null
-    elif [ -f /etc/sysctl.conf ]; then
+    elif [[ -f /etc/sysctl.conf ]]; then
       if ! grep -E '^\s*vm\.swappiness\s*=' /etc/sysctl.conf >/dev/null; then
         echo "Appending vm.swappiness=1 to /etc/sysctl.conf"
         echo "vm.swappiness=1" | ${__auto_sudo} tee -a /etc/sysctl.conf > /dev/null
@@ -536,21 +536,21 @@ __optimize_host() {
 
   __cache_pressure=$(${__auto_sudo} sysctl -n vm.vfs_cache_pressure)
   __memtotal=$(awk '/MemTotal/ {printf "%d", int($2/1024/1024)}' /proc/meminfo)
-  if [ "${__memtotal}" -ge 60 ]; then
+  if [[ "${__memtotal}" -ge 60 ]]; then
     __target_pressure=10
-  elif [ "${__memtotal}" -ge 30 ]; then
+  elif [[ "${__memtotal}" -ge 30 ]]; then
     __target_pressure=25
   else
     __target_pressure=50
   fi
 
-  if [ "${__cache_pressure}" -gt "${__target_pressure}" ]; then
+  if [[ "${__cache_pressure}" -gt "${__target_pressure}" ]]; then
     echo "Adjusting vfs_cache_pressure down to ${__target_pressure} from ${__cache_pressure}"
     ${__auto_sudo} sysctl -w vm.vfs_cache_pressure="${__target_pressure}"
-    if [ -d /etc/sysctl.d ]; then
+    if [[ -d /etc/sysctl.d ]]; then
       echo "Persisting vm.vfs_cache_pressure=${__target_pressure} in /etc/sysctl.d/10-vfs_cache_pressure.conf"
       echo "vm.vfs_cache_pressure=${__target_pressure}" | ${__auto_sudo} tee /etc/sysctl.d/10-vfs_cache_pressure.conf >/dev/null
-    elif [ -f /etc/sysctl.conf ]; then
+    elif [[ -f /etc/sysctl.conf ]]; then
       if ! grep -E '^\s*vm\.vfs_cache_pressure\s*=' /etc/sysctl.conf >/dev/null; then
         echo "Appending vm.vfs_cache_pressure=${__target_pressure} to /etc/sysctl.conf"
         echo "vm.vfs_cache_pressure=${__target_pressure}" | ${__auto_sudo} tee -a /etc/sysctl.conf > /dev/null
@@ -584,7 +584,7 @@ __install_docker() {
     exit 70
   fi
 
-  if [ -z "$(command -v docker)" ]; then
+  if [[ -z "$(command -v docker)" ]]; then
     ${__auto_sudo} mkdir -p /etc/apt/keyrings
     curl -fsSL "https://download.docker.com/linux/${__repo}/gpg" | ${__auto_sudo} gpg --dearmor \
       --yes -o /etc/apt/keyrings/docker.gpg
@@ -622,12 +622,12 @@ install() {
   fi
 
   __nag_os_version
-  if [ "${__eol_os}" -eq 1 ]; then
+  if [[ "${__eol_os}" -eq 1 ]]; then
     echo "${__project_name} requires an upgraded Linux distribution to run install."
     return 0
   fi
 
-  if [ "$__cannot_sudo" -eq 1 ]; then
+  if [[ "$__cannot_sudo" -eq 1 ]]; then
     echo "The install command requires the user to be part of the sudo group, or on macOS the admin group"
     return 0
   fi
@@ -644,7 +644,7 @@ install() {
     * ) ;;
   esac
 
-  if [ -n "$(command -v docker)" ]; then
+  if [[ -n "$(command -v docker)" ]]; then
     __handle_docker
   else
     echo "${__me} requires Docker to be present to continue with install steps."
@@ -713,7 +713,7 @@ __display_docker_dir() {
 __display_docker_volumes() {
   echo
   # Assume project name and volume are delimited by _ and there is no _ in the volume name. Done to avoid catching project-2 while looking at project
-  if [ -z "$(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_[^_]+$")" ]; then
+  if [[ -z "$(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_[^_]+$")" ]]; then
     echo "There are no Docker volumes for this copy of ${__project_name}"
     echo
   else
@@ -754,7 +754,7 @@ space() {
 
   __var=ANCIENT_DIR
   __get_value_from_env "${__var}" "${__env_file}" "ANCIENT_DIR"
-  if [ -n "${ANCIENT_DIR}" ]; then
+  if [[ -n "${ANCIENT_DIR}" ]]; then
     echo
     ${__auto_sudo} du -sh "${ANCIENT_DIR}"
   fi
@@ -775,7 +775,7 @@ __check_disk_space() {
   __var="EL_MINIMAL_NODE"
   __get_value_from_env "${__var}" "${__env_file}" "__minimal_node"
 
-  if [ "${NETWORK}" = "mainnet" ] || [ "${NETWORK}" = "gnosis" ]; then
+  if [[ "${NETWORK}" =~ ^(mainnet|gnosis)$ ]]; then
     __min_free=314572800
     __min_gib=300
     __safe_prune=250
@@ -787,12 +787,12 @@ __check_disk_space() {
 
 # Literal match intended
 # shellcheck disable=SC2076
-  if [[ "${__value}" =~ "nethermind.yml" ]] && [[ "${__free_space}" -lt "${__min_free}" ]]; then
+  if [[ "${__value}" =~ "nethermind.yml" && "${__free_space}" -lt "${__min_free}" ]]; then
     __low=1
     echo
     echo "You are running Nethermind and have less than ${__min_gib} GiB of free disk space."
 # shellcheck disable=SC2154
-    if [ "${__auto_prune}" = true ]; then
+    if [[ "${__auto_prune}" = true ]]; then
       echo "It should currently be auto-pruning, check logs with \"$__me logs -f --tail 500 execution | grep \
 Full\". Free space:"
     else
@@ -801,7 +801,7 @@ Full\". Free space:"
     echo
     __display_docker_dir
     __display_docker_volumes
-  elif [[ "${__value}" =~ "geth.yml" ]] && [[ "${__free_space}" -lt 104857600 ]]; then
+  elif [[ "${__value}" =~ "geth.yml" && "${__free_space}" -lt 104857600 ]]; then
     __low=1
     echo
     echo "You are running Geth and have less than 100 GiB of free disk space."
@@ -809,7 +809,7 @@ Full\". Free space:"
     echo
     __display_docker_dir
     __display_docker_volumes
-  elif [[ "${__value}" =~ "besu.yml" ]] && [[ "${__free_space}" -lt 52428800 ]]; then
+  elif [[ "${__value}" =~ "besu.yml" && "${__free_space}" -lt 52428800 ]]; then
     __low=1
     echo
     echo "You are running Besu and have less than 50 GiB of free disk space."
@@ -849,7 +849,7 @@ __source_build() {
       __var="DEPCLI_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
 # shellcheck disable=SC2154
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
         __docompose --profile tools build --pull --no-cache deposit-cli-new
       fi
       ;;
@@ -858,7 +858,7 @@ __source_build() {
     *mev-boost.yml* )
       __var="MEV_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache mev-boost
       fi
       ;;
@@ -867,49 +867,49 @@ __source_build() {
     *reth.yml* )
       __var="RETH_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *geth.yml* )
       __var="GETH_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *besu.yml* )
       __var="BESU_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *nethermind.yml* )
       __var="NM_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *erigon.yml* )
       __var="ERIGON_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *nimbus-el.yml* )
       __var="NIMEL_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *ethrex.yml* )
       __var="ETHREX_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
@@ -918,42 +918,42 @@ __source_build() {
     *lighthouse.yml* | *lighthouse-cl-only.yml* )
       __var="LH_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *teku.yml* | *teku-allin1.yml* | *teku-cl-only.yml* )
       __var="TEKU_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *lodestar.yml* | *lodestar-cl-only.yml* )
       __var="LS_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *nimbus.yml* | *nimbus-allin1.yml* | *nimbus-cl-only.yml* )
       __var="NIM_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *prysm.yml* | *prysm-cl-only.yml* )
       __var="PRYSM_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *grandine.yml* | *grandine-allin1.yml* | *grandine-cl-only.yml* )
       __var="GRANDINE_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
@@ -962,7 +962,7 @@ __source_build() {
     *vero-vc-only.yml* )
       __var="VERO_DOCKERFILE"
       __get_value_from_env "${__var}" "${__env_file}" "__build"
-      if [ "${__build}" = "Dockerfile.source" ]; then
+      if [[ "${__build}" = "Dockerfile.source" ]]; then
         __docompose build --pull --no-cache validator
       fi
       ;;
@@ -989,13 +989,13 @@ __migrate_compose_file() {
   for __n in "${!__ymlarray[@]}"; do
     __ymlfile="${__ymlarray[__n]}"
     for __index in "${!__from_yml[@]}"; do
-      if [ "${__from_yml[__index]}" = "${__ymlfile}" ]; then
+      if [[ "${__from_yml[__index]}" = "${__ymlfile}" ]]; then
         __ymlfile=${__to_yml[__index]}
         break
       fi
     done
-    if [ -n "${__ymlfile}" ]; then
-      if [ -z "${__value}" ]; then
+    if [[ -n "${__ymlfile}" ]]; then
+      if [[ -z "${__value}" ]]; then
         __value="${__ymlfile}"
       else
         __value="${__value}:${__ymlfile}"
@@ -1016,7 +1016,7 @@ __upgrade_postgres() {
   fi
 
   __source_vol="$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]')_web3signer-slashing-data"
-  if [ -z "$(__dodocker volume ls -q -f "name=${__source_vol}")" ]; then
+  if [[ -z "$(__dodocker volume ls -q -f "name=${__source_vol}")" ]]; then
     return 0
   fi
 
@@ -1025,10 +1025,10 @@ __upgrade_postgres() {
   __source_pg="$(__dodocker run --rm -v "${__source_vol}":"/var/lib/postgresql/data" \
     alpine:3 cat /var/lib/postgresql/data/PG_VERSION)"
 
-  if [ "${__source_pg}" -lt "${__target_pg}" ]; then
+  if [[ "${__source_pg}" -lt "${__target_pg}" ]]; then
     echo "Web3signer is using PostgreSQL ${__source_pg}. The current version is PostgreSQL ${__target_pg}."
     echo
-    if [ "${__non_interactive:-0}" -eq 0 ]; then
+    if [[ "${__non_interactive:-0}" -eq 0 ]]; then
       while true; do
         read -rp "Would you like to migrate to PostgreSQL ${__target_pg}? (Y/n) " __yn
         case $__yn in
@@ -1092,7 +1092,7 @@ __upgrade_postgres() {
 
   echo
   echo "Adjusting PostgreSQL Docker tag"
-  if [ ! -f "${__env_file}.source" ]; then  # update() didn't migrate env, let's make sure .env.source exists
+  if [[ ! -f "${__env_file}.source" ]]; then  # update() didn't migrate env, let's make sure .env.source exists
     cp "${__env_file}" "${__env_file}.source"
   fi
   __var="PG_DOCKER_TAG"
@@ -1115,7 +1115,7 @@ repair-reth() {
 # I do mean to match literally
 # shellcheck disable=SC2076
   if [[ ! "${__value}" =~ "reth.yml" ]]; then
-    if [ "${__during_update}" -eq 1 ]; then
+    if [[ "${__during_update}" -eq 1 ]]; then
       return 0
     else
       echo "You do not appear to be using Reth. Aborting"
@@ -1123,7 +1123,7 @@ repair-reth() {
     fi
   fi
 
-  if [ "${__during_update}" -eq 1 ]; then
+  if [[ "${__during_update}" -eq 1 ]]; then
   # Check for last Reth that touched the DB
     set +e
     __docompose exec -T -u root execution /bin/bash -c 'apt-get update && apt-get install -y --no-install-recommends jq'
@@ -1144,7 +1144,7 @@ repair-reth() {
     fi
   fi
 
-  if [ "${__non_interactive:-0}" -eq 0 ]; then
+  if [[ "${__non_interactive:-0}" -eq 0 ]]; then
     echo
     while true; do
       read -rp "WARNING - About to repair the Reth database. This can take 2 hours or more. Do you wish to continue? (Y/n) " __yn
@@ -1163,13 +1163,13 @@ repair-reth() {
 
 
 __enable_v6() {
-  if [ "${__docker_major_version}" -lt 27 ]; then
+  if [[ "${__docker_major_version}" -lt 27 ]]; then
     return
   fi
 
   __var="IPV6"
   __get_value_from_env "${__var}" "${__env_file}" "IPV6"
-  if [ "${IPV6}" = "true" ]; then
+  if [[ "${IPV6}" = "true" ]]; then
     return
   fi
 
@@ -1185,7 +1185,7 @@ __enable_v6() {
     "if ping -c1 -6 2001:4860:4860::8888 >/dev/null; then echo true; else echo false; fi" < /dev/null)
   __dodocker network rm ip6net_ethd_test
 
-  if [ "${__v6_works}" = "true" ]; then
+  if [[ "${__v6_works}" = "true" ]]; then
     echo "Enabling IPv4/6 dual-stack for your ${__project_name} setup"
     IPV6="true"
     __update_value_in_env "${__var}" "${!__var}" "${__env_file}"
@@ -1352,14 +1352,14 @@ __update_value_in_env() {
 
 
 __env_migrate() {
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     return 0
   fi
 
   __old_vars=( )
   __new_vars=( )
 
-  if [ "${__debug}" -eq 1 ]; then  # Find any values in default.env that contain dashes
+  if [[ "${__debug}" -eq 1 ]]; then  # Find any values in default.env that contain dashes
     __error=0
     while IFS= read -r __line; do
       # Skip blank lines and comments
@@ -1379,7 +1379,7 @@ __env_migrate() {
         continue  # Doesn't match variable assignment format
       fi
     done < "./default.env"
-    if [ "${__error}" -gt 0 ]; then
+    if [[ "${__error}" -gt 0 ]]; then
       exit 1
     fi
   fi
@@ -1387,7 +1387,7 @@ __env_migrate() {
 # Always make sure we have a SIREN password
   __var="SIREN_PASSWORD"
   __get_value_from_env "${__var}" "${__env_file}" "SIREN_PASSWORD"
-  if [ -z "${SIREN_PASSWORD}" ]; then
+  if [[ -z "${SIREN_PASSWORD}" ]]; then
     SIREN_PASSWORD=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
     __update_value_in_env "${__var}" "${!__var}" "${__env_file}"
   fi
@@ -1401,7 +1401,7 @@ __env_migrate() {
     return 0
   fi
 
-  if [ "${__keep_targets}" -eq 0 ]; then
+  if [[ "${__keep_targets}" -eq 0 ]]; then
     echo "Refreshing build targets in ${__env_file}"
   fi
   if [[ "${__target_ver}" -gt "${__source_ver}" ]]; then
@@ -1429,18 +1429,18 @@ __env_migrate() {
     fi
 
     __get_value_from_env "${__var}" "${__env_file}.source" "__value"
-    if [ "${__found}" -eq 1 ]; then  # Only if variable isn't new in default.env
-      if [ "${__var}" = "COMPOSE_FILE" ]; then
+    if [[ "${__found}" -eq 1 ]]; then  # Only if variable isn't new in default.env
+      if [[ "${__var}" = "COMPOSE_FILE" ]]; then
         __migrate_compose_file
       fi
-      if [ "${__var}" = "CL_QUIC_PORT" ]; then
+      if [[ "${__var}" = "CL_QUIC_PORT" ]]; then
         __get_value_from_env "CL_P2P_PORT" "${__env_file}.source" "__cl_port"
-        if [ -n "${__cl_port}" ] && [ "${__cl_port}" = "${__value}" ]; then
+        if [[ -n "${__cl_port}" && "${__cl_port}" = "${__value}" ]]; then
           __value=$((__value + 1))
           echo "Adjusted CL_QUIC_PORT to ${__value} so it does not conflict with CL_P2P_PORT"
         fi
         __get_value_from_env "PRYSM_UDP_PORT" "${__env_file}.source" "__prysm_port"
-        if [ -n "${__prysm_port}" ] && [ "${__prysm_port}" = "${__value}" ]; then # just in case this is one ahead
+        if [[ -n "${__prysm_port}" && "${__prysm_port}" = "${__value}" ]]; then # just in case this is one ahead
           __value=$((__value + 1))
           echo "Adjusted CL_QUIC_PORT to ${__value} so it does not conflict with PRYSM_UDP_PORT"
         fi
@@ -1490,7 +1490,7 @@ __env_migrate() {
   for __index in "${!__old_vars[@]}"; do
     __var=${__old_vars[__index]}
     __get_value_from_env "${__var}" "${__env_file}.source" "__value"
-    if [ "${__found}" -eq 1 ]; then
+    if [[ "${__found}" -eq 1 ]]; then
       __update_value_in_env "${__new_vars[__index]}" "$__value" "${__env_file}"
     fi
   done
@@ -1507,7 +1507,7 @@ __env_migrate() {
     __var="FEE_RECIPIENT"
     __get_value_from_env "${__var}" "${__env_file}" "__value"
     if [[ -z "${__value}" || ${__value} != 0x* || ${#__value} -ne 42 ]]; then
-      if [ "${__non_interactive:-0}" -eq 0 ]; then
+      if [[ "${__non_interactive:-0}" -eq 0 ]]; then
         whiptail --msgbox "A fee recipient ETH wallet address is required in order to start the client. This is \
   for priority fees and, optionally, MEV. Please enter a valid ETH address in the next screen. Refer to \
   ${__project_name} docs (https://ethdocker.com/About/Rewards) for more information.\n\nCAUTION: \"$__me up\" will fail if no \
@@ -1539,7 +1539,7 @@ __nag_os_version() {
   fi
 
   if [[ "$__distro" =~ "debian" ]]; then
-    if [ "${__os_major_version}" -lt "${__min_debian}" ]; then
+    if [[ "${__os_major_version}" -lt "${__min_debian}" ]]; then
      echo
      echo "Debian ${__os_major_version} is older than the recommended ${__suggest_debian} version."
      echo
@@ -1573,7 +1573,7 @@ __nag_os_update() {
   __last_upgrade_date=""
   for __dpkg_log in "${__dpkg_logs[@]}"; do  # Oldest to newest, end up with the newest upgrade line
     if [[ "${__dpkg_log}" = *.gz ]]; then
-      if [ -z "$(command -v zgrep)" ]; then
+      if [[ -z "$(command -v zgrep)" ]]; then
         return 0
       fi
       __grep_cmd="zgrep"
@@ -1589,7 +1589,7 @@ __nag_os_update() {
     __oldest_log="${__dpkg_logs[0]}"
     if [[ -n "${__oldest_log}" && -f "${__oldest_log}" ]]; then
       if [[ "${__oldest_log}" = *.gz ]]; then
-        if [ -z "$(command -v zcat)" ]; then
+        if [[ -z "$(command -v zcat)" ]]; then
           return 0
         fi
         __cat_cmd="zcat"
@@ -1676,14 +1676,14 @@ update() {
     echo "Unable to determine free disk space. This is likely a bug."
     echo "df reports $(df -P "$(pwd)") and __free_space is ${__free_space}"
     exit 70
-  elif [ "$(df -P "$(pwd)" | awk '/[0-9]%/{print $(NF-2)}')" -lt 1024 ]; then
+  elif [[ "$(df -P "$(pwd)" | awk '/[0-9]%/{print $(NF-2)}')" -lt 1024 ]]; then
     echo "You have less than 1 MiB of space left on $(pwd)."
     echo "Aborting, as an update is not safe."
     exit 1
   fi
 
   __get_docker_free_space
-  if [ "${__free_space}" -lt 1048576 ]; then
+  if [[ "${__free_space}" -lt 1048576 ]]; then
     echo "You have less than 1 GiB of space left for Docker volumes."
     echo "Aborting, as an update is not safe."
     exit 1
@@ -1693,7 +1693,7 @@ update() {
   if [[ -z "${STY:-}" && -z "${TMUX:-}" && ! "$*" =~ "--non-interactive" && ! "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     local __no_screen_cmd=0
     echo "\"${__me} update\" benefits from running in a session that protects it against disconnects."
-    if [ -z "$(command -v screen)" ]; then
+    if [[ -z "$(command -v screen)" ]]; then
       if [[ "__cannot_sudo" -eq 0 && ("$__distro" = "ubuntu" || "$__distro" = "debian") ]]; then
         echo "Installing screen"
         ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get -y install screen
@@ -1702,18 +1702,18 @@ update() {
         __no_screen_cmd=1
       fi
     fi
-    if [ "$__no_screen_cmd" -eq 0 ]; then
+    if [[ "$__no_screen_cmd" -eq 0 ]]; then
       local __screen_session="${__uniq_id}"
 # Find old lingering screen sessions and close them
       local __old_sessions
       set +e
       __old_sessions=$(screen -ls 2>/dev/null | awk -v name="${__screen_session}" -v status="Detached" '$0 ~ name && $0 ~ status {print $1}')
       set -e
-      if [ -n "${__old_sessions}" ]; then
+      if [[ -n "${__old_sessions}" ]]; then
         local __session_id
         echo "Closing old, detached screen sessions"
         while IFS= read -r __session_id; do
-          if [ -n "${__session_id}" ]; then
+          if [[ -n "${__session_id}" ]]; then
             echo "Closing screen session ${__session_id}"
             screen -S "${__session_id}" -X quit
           fi
@@ -1728,7 +1728,7 @@ update() {
       fi
       echo "Starting a new screen session with identifier ${__screen_session}"
       echo "If you get disconnected, reconnect with \"screen -r ${__screen_session}\""
-      if [ "${__debug}" -eq 1 ]; then
+      if [[ "${__debug}" -eq 1 ]]; then
         echo "A log of the update run can be found in \"/tmp/${__screen_session}.log\""
       fi
       exec 200<&-
@@ -1742,7 +1742,7 @@ update() {
 #
 #   exec bash replaces bash -c , so that the user is still inside screen at the end
 #
-      if [ "${__debug}" -eq 1 ]; then
+      if [[ "${__debug}" -eq 1 ]]; then
         __log="-L -Logfile /tmp/${__screen_session}.log"
       else
         ${__as_owner} rm -f "/tmp/${__screen_session}.log"
@@ -1755,12 +1755,12 @@ update() {
     fi
   fi
 
-  if [ -z "${ETHDSECUNDO-}" ]; then
+  if [[ -z "${ETHDSECUNDO-}" ]]; then
     set +e
     ${__as_owner} git config pull.rebase false
     __var="ETH_DOCKER_TAG"
     __get_value_from_env "${__var}" "${__env_file}" "__value"
-    if [ -z "${__value}" ] || [ "${__value}" = "latest" ]; then
+    if [[ -z "${__value}" || "${__value}" = "latest" ]]; then
       export ETHDPINNED=""
       __branch=$(git rev-parse --abbrev-ref HEAD)
       if [[ "${__branch}" =~ ^tag-* ]]; then
@@ -1781,10 +1781,10 @@ update() {
   fi
 
 # This can be removed post-Fusaka
-  if [ -f "ext-network.yml.bak" ]; then
+  if [[ -f "ext-network.yml.bak" ]]; then
     ${__as_owner} rm ext-network.yml.bak
   fi
-  if [ -f "ext-network.yml.original" ]; then
+  if [[ -f "ext-network.yml.original" ]]; then
     ${__as_owner} rm ext-network.yml.original
   fi
 
@@ -1792,12 +1792,12 @@ update() {
   __targetcli=""
   while :
   do
-    if [ -z "${1+x}" ]; then
+    if [[ -z "${1+x}" ]]; then
       break
     fi
     case "$1" in
       --keep-targets)
-        if [ -n "${__targetcli}" ]; then
+        if [[ -n "${__targetcli}" ]]; then
           echo "Error: --keep-targets and --refresh-targets cannot be used together; use either option once only"
           exit 1
         fi
@@ -1806,7 +1806,7 @@ update() {
         shift
         ;;
       --refresh-targets | --reset-targets)
-        if [ -n "${__targetcli}" ]; then
+        if [[ -n "${__targetcli}" ]]; then
           echo "Error: --keep-targets and --refresh-targets cannot be used together; use either option once only"
           exit 1
         fi
@@ -1828,12 +1828,12 @@ update() {
         ;;
     esac
   done
-  if [ "${ETHD_FRONTEND:-}" = "noninteractive" ]; then
+  if [[ "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     __non_interactive=1
   fi
 
   __env_migrate
-  if [ "${__migrated}" -eq 1 ] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
+  if [[ "${__migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
     ${__as_owner} cp "${__env_file}".source "${__env_file}".bak
   fi
   __pull_and_build
@@ -1842,11 +1842,11 @@ update() {
   repair-reth
 
   echo
-  if [ "${__migrated}" -eq 1 ] && ! cmp -s "${__env_file}" "${__env_file}".source; then
+  if [[ "${__migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then
     ${__as_owner} rm "${__env_file}".source  # .bak was created earlier
     echo "Your ${__env_file} configuration settings have been migrated to a fresh copy. You can \
 find the original contents in ${__env_file}.bak."
-    if [ "${__keep_targets}" -eq 0 ]; then
+    if [[ "${__keep_targets}" -eq 0 ]]; then
       echo "NB: If you made changes to the source or binary build targets, these have been \
 reset to defaults."
     fi
@@ -1856,12 +1856,12 @@ reset to defaults."
     diff -y --suppress-common-lines "${__env_file}" "${__env_file}".bak || true
   else
     echo "No changes made to ${__env_file} during update"
-    if [ -f "${__env_file}".source ]; then
+    if [[ -f "${__env_file}".source ]]; then
       ${__as_owner} rm "${__env_file}".source || true
     fi
   fi
   echo
-  if [ -z "${GITEXITCODE+x}" ] || [ "${GITEXITCODE}" -eq 0 ]; then
+  if [[ -z "${GITEXITCODE+x}" || "${GITEXITCODE}" -eq 0 ]]; then
     echo "An \"$__me up\" command will start using the new images and configuration."
   else
     echo "WARNING"
@@ -1879,7 +1879,7 @@ reset to defaults."
 
   unset ETHDSECUNDO
   unset GITEXITCODE
-  if [ "${__dirty}" -eq 1 ]; then
+  if [[ "${__dirty}" -eq 1 ]]; then
     echo
     echo "WARNING"
     echo
@@ -1889,7 +1889,7 @@ reset to defaults."
     echo
     ${__as_owner} git status --porcelain
   fi
-  if [ -n "${ETHDPINNED:-}" ]; then
+  if [[ -n "${ETHDPINNED:-}" ]]; then
     echo "${__project_name} version is pinned to ${ETHDPINNED} in \".env\"."
     echo "Please make sure to run compatible client versions."
   fi
@@ -1913,12 +1913,12 @@ reset to defaults."
 
 
 __verify_ancient_dir() {
-  if [ -z "$1" ]; then
+  if [[ -z "$1" ]]; then
     return 1
   fi
   local __dir="$1"
 
-  if [ ! -d "${__dir}" ]; then
+  if [[ ! -d "${__dir}" ]]; then
     echo "ANCIENT_DIR ${__dir} is not a directory. This is a configuration error."
     return 1
   fi
@@ -1938,12 +1938,12 @@ __verify_ancient_dir() {
     fi
   done
 
-  if [ "${__all_files}" = "true" ]; then
+  if [[ "${__all_files}" = "true" ]]; then
     return 0
   else
     # Check for exactly two directories: 'chain' and 'state' - this is Geth
-    if [[ ${#__entries[@]} -eq 2 ]] && \
-       [[ -d "${__dir}/chain" && -d "${__dir}/state" ]]; then
+    if [[ ${#__entries[@]} -eq 2 && \
+          -d "${__dir}/chain" && -d "${__dir}/state" ]]; then
       return 0
     fi
   fi
@@ -2002,9 +2002,9 @@ resync-execution() {
     return 0
   fi
 
-  if [ "${__non_interactive:-0}" -eq 0 ]; then
+  if [[ "${__non_interactive:-0}" -eq 0 ]]; then
     echo "This will stop ${__el_client} and delete its database to force a resync."
-    if [ -n "${__extra_msg:-}" ]; then
+    if [[ -n "${__extra_msg:-}" ]]; then
       echo -e "${__extra_msg}"
     fi
     read -rp "WARNING - resync will take validators offline unless rescue node is used. Do you wish to continue? (No/yes) " __yn
@@ -2029,7 +2029,7 @@ resync-execution() {
     __legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_nm-eth1-data"
     __volume_id="$(__dodocker volume ls -q -f "name=${__legacy_volume}")"
   fi
-  if [ -n "${__volume_id}" ]; then
+  if [[ -n "${__volume_id}" ]]; then
     __dodocker volume rm "${__volume_id}"
   fi
   __var="ANCIENT_DIR"
@@ -2065,7 +2065,7 @@ resync-consensus() {
     * ) echo "You do not appear to be running a consensus layer client. Nothing to do."; return;;
   esac
 
-  if [ ! "${__cl_volume}" = "wipe-db" ] && ! __dodocker volume ls -q \
+  if [[ ! "${__cl_volume}" = "wipe-db" ]] && ! __dodocker volume ls -q \
       | grep -qi "$(basename "$(realpath .)")[_-]${__cl_volume}"; then
     echo "Did not find Docker volume for ${__cl_client}. Nothing to do."
     return 0
@@ -2075,7 +2075,7 @@ resync-consensus() {
   __var="CHECKPOINT_SYNC_URL"
   __get_value_from_env "${__var}" "${__env_file}" "__value"
   echo "This will stop ${__cl_client} and delete its database to force a resync."
-  if [ -z "${__value}" ]; then
+  if [[ -z "${__value}" ]]; then
     read -rp "WARNING - CHECKPOINT_SYNC_URL not set, resync may take days. Do you wish to continue? (No/yes) " __yn
   else
     read -rp "CHECKPOINT_SYNC_URL set, resync should finish in minutes. Do you wish to continue? (No/yes) " __yn
@@ -2091,7 +2091,7 @@ resync-consensus() {
   else
     __docompose stop consensus && __docompose rm -f consensus
   fi
-  if [ "${__cl_volume}" = "wipe-db" ]; then
+  if [[ "${__cl_volume}" = "wipe-db" ]]; then
     __docompose run --rm wipe-db
   else
     __cl_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_${__cl_volume}"
@@ -2104,7 +2104,7 @@ resync-consensus() {
       __legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_prysmbeacon-data"
       __volume_id="$(__dodocker volume ls -q -f "name=${__legacy_volume}")"
     fi
-    if [ -n "${__volume_id}" ]; then
+    if [[ -n "${__volume_id}" ]]; then
       __dodocker volume rm "${__volume_id}"
     fi
   fi
@@ -2117,7 +2117,7 @@ resync-consensus() {
 
 
 attach-geth() {
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     echo "${__env_file} configuration file not found, aborting."
     exit 1
   fi
@@ -2130,7 +2130,7 @@ attach-geth() {
     "name=$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')[_-]geth-eth1-data")":"/var/lib/goethereum" \
     alpine:3 sh -c 'if [ -d "/var/lib/goethereum/geth/chaindata" ]; then echo true; else echo false; fi')
 
-  if [ "${__legacy_datadir}" = "true" ]; then
+  if [[ "${__legacy_datadir}" = "true" ]]; then
     __docompose exec -it execution bash -c "geth attach /var/lib/goethereum/geth.ipc"
   else
     __docompose exec -it execution bash -c "geth attach /var/lib/geth/geth.ipc"
@@ -2142,7 +2142,7 @@ prune-besu() {
   __non_interactive=0
   while :
   do
-    if [ -z "${1+x}" ]; then
+    if [[ -z "${1+x}" ]]; then
       break
     fi
     case "$1" in
@@ -2156,11 +2156,11 @@ prune-besu() {
         ;;
     esac
   done
-  if [ "${ETHD_FRONTEND:-}" = "noninteractive" ]; then
+  if [[ "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     __non_interactive=1
   fi
 
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     echo "${__env_file} configuration file not found, aborting."
     exit 1
   fi
@@ -2192,7 +2192,7 @@ prune-besu() {
   --header 'Content-Type: application/json' --post-data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}')
   __exitstatus=$?
   set -e
-  if [ $__exitstatus -ne 0 ]; then
+  if [[ $__exitstatus -ne 0 ]]; then
     echo "Unable to connect to Besu: Is it running?"
     echo "Output: ${__sync_status}"
     echo "Aborting."
@@ -2207,7 +2207,7 @@ prune-besu() {
     exit 1
   fi
 
-  if [ $__non_interactive = 0 ]; then
+  if [[ "${__non_interactive:-0}" -eq 0 ]]; then
     while true; do
       read -rp "WARNING - this will stop Besu and prune its trie-logs. Do you wish to continue? (No/Yes) " __yn
       case $__yn in
@@ -2235,7 +2235,7 @@ prune-reth() {
   __non_interactive=0
   while :
   do
-    if [ -z "${1+x}" ]; then
+    if [[ -z "${1+x}" ]]; then
       break
     fi
     case "$1" in
@@ -2249,7 +2249,7 @@ prune-reth() {
         ;;
     esac
   done
-  if [ "${ETHD_FRONTEND:-}" = "noninteractive" ]; then
+  if [[ "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     __non_interactive=1
   fi
 
@@ -2285,7 +2285,7 @@ prune-reth() {
   --header 'Content-Type: application/json' --post-data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}')
   __exitstatus=$?
   set -e
-  if [ $__exitstatus -ne 0 ]; then
+  if [[ $__exitstatus -ne 0 ]]; then
     echo "Unable to connect to Reth: Is it running?"
     echo "Output: ${__sync_status}"
     echo "Aborting."
@@ -2300,7 +2300,7 @@ prune-reth() {
     exit 1
   fi
 
-  if [ $__non_interactive = 0 ]; then
+  if [[ "${__non_interactive:-0}" -eq 0 ]]; then
     while true; do
       read -rp "WARNING - this will stop Reth and prune its database. Do you wish to continue? (No/Yes) " __yn
       case $__yn in
@@ -2328,7 +2328,7 @@ prune-nethermind() {
   __non_interactive=0
   while :
   do
-    if [ -z "${1+x}" ]; then
+    if [[ -z "${1+x}" ]]; then
       break
     fi
     case "$1" in
@@ -2342,11 +2342,11 @@ prune-nethermind() {
         ;;
     esac
   done
-  if [ "${ETHD_FRONTEND:-}" = "noninteractive" ]; then
+  if [[ "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     __non_interactive=1
   fi
 
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     echo "${__env_file} configuration file not found, aborting."
     exit 1
   fi
@@ -2369,7 +2369,7 @@ prune-nethermind() {
   __var="NETWORK"
   __get_value_from_env "${__var}" "${__env_file}" "NETWORK"
 
-  if [ "${NETWORK}" = "mainnet" ] || [ "${NETWORK}" = "gnosis" ]; then
+  if [[ "${NETWORK}" =~ ^(mainnet|gnosis)$ ]]; then
     __min_free=262144000
     __min_gib=250
   else
@@ -2377,7 +2377,7 @@ prune-nethermind() {
     __min_gib=25
   fi
 
-  if [ "${__free_space}" -lt ${__min_free} ]; then
+  if [[ "${__free_space}" -lt ${__min_free} ]]; then
     echo "You do not have enough free disk space. Make sure this reads at least ${__min_gib}G free (Avail):"
     echo
     __display_docker_dir
@@ -2400,7 +2400,7 @@ prune-nethermind() {
     'Content-Type: application/json' --post-data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}')
   __exitstatus=$?
   set -e
-  if [ $__exitstatus -ne 0 ]; then
+  if [[ "$__exitstatus" -ne 0 ]]; then
     echo "Unable to connect to Nethermind: Is it running?"
     echo "Output: ${__sync_status}"
     echo "Aborting."
@@ -2418,10 +2418,10 @@ prune-nethermind() {
   __var="AUTOPRUNE_NM"
   __get_value_from_env "${__var}" "${__env_file}" "__auto_prune"
 
-  if [ $__non_interactive = 0 ]; then
+  if [[ "${__non_interactive:-0}" -eq 0 ]]; then
     while true; do
-      if [ "${__auto_prune}" = true ]; then
-        if [ "${NETWORK}" = "mainnet" ] || [ "${NETWORK}" = "gnosis" ]; then
+      if [[ "${__auto_prune}" = true ]]; then
+        if [[ "${NETWORK}" =~ ^(mainnet|gnosis)$ ]]; then
           __threshold="350"
         else
           __threshold="50"
@@ -2446,7 +2446,7 @@ execution | grep Full\" to see whether it is."
   'Content-Type: application/json' --post-data '{"jsonrpc":"2.0","method":"admin_prune","params":[],"id":1}')
   __exitstatus=$?
   set -e
-  if [ $__exitstatus -ne 0 ]; then
+  if [[ "$__exitstatus" -ne 0 ]]; then
     echo "Unable to start prune, error code ${__exitstatus}. This is likely a bug."
     echo "An attempt to run it returned this: ${__prune_result}"
     # shellcheck disable=SC2028
@@ -2474,7 +2474,7 @@ prune-history() {
   __non_interactive=0
   while :
   do
-    if [ -z "${1+x}" ]; then
+    if [[ -z "${1+x}" ]]; then
       break
     fi
     case "$1" in
@@ -2488,11 +2488,11 @@ prune-history() {
         ;;
     esac
   done
-  if [ "${ETHD_FRONTEND:-}" = "noninteractive" ]; then
+  if [[ "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     __non_interactive=1
   fi
 
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     echo "${__env_file} configuration file not found, aborting."
     exit 1
   fi
@@ -2577,12 +2577,12 @@ prune-history() {
 
   echo "Pruning pre-merge history requires ${__client} ${__min_ver} or later."
   echo
-  if [ -n "${__extra_msg:-}" ]; then
+  if [[ -n "${__extra_msg:-}" ]]; then
     echo -e "${__extra_msg}"
     echo
   fi
-  if [ -z "${__prune_marker}" ]; then  # Full resync
-    if [ $__non_interactive = 0 ]; then
+  if [[ -z "${__prune_marker}" ]]; then  # Full resync
+    if [[ "${__non_interactive:-0}" -eq 0 ]]; then
       __warning="WARNING - this will stop ${__client} and resync it from scratch without pre-merge history. Do you wish to continue? (No/Yes) "
       while true; do
         read -rp "${__warning}" __yn
@@ -2615,7 +2615,7 @@ prune-history() {
   --header 'Content-Type: application/json' --post-data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}')
   __exitstatus=$?
   set -e
-  if [ $__exitstatus -ne 0 ]; then
+  if [[ "$__exitstatus" -ne 0 ]]; then
     echo "Unable to connect to ${__client}: Is it running?"
     echo "Output: ${__sync_status}"
     echo "Aborting."
@@ -2630,7 +2630,7 @@ prune-history() {
     exit 1
   fi
 
-  if [ $__non_interactive = 0 ]; then
+  if [[ "${__non_interactive:-0}" -eq 0 ]]; then
     __warning="WARNING - this will stop ${__client} and remove pre-merge history. Do you wish to continue? (No/Yes) "
     while true; do
       read -rp "${__warning}" __yn
@@ -2660,7 +2660,7 @@ prune-lighthouse() {
   __non_interactive=0
   while :
   do
-    if [ -z "${1+x}" ]; then
+    if [[ -z "${1+x}" ]]; then
       break
     fi
     case "$1" in
@@ -2674,11 +2674,11 @@ prune-lighthouse() {
         ;;
     esac
   done
-  if [ "${ETHD_FRONTEND:-}" = "noninteractive" ]; then
+  if [[ "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     __non_interactive=1
   fi
 
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     echo "${__env_file} configuration file not found, aborting."
     exit 1
   fi
@@ -2713,7 +2713,7 @@ prune-lighthouse() {
   __sync_status=$(__docompose exec -T consensus wget -qO- "http://localhost:$__rpc_port/eth/v1/node/syncing")
   __exitstatus=$?
   set -e
-  if [ $__exitstatus -ne 0 ]; then
+  if [[ "$__exitstatus" -ne 0 ]]; then
     echo "Unable to connect to Lighthouse: Is it running?"
     echo "Output: ${__sync_status}"
     echo "Aborting."
@@ -2728,7 +2728,7 @@ prune-lighthouse() {
     exit 1
   fi
 
-  if [ $__non_interactive = 0 ]; then
+  if [[ "${__non_interactive:-0}" -eq 0 ]]; then
     while true; do
       read -rp "WARNING - this will stop Lighthouse and prune its state. Do you wish to continue? (No/Yes) " __yn
       case $__yn in
@@ -2753,18 +2753,14 @@ prune-lighthouse() {
 
 
 __prep-keyimport() {
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     echo "${__env_file} configuration file not found, aborting."
     exit 1
   fi
 
   __var="COMPOSE_FILE"
   __get_value_from_env "${__var}" "${__env_file}" "__value"
-# Literal match intended
-# shellcheck disable=SC2076
-  if [[ ! "${__value}" =~ "prysm.yml" ]] && [[ ! "${__value}" =~ "lighthouse.yml" ]] && [[ ! "${__value}" =~ "teku.yml" ]] \
-       && [[ ! "${__value}" =~ "nimbus.yml" ]] && [[ ! "${__value}" =~ "lodestar.yml" ]] && \
-       [[ ! "${__value}" =~ "-allin1.yml" ]] && [[ ! "${__value}" =~ "vc-only.yml" ]]; then
+  if [[ ! "${__value}" =~ (prysm.yml|lighthouse.yml|teku.yml|nimbus.yml|lodestar.yml|-allin1.yml|vc-only.yml) ]]; then
     echo "You do not appear to be running a validator client. Aborting."
     exit 1
   fi
@@ -2773,20 +2769,20 @@ __prep-keyimport() {
 
   while :
   do
-    if [ -z "${1+x}" ]; then
+    if [[ -z "${1+x}" ]]; then
       break
     fi
     case "$1" in
       --path)
-        if [ -z "${2+x}" ]; then
+        if [[ -z "${2+x}" ]]; then
           echo "--path requires a directory path, aborting"
           exit 1
         fi
-        if [ ! -d "$2" ]; then
+        if [[ ! -d "$2" ]]; then
           echo "$2 is not a directory"
           exit 1
         fi
-        if [ "$(realpath "$2")" = "$(realpath ".eth/validator_keys")" ]; then
+        if [[ "$(realpath "$2")" = "$(realpath ".eth/validator_keys")" ]]; then
           echo "$2 is the default path, doing nothing special"
           shift 2
           continue
@@ -2795,7 +2791,7 @@ __prep-keyimport() {
         __files=$(find "$2" -maxdepth 1 -name '*.json')
         # Unset restores default
         unset IFS
-        if [ -z "$__files" ]; then
+        if [[ -z "$__files" ]]; then
           echo "No .json files found in $2, aborting"
           exit 1
         fi
@@ -2803,7 +2799,7 @@ __prep-keyimport() {
         __files=$(find ./.eth/validator_keys -maxdepth 1 -name '*.json')
         # Unset restores default
         unset IFS
-        if [ -n "$__files" ]; then
+        if [[ -n "$__files" ]]; then
           ${__as_owner} mkdir -p ./.eth/validator_keys/keybackup
           ${__as_owner} mv -uf ./.eth/validator_keys/*.json ./.eth/validator_keys/keybackup
           ${__as_owner} rm -f ./.eth/validator_keys/*.json
@@ -2813,7 +2809,7 @@ __prep-keyimport() {
         shift 2
         ;;
       --non-interactive)
-        if [ -z "${KEYSTORE_PASSWORD+x}" ]; then
+        if [[ -z "${KEYSTORE_PASSWORD+x}" ]]; then
           echo "KEYSTORE_PASSWORD not set or empty, aborting"
           exit 1
         fi
@@ -2834,14 +2830,14 @@ __prep-keyimport() {
         ;;
     esac
   done
-  if [ "${ETHD_FRONTEND:-}" = "noninteractive" ]; then
+  if [[ "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     __non_interactive=1
   fi
 }
 
 
 __i_haz_deposit_cli() {
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     echo "${__project_name} has not been configured. Please run $__me config first."
     exit 0
   fi
@@ -2867,7 +2863,7 @@ __i_haz_deposit_cli() {
 
 
 __i_haz_ethdo() {
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     echo "${__project_name} has not been configured. Please run $__me config first."
     exit 0
   fi
@@ -2885,7 +2881,7 @@ __i_haz_ethdo() {
       [Yy] );;
       * ) exit 130;;
     esac
-    if [ -n "${__value}" ]; then
+    if [[ -n "${__value}" ]]; then
       COMPOSE_FILE="${__value}:ethdo.yml"
     else
       COMPOSE_FILE="ethdo.yml"
@@ -2898,7 +2894,7 @@ __i_haz_ethdo() {
 
 
 __i_haz_web3signer() {
-  if [ ! -f "${__env_file}" ]; then
+  if [[ ! -f "${__env_file}" ]]; then
     echo "${__project_name} has not been configured. Please run $__me config first."
     exit 0
   fi
@@ -2906,7 +2902,7 @@ __i_haz_web3signer() {
   __var="WEB3SIGNER"
   __get_value_from_env "${__var}" "${__env_file}" "__w3s"
 # shellcheck disable=SC2154
-  if [ ! "${__w3s}" = "true" ]; then
+  if [[ ! "${__w3s}" = "true" ]]; then
     return 0
   fi
 
@@ -2925,7 +2921,7 @@ __i_haz_web3signer() {
       [Yy] );;
       * ) exit 130;;
     esac
-    if [ -n "${__value}" ]; then
+    if [[ -n "${__value}" ]]; then
       COMPOSE_FILE="${__value}:web3signer.yml"
     else
       echo "You do not have a validator client in ${__project_name}. web3signer cannot be used without one."
@@ -3035,7 +3031,7 @@ __get_github_release() {
   local __targetname=$4
 
   ${__as_owner} mkdir -p "${__dirname}"
-  if [ "${__targetname}" = "__untar__" ]; then
+  if [[ "${__targetname}" = "__untar__" ]]; then
     wget -q -O- https://api.github.com/repos/"${__repo}"/releases/latest | grep "browser_download_url.*${__suffix}" \
       | head -1 \
       | cut -d : -f 2,3 \
@@ -3056,7 +3052,7 @@ __get_github_release() {
 
 
 keys() {
-  if [[ "$#" -eq 0 || "$1" = "help" || "$1" = "-h" || "$1" = "--help" ]]; then
+  if [[ "$#" -eq 0 || "$1" =~ (help|-h|--help) ]]; then
     __keys_usage
     return 0
   fi
@@ -3064,7 +3060,7 @@ keys() {
   __i_haz_web3signer
 
   __owner_uid=$(id -u "${OWNER}")
-  if [ "${1:-}" = "import" ]; then
+  if [[ "${1:-}" = "import" ]]; then
     #__i_haz_keys_service
     shift
     __prep-keyimport "$@"
@@ -3074,7 +3070,7 @@ keys() {
     __get_value_from_env "${__var}" "${__env_file}" "__value"
 # Literal match intended
 # shellcheck disable=SC2076
-    if [[ ! "${__value}" =~ "prysm.yml" ]] && [[ ! "${__value}" =~ "prysm-vc-only.yml" ]]; then
+    if [[ ! "${__value}" =~ (prysm.yml|prysm-vc-only.yml) ]]; then
       echo "You do not appear to be using a Prysm validator. Aborting."
       exit 1
     fi
@@ -3083,19 +3079,19 @@ keys() {
       __docompose rm --force validator
       up
     fi
-  elif [ "${1:-}" = "create-for-csm" ]; then
+  elif [[ "${1:-}" = "create-for-csm" ]]; then
     __i_haz_deposit_cli
     __var="NETWORK"
     __get_value_from_env "${__var}" "${__env_file}" "NETWORK"
     __query_lido_keys_generation
-  elif [ "${1:-}" = "prepare-address-change" ]; then
+  elif [[ "${1:-}" = "prepare-address-change" ]]; then
     __i_haz_ethdo
     echo "Generating offline prep file"
     set +e
     __docompose run --rm ethdo validator credentials set --prepare-offline
     __exitstatus=$?
     set -e
-    if [ "${__exitstatus}" -ne 0 ]; then
+    if [[ "${__exitstatus}" -ne 0 ]]; then
       echo "Running ethdo failed, unfortunately. Is the CL running and synced?"
       echo "Please try again after fixing root cause. Aborting."
       exit 1
@@ -3111,10 +3107,10 @@ keys() {
     echo
     echo "Copy the contents of ./.eth/ethdo to a USB drive, and prepare a Linux Live USB to safely enter your mnemonic."
     echo "Please see https://ethdocker.com/Support/ChangingWithdrawalCredentials for details"
-  elif [ "${1:-}" = "send-address-change" ]; then
+  elif [[ "${1:-}" = "send-address-change" ]]; then
     __i_haz_ethdo
     __docompose run --rm ethdo validator credentials set
-  elif [ "${1:-}" = "sign-exit" ] && [ "${2:-}" = "from-keystore" ]; then
+  elif [[ "${1:-}" = "sign-exit" && "${2:-}" = "from-keystore" ]]; then
     __i_haz_ethdo
 
     if echo "$@" | grep -q '.*--offline.*' 2>/dev/null ; then
@@ -3127,22 +3123,22 @@ keys() {
     if echo "$@" | grep -q '.*--non-interactive.*' 2>/dev/null ; then
       __non_interactive=1
     fi
-    if [ "${ETHD_FRONTEND:-}" = "noninteractive" ]; then
+    if [[ "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
       __non_interactive=1
     fi
 
-    if [ ${__non_interactive} = 1 ]; then
+    if [[ ${__non_interactive:-0} -eq 1 ]]; then
       __password="${KEYSTORE_PASSWORD}"
       __justone=1
     else
       __num_files=$(find .eth/validator_keys -maxdepth 1 -type f -name 'keystore*.json' | wc -l)
-      if [ "$__num_files" -eq 0 ]; then
+      if [[ "$__num_files" -eq 0 ]]; then
         echo "No keystore*.json files found in .eth/validator_keys/"
         echo "Nothing to do"
         exit 0
       fi
 
-      if [ "$__num_files" -gt 1 ]; then
+      if [[ "$__num_files" -gt 1 ]]; then
         while true; do
           read -rp "Do all validator keys have the same password? (y/n) " __yn
           case $__yn in
@@ -3154,13 +3150,13 @@ keys() {
       else
         __justone=1
       fi
-      if [ "${__justone}" -eq 1 ]; then
+      if [[ "${__justone}" -eq 1 ]]; then
         while true; do
           read -srp "Please enter the password for your validator key(s): " __password
           echo
           read -srp "Please re-enter the password: " __password2
           echo
-          if [ "${__password}" = "${__password2}" ]; then
+          if [[ "${__password}" = "${__password2}" ]]; then
             break
           else
             echo "The two entered passwords do not match, please try again."
@@ -3174,14 +3170,14 @@ keys() {
     __created=0
     __failed=0
     for __keyfile in .eth/validator_keys/keystore-*.json; do
-      [ -f "${__keyfile}" ] || continue # Should always evaluate true - just in case
-      if [ "${__justone}" -eq 0 ]; then
+      [[ -f "${__keyfile}" ]] || continue # Should always evaluate true - just in case
+      if [[ "${__justone}" -eq 0 ]]; then
         while true; do
           read -srp "Please enter the password for your validator key stored in ${__keyfile}: " __password
           echo
           read -srp "Please re-enter the password: " __password2
           echo
-          if [ "${__password}" = "${__password2}" ]; then
+          if [[ "${__password}" = "${__password2}" ]]; then
             break
           else
             echo "The two entered passwords do not match, please try again."
@@ -3192,7 +3188,7 @@ keys() {
       fi
 
       __pubkey="$(sed -E 's/.*"pubkey":\s*"([0-9a-fA-F]+)".*/\1/' < "${__keyfile}")"
-      if [ -z "$__pubkey" ]; then
+      if [[ -z "$__pubkey" ]]; then
         echo "Unable to read public key from ${__keyfile}. Is it the right format?"
         continue
       else
@@ -3204,11 +3200,11 @@ keys() {
       __json=$(__docompose run --rm ethdo validator exit --validator "${__keyfile}" --json --timeout 2m \
         --passphrase "${__password}" ${__offline})
       __exitstatus=$?
-      if [ "${__exitstatus}" -eq 0 ]; then
+      if [[ "${__exitstatus}" -eq 0 ]]; then
         echo "${__json}" >".eth/exit_messages/${__pubkey::10}--${__pubkey:90}-exit.json"
 # shellcheck disable=SC2320
         __exitstatus=$?
-        if [ "${__exitstatus}" -eq 0 ]; then
+        if [[ "${__exitstatus}" -eq 0 ]]; then
           echo "Creating an exit message for validator ${__pubkey} into file \
 ./.eth/exit_messages/${__pubkey::10}--${__pubkey:90}-exit.json succeeded"
           (( __created++ ))
@@ -3224,14 +3220,14 @@ keys() {
     done
     echo
     echo "Created pre-signed exit messages for ${__created} validators"
-    if [ "${__created}" -gt 0 ]; then
+    if [[ "${__created}" -gt 0 ]]; then
       echo "You can find them in ./.eth/exit_messages"
     fi
-    if [ "${__failed}" -gt 0 ]; then
+    if [[ "${__failed}" -gt 0 ]]; then
       echo "Failed for ${__failed} validators"
     fi
-  #elif [ "${1:-}" = "send-exit" ] && ! __i_haz_keys_service silent; then
-  elif [ "${1:-}" = "send-exit" ]; then
+  #elif [[ "${1:-}" = "send-exit" ]] && ! __i_haz_keys_service silent; then
+  elif [[ "${1:-}" = "send-exit" ]]; then
     __var="CL_NODE"
     __get_value_from_env "${__var}" "${__env_file}" "CL_NODE"
     CL_NODE="${CL_NODE%%,*}"
@@ -3330,7 +3326,7 @@ cmd() {
 
 terminate() {
   # Assume project name and volume are delimited by _ and there is no _ in the volume name. Done to avoid catching project-2 while looking at project
-  if [ -z "$(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_[^_]+$")" ]; then
+  if [[ -z "$(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_[^_]+$")" ]]; then
     echo "There are no data stores - Docker volumes - left to remove for this Ethereum node."
     stop
     return 0
@@ -3392,7 +3388,7 @@ screen.\n\nCustom testnets only work with a URL to fetch their configuration fro
       ;;
   esac
 # shellcheck disable=SC2154
-  if [ ! "${NETWORK}" = "${__prev_network}" ]; then
+  if [[ ! "${NETWORK}" = "${__prev_network}" ]]; then
     __network_change=1
   else
     __network_change=0
@@ -3401,7 +3397,7 @@ screen.\n\nCustom testnets only work with a URL to fetch their configuration fro
 
 
 __query_deployment() {
-  if [ "${NETWORK}" = "gnosis" ]; then
+  if [[ "${NETWORK}" = "gnosis" ]]; then
     if uname -m | grep -q riscv64; then
       echo "Gnosis network has no available client combos on RISC-V. Aborting."
       exit 1
@@ -3411,7 +3407,7 @@ __query_deployment() {
     "node" "Ethereum node - consensus, execution and validator client" \
     "rpc" "Ethereum RPC node - consensus and execution client" \
     "validator" "Validator client only" 3>&1 1>&2 2>&3)
-  elif [ "${NETWORK}" = "ephemery" ]; then
+  elif [[ "${NETWORK}" = "ephemery" ]]; then
     if uname -m | grep -q riscv64; then
       echo "Ephemery network has no available client combos on RISC-V. Aborting."
       exit 1
@@ -3451,7 +3447,7 @@ __query_deployment() {
     exit 1
   fi
 
-  if [ "${__deployment}" = "lido_comp" ]; then
+  if [[ "${__deployment}" = "lido_comp" ]]; then
     if uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
       __deployment=$(whiptail --notags --title "Select deployment type for Lido" --menu \
       "What kind of deployment to participate in Lido protocol do you want to run?" 11 90 3 \
@@ -3477,20 +3473,20 @@ __query_deployment() {
 
 
 __query_validator_client() {
-  if [ "${NETWORK}" = "gnosis" ]; then
+  if [[ "${NETWORK}" = "gnosis" ]]; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
     "Which validator client do you want to run?" 12 65 4 \
     "lighthouse-vc-only.yml" "Lighthouse validator client" \
     "teku-vc-only.yml" "Teku validator client" \
     "lodestar-vc-only.yml" "Lodestar validator client" \
     "nimbus-vc-only.yml" "Nimbus validator client" 3>&1 1>&2 2>&3)
-  elif [ "${NETWORK}" = "ephemery" ]; then
+  elif [[ "${NETWORK}" = "ephemery" ]]; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
     "Which validator client do you want to run?" 9 65 2 \
     "teku-vc-only.yml" "Teku validator client" \
     "lodestar-vc-only.yml" "Lodestar validator client" \
     3>&1 1>&2 2>&3)
-  elif [ "${__deployment}" = "rocket" ]; then
+  elif [[ "${__deployment}" = "rocket" ]]; then
     if uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
       CONSENSUS_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
       "Which validator client do you want to run?" 12 65 4 \
@@ -3529,7 +3525,7 @@ __query_validator_client() {
 
 
 __query_consensus_client() {
-  if [ "${NETWORK}" = "gnosis" ]; then
+  if [[ "${NETWORK}" = "gnosis" ]]; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
     "Which consensus client do you want to run?" 13 65 5 \
     "teku.yml" "Teku (Java) - consensus and validator client" \
@@ -3538,7 +3534,7 @@ __query_consensus_client() {
     "nimbus.yml" "Nimbus (Nim) - consensus and validator client" \
     "caplin.yml" "Caplin (Go) - Erigon's built-in CL" \
     3>&1 1>&2 2>&3)
-  elif [ "${NETWORK}" = "ephemery" ]; then
+  elif [[ "${NETWORK}" = "ephemery" ]]; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
     "Which consensus client do you want to run?" 9 65 2 \
     "teku.yml" "Teku (Java) - consensus and validator client" \
@@ -3581,7 +3577,7 @@ __query_consensus_client() {
 
 
 __query_consensus_only_client() {
-  if [ "${NETWORK}" = "gnosis" ]; then
+  if [[ "${NETWORK}" = "gnosis" ]]; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
     "Which consensus client do you want to run?" 13 65 5 \
     "lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client" \
@@ -3589,7 +3585,7 @@ __query_consensus_only_client() {
     "lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client" \
     "nimbus-cl-only.yml" "Nimbus (Nim) - consensus client" \
     3>&1 1>&2 2>&3)
-  elif [ "${NETWORK}" = "ephemery" ]; then
+  elif [[ "${NETWORK}" = "ephemery" ]]; then
     CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
     "Which consensus client do you want to run?" 9 65 2 \
     "teku-cl-only.yml" "Teku (Java) - consensus client" \
@@ -3626,7 +3622,7 @@ __query_consensus_only_client() {
 
 
 __query_custom_execution_client() {
-  if [ "${__minty_fresh}" -eq 1 ]; then
+  if [[ "${__minty_fresh}" -eq 1 ]]; then
     EL_CUSTOM_NODE=""
     JWT_SECRET=""
   else
@@ -3660,7 +3656,7 @@ again or Cancel on the next screen." 10 65
 
 
 __query_execution_client() {
-  if [ "${CONSENSUS_CLIENT}" = "caplin.yml" ]; then
+  if [[ "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
     EXECUTION_CLIENT="erigon.yml"
     echo "Your execution client file is:" "${EXECUTION_CLIENT}"
 # This gets used, but shellcheck doesn't recognize that
@@ -3672,7 +3668,7 @@ __query_execution_client() {
   __choices=()
   __arch=$(uname -m)
 
-  if [ "${NETWORK}" = "gnosis" ]; then
+  if [[ "${NETWORK}" = "gnosis" ]]; then
     __choices+=("nethermind.yml" "Nethermind (.NET)")
     __choices+=("erigon.yml" "Erigon (Go)")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
@@ -3698,7 +3694,7 @@ __query_execution_client() {
     __choices+=("ethrex.yml" "Ethrex (Rust)")
   fi
 
-  if [[ "${__arch}" != *"riscv64"* ]] && [[ "${NETWORK}" =~ (hoodi|sepolia) ]]; then
+  if [[ "${__arch}" != *"riscv64"* && "${NETWORK}" =~ (hoodi|sepolia) ]]; then
     __choices+=("nimbus-el.yml" "Nimbus (Nim) - alpha")
   fi
 
@@ -3710,7 +3706,7 @@ __query_execution_client() {
   "Which execution client do you want to run?" "${__menu_height}" 65 "${__num_items}" \
   "${__choices[@]}" 3>&1 1>&2 2>&3)
 
-  if [ "${EXECUTION_CLIENT}" = "NONE" ]; then
+  if [[ "${EXECUTION_CLIENT}" = "NONE" ]]; then
     unset EXECUTION_CLIENT
     __query_custom_execution_client
     EL_NODE="${EL_CUSTOM_NODE}"
@@ -3766,8 +3762,8 @@ __query_grafana() {
 
 
 __query_remote_beacon() {
-  if [ "${__minty_fresh}" -eq 1 ]; then
-    if [ "${__deployment}" = "rocket" ]; then
+  if [[ "${__minty_fresh}" -eq 1 ]]; then
+    if [[ "${__deployment}" = "rocket" ]]; then
       REMOTE_BEACON="http://eth2:5052"
     else
       REMOTE_BEACON=""
@@ -3784,13 +3780,13 @@ consensus client? (right-click to paste)" 10 60 "${REMOTE_BEACON}" 3>&1 1>&2 2>&
 
 
 __query_checkpoint_beacon() {
-  if [ "${__minty_fresh}" -eq 1 ] || [ "${__network_change}" -eq 1 ]; then
+  if [[ "${__minty_fresh}" -eq 1 || "${__network_change}" -eq 1 ]]; then
     CHECKPOINT_SYNC_URL=""
   else
     __var="CHECKPOINT_SYNC_URL"
     __get_value_from_env "${__var}" "${__env_file}" "CHECKPOINT_SYNC_URL"
   fi
-  if [ -z "${CHECKPOINT_SYNC_URL}" ]; then
+  if [[ -z "${CHECKPOINT_SYNC_URL}" ]]; then
     case "${NETWORK}" in
       "sepolia")
         CHECKPOINT_SYNC_URL="https://sepolia.beaconstate.info"
@@ -3837,10 +3833,10 @@ __query_graffiti() {
     fi
   done
 
-  if [ -n "${GRAFFITI}" ]; then
+  if [[ -n "${GRAFFITI}" ]]; then
     DEFAULT_GRAFFITI="false"
   fi
-  if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
+  if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
     echo "You are using the client's default Graffiti"
   else
     echo "your Graffiti is:" "${GRAFFITI}"
@@ -3875,7 +3871,7 @@ __query_coinbase() {
           FEE_RECIPIENT="0x0000000000000000000000000000000000000000"
           ;;
       esac
-    elif [ "${__during_update}" -eq 1 ] || [ ! "${__deployment}" = rpc ]; then
+    elif [[ "${__during_update}" -eq 1 || ! "${__deployment}" = rpc ]]; then
       FEE_RECIPIENT=$(whiptail --title "Configure rewards address" --inputbox "What is the address you want \
 transaction rewards to be sent to by default? (right-click to paste, CANNOT be an ENS)" 10 65 "${FEE_RECIPIENT}" \
 3>&1 1>&2 2>&3)
@@ -3888,7 +3884,7 @@ address? Required so that a) the CL doesn't print warnings and b) you can use th
 
     __exitstatus=$?
     set -e
-    if [ $__exitstatus -eq 0 ]; then
+    if [[ $__exitstatus -eq 0 ]]; then
       if [[ ${FEE_RECIPIENT} = 0x* && ${#FEE_RECIPIENT} -eq 42 ]]; then
         echo "Your rewards address is: ${FEE_RECIPIENT}"
         break
@@ -3897,7 +3893,7 @@ address? Required so that a) the CL doesn't print warnings and b) you can use th
 screen.\n\nThe client will not start successfully until a valid ETH rewards address has been set." 16 65
       fi
     else
-      if [ $__during_update -eq 1 ]; then
+      if [[ $__during_update -eq 1 ]]; then
         echo
         echo "Please make requested changes manually or run \"$__me update\" again"
         echo "before running \"$__me up\"."
@@ -3916,10 +3912,10 @@ screen.\n\nThe client will not start successfully until a valid ETH rewards addr
 
 
 __query_mev() {
-  if [ "${NETWORK}" = "gnosis" ]; then
+  if [[ "${NETWORK}" = "gnosis" ]]; then
     return 0
   fi
-  if [ "${__deployment}" = "ssv" ]; then
+  if [[ "${__deployment}" = "ssv" ]]; then
     MEV_BOOST="true"
     case "${NETWORK}" in
       "hoodi")
@@ -4003,7 +3999,7 @@ want to use MEV Boost?" 10 65); then
       esac
       for i in "${!relays[@]}"; do
           if [[ ${__selected} =~ ${i} ]]; then
-              if [ -z "${MEV_RELAYS}" ]; then
+              if [[ -z "${MEV_RELAYS}" ]]; then
                   MEV_RELAYS="${relays[$i]}"
               else
                   MEV_RELAYS="${MEV_RELAYS},${relays[$i]}"
@@ -4011,8 +4007,8 @@ want to use MEV Boost?" 10 65); then
           fi
       done
       exitstatus=$?
-      if [ $exitstatus -eq 0 ]; then
-          if [ -z "${MEV_RELAYS}" ]; then
+      if [[ $exitstatus -eq 0 ]]; then
+          if [[ -z "${MEV_RELAYS}" ]]; then
             whiptail --msgbox "At least one mandatory relay should be chosen" 10 75
             continue
           fi
@@ -4022,7 +4018,7 @@ want to use MEV Boost?" 10 65); then
       fi
       for i in "${!optional_relays[@]}"; do
           if [[ ${__selected} =~ ${i} ]]; then
-              if [ -z "${MEV_RELAYS}" ]; then
+              if [[ -z "${MEV_RELAYS}" ]]; then
                   MEV_RELAYS="${optional_relays[$i]}"
               else
                   MEV_RELAYS="${MEV_RELAYS},${optional_relays[$i]}"
@@ -4033,7 +4029,7 @@ want to use MEV Boost?" 10 65); then
     done
     return 0
   fi
-  if [ "${__deployment}" = "rpc" ]; then
+  if [[ "${__deployment}" = "rpc" ]]; then
     __message="Do you want to use MEV Boost, e.g. because you will connect validators to CL REST API?"
     __default="--defaultno"
   else
@@ -4042,7 +4038,7 @@ want to use MEV Boost?" 10 65); then
   fi
   if (whiptail --title "MEV Boost" --yesno "${__message}" 10 65 "${__default}") then
     MEV_BOOST="true"
-    if [ "${__value}" = "true" ]; then
+    if [[ "${__value}" = "true" ]]; then
       __var="MEV_RELAYS"
       __get_value_from_env "${__var}" "${__env_file}" "MEV_RELAYS"
     else
@@ -4108,7 +4104,7 @@ __query_mev_factor() {
   __speed_json=$(speedtest-cli --secure --json)
   __exitstatus=$?
   set -e
-  if [ "$__exitstatus" -ne 0 ]; then
+  if [[ "$__exitstatus" -ne 0 ]]; then
     echo "Speedtest failed, skipping MEV Build Factor query"
     return
   fi
@@ -4117,7 +4113,7 @@ __query_mev_factor() {
   echo "Measured download speed is ${__down_speed} Mbit/s."
   echo
   __final_msg+="\nYour measured upload speed is ${__up_speed} Mbit/s.\nYour measured download speed is ${__down_speed} Mbit/s."
-  if [ "${__up_speed}" -lt 200 ]; then  # A bit of a guess at BPO5. Change before Glamsterdam
+  if [[ "${__up_speed}" -lt 200 ]]; then  # A bit of a guess at BPO5. Change before Glamsterdam
     echo "Your upload speed is less than 200 Mbit/s, it is ${__up_speed} Mbit/s"
     echo "Disabling local block building by setting MEV_BUILD_FACTOR to 100"
     MEV_BUILD_FACTOR="100"
@@ -4157,7 +4153,7 @@ __lido_keys_attention_message() {
 }
 
 __query_lido_keys_generation() {
-    if [ "${NETWORK}" = "mainnet" ]; then
+    if [[ "${NETWORK}" = "mainnet" ]]; then
       if (whiptail --title "Security warning" --yesno "Key generation is not recommended on MAINNET for security reasons.\n\nIt is recommended to Select 'No' to skip the step and generate keys in a more secure way later (ex. on an airgapped live USB)\n\nOtherwise, Select 'Yes' to proceed with key generation on this machine" 13 85) then
          echo "Proceeding with key generation on MAINNET."
       else
@@ -4174,10 +4170,10 @@ __query_lido_keys_generation() {
         __keystore_password=$(whiptail --title "Keystore password" --passwordbox "Enter validators keystore password (at least 8 chars)" 8 60 "${__keystore_password}" 3>&1 1>&2 2>&3)
 
         exitstatus=$?
-        if [ $exitstatus -eq 0 ]; then
+        if [[ $exitstatus -eq 0 ]]; then
             if [[ ${#__keystore_password} -ge 8 ]]; then
               __keystore_password_confirm=$(whiptail --title "Keystore password" --passwordbox "Confirm validators keystore password" 8 60 "${__keystore_password_confirm}" 3>&1 1>&2 2>&3)
-              if [ "${__keystore_password}" = "${__keystore_password_confirm}" ]; then
+              if [[ "${__keystore_password}" = "${__keystore_password_confirm}" ]]; then
                   echo "Keystore password set."
                   break
               else
@@ -4194,7 +4190,7 @@ again or Cancel on the next screen." 10 75
     done
 
     exitstatus=$?
-    if [ $exitstatus -eq 0 ]; then
+    if [[ $exitstatus -eq 0 ]]; then
         echo "Your number of validators is:" "${__num_validators}"
         __mnemonic="existing"
         if (whiptail --title "Mnemonic" --yesno "Do you want to generate new mnemonic?" 8 60) then
@@ -4230,18 +4226,18 @@ __query_lido_obol_enr() {
 
 __query_lido_obol_cluster_definition() {
     __cluster_definition_url=$(whiptail --title "Lido Obol cluster creation" --inputbox "\nPut your cluster definition link below:" 10 80 "https://api.obol.tech/dv/example_link_to_your_definition" 3>&1 1>&2 2>&3)
-    if [ "${__cluster_definition_url}" = ""  ]; then
+    if [[ -z "${__cluster_definition_url}" ]]; then
       echo "Cluster definition URL can't be empty"
       exit 1
     fi
     exitstatus=$?
-    if [ $exitstatus -eq 0 ]; then
+    if [[ $exitstatus -eq 0 ]]; then
         ${__as_owner} curl -o ./.eth/cluster-definition.tmp -s "${__cluster_definition_url}" -H "Accept: application/json"
 # shellcheck disable=SC2086
         __cluster_definition_is_valid=$(__docompose -f ./lido-obol.yml run --rm -v "$(pwd)"/.eth/cluster-definition.tmp:/cluster-definition.json:ro curl-jq sh -c \
           "cat /cluster-definition.json | jq -r 'all(.validators[]; (.fee_recipient_address | ascii_downcase) == (\"'${FEE_RECIPIENT}'\" | ascii_downcase) and (.withdrawal_address | ascii_downcase) == (\"'$(__lido_withdrawal_credentials_address)'\" | ascii_downcase))'" | tail -n 1)
         set -e
-        if [ "${__cluster_definition_is_valid}" = "true" ]; then
+        if [[ "${__cluster_definition_is_valid}" = "true" ]]; then
             echo "Your cluster definition url is:" "${__cluster_definition_url}"
             ${__as_owner} mv ./.eth/cluster-definition.tmp ./.eth/cluster-definition.json
         else
@@ -4257,7 +4253,7 @@ __query_lido_obol_cluster_definition() {
 }
 
 __query_lido_obol_cluster_dkg() {
-    if [ -d ./.eth/validator_keys ]; then
+    if [[ -d ./.eth/validator_keys ]]; then
         __folder_postfix=${EPOCHSECONDS}
         ${__as_owner} mkdir ./.eth_backup_"$__folder_postfix"
         ${__as_owner} cp -vr ./.eth/validator_keys ./.eth_backup_"$__folder_postfix"/validator_keys
@@ -4266,7 +4262,7 @@ __query_lido_obol_cluster_dkg() {
     if (whiptail --title "DKG ceremony" --yesno "Do you want to start DKG ceremony?\n\nMake sure all participants are ready!" 10 60) then
         __outcome__=$(__docompose -f ./lido-obol.yml run -u "$(id -u)":"$(id -g)" --rm charon-run-dkg)
         exitstatus=$?
-        if [ $exitstatus -ne 0 ]; then
+        if [[ $exitstatus -ne 0 ]]; then
             echo "Something went wrong. Please, try again."
             exit 1
         fi
@@ -4311,7 +4307,7 @@ __handle_error() {
   fi
 
   local __exit_code=$1
-  if [ "$__exit_code" -eq 0 ]; then
+  if [[ "$__exit_code" -eq 0 ]]; then
     return 0
   fi
 
@@ -4321,26 +4317,26 @@ __handle_error() {
   __handler_ran=1
 
   echo
-  if [ "$__exit_code" -eq 130 ]; then
+  if [[ "$__exit_code" -eq 130 ]]; then
     echo "$__me terminated by user"
-  elif [ "$__during_config" -eq 1 ] && [ "$__exit_code" -eq 1 ]; then
+  elif [[ "$__during_config" -eq 1 && "$__exit_code" -eq 1 ]]; then
     echo "Canceled config wizard."
   else
     echo "$__me terminated with exit code $__exit_code on line $2"
-    if [ -n "${__command}" ]; then
+    if [[ -n "${__command}" ]]; then
       echo "This happened during $__me ${__command} ${__params}"
     fi
   fi
-  if [ "$__during_update" -eq 1 ] && [ "$__during_migrate" -eq 1 ]; then
+  if [[ "$__during_update" -eq 1 && "$__during_migrate" -eq 1 ]]; then
     cp "${__env_file}" "${__env_file}".partial
     cp "${__env_file}".source "${__env_file}"
     echo
     echo "Restored your ${__env_file} file, to undo partial migration. Please verify it looks correct."
     echo "The partially migrated file is in ${__env_file}.partial for troubleshooting."
   fi
-  if [ "$__during_postgres" -eq 1 ]; then
+  if [[ "$__during_postgres" -eq 1 ]]; then
     echo
-    if [ "$__during_migrate" -eq 1 ] && [ "$__migrated" -eq 0 ]; then
+    if [[ "$__during_migrate" -eq 1 && "$__migrated" -eq 0 ]]; then
       echo "Web3signer slashing protection database migration failed, while switching to the migrated data."
       echo
       echo "WARNING: You are no longer protected by the slashing protection database."
@@ -4349,7 +4345,7 @@ __handle_error() {
       echo "Marking Web3signer as unsafe to start."
       __dodocker run --rm -v "$(__dodocker volume ls -q -f "name=web3signer-keys")":/var/lib/web3signer \
         alpine:3 touch /var/lib/web3signer/.migration_fatal_error
-    elif [ "$__migrated" -eq 1 ]; then
+    elif [[ "$__migrated" -eq 1 ]]; then
       echo "Web3signer slashing protection database migration failed, after switching to the migrated data."
       echo
       echo "The slashing protection database itself is likely fine, but somewhere in the switch to PostgreSQL 16"
@@ -4413,9 +4409,9 @@ config() {
       __query_validator_client
       ;;
     "ssv" | "lido_ssv")
-      if [ "${NETWORK}" = "hoodi" ]; then
+      if [[ "${NETWORK}" = "hoodi" ]]; then
         sed -i'.original' 's/  Network: .*/  Network: hoodi/' ssv-config/config.yaml
-      elif [ "${NETWORK}" = "mainnet" ]; then
+      elif [[ "${NETWORK}" = "mainnet" ]]; then
         sed -i'.original' 's/  Network: .*/  Network: mainnet/' ssv-config/config.yaml
       else
         echo "${NETWORK} is not something that works with SSV."
@@ -4425,13 +4421,13 @@ config() {
       fi
       rm ssv-config/config.yaml.original
       __query_ssv_client
-      if [ ! -f "./ssv-config/password.pass" ]; then
+      if [[ ! -f "./ssv-config/password.pass" ]]; then
         echo "Creating password file for encrypted SSV secret key"
         head -c 16 /dev/urandom | base64 | tr -d '[:space:]' >./ssv-config/password.pass
         ${__auto_sudo} chown 12000:12000 ./ssv-config/password.pass
         ${__auto_sudo} chmod 600 ./ssv-config/password.pass
       fi
-      if [ ! -f "./ssv-config/encrypted_private_key.json" ]; then
+      if [[ ! -f "./ssv-config/encrypted_private_key.json" ]]; then
         echo "Creating encrypted operator private key"
         case "${SSV_CLIENT}" in
           ssv.yml )
@@ -4469,7 +4465,7 @@ config() {
 # I do mean to match literally
 # shellcheck disable=SC2076
   if [[ ! "${__deployment}" =~ ^(validator|rocket)$  ]]; then
-    if [ "${CONSENSUS_CLIENT}" = "caplin" ]; then
+    if [[ "${CONSENSUS_CLIENT}" = "caplin" ]]; then
       CL_NODE=http://execution:5052
       __query_execution_client
       if [[ ! "${__deployment}" =~ ^(ssv|lido_ssv|rpc)$  ]]; then
@@ -4499,13 +4495,13 @@ config() {
     if [[ "${__deployment}" = "node" || "${__deployment}" = "lido_csm" ]]; then
       __query_graffiti
     fi
-    if [ "${__deployment}" = "lido_csm" ]; then
+    if [[ "${__deployment}" = "lido_csm" ]]; then
       if (whiptail --title "Keys generation" --yesno "Do you want to generate validator keys?" 10 60) then
         __query_lido_keys_generation
       else
         __lido_keys_attention_message
       fi
-      if [ "${NETWORK}" = "hoodi" ]; then
+      if [[ "${NETWORK}" = "hoodi" ]]; then
         __link="https://csm.testnet.fi/?ref=ethdocker"
       else
         __link="https://csm.lido.fi/?ref=ethdocker"
@@ -4527,7 +4523,7 @@ config() {
 
   __during_config=0
 
-  if [ "${__deployment}" = "lido_obol" ]; then
+  if [[ "${__deployment}" = "lido_obol" ]]; then
     CL_NODE="http://charon:3600"
     case "${NETWORK}" in  # Lido Locator, and oracle allowlist for exits
       "mainnet")
@@ -4562,7 +4558,7 @@ config() {
         ;;
     esac
 
-    if [ -f "./.eth/cluster-lock.json" ]; then
+    if [[ -f "./.eth/cluster-lock.json" ]]; then
       if (whiptail --title "Lido Obol cluster exists" --yesno "Your cluster has already been created. Continue with it?" 10 60); then
 # shellcheck disable=SC2086
         __cluster_lock_is_valid=$(__docompose -f ./lido-obol.yml run --rm -v "$(pwd)"/.eth/cluster-lock.json:/cluster-lock.json:ro curl-jq sh -c \
@@ -4586,7 +4582,7 @@ config() {
         exit 1
       fi
     else
-      if [ -f "./.eth/charon-enr-private-key" ] && [ -f "./.eth/charon-enr-public-key" ]; then
+      if [[ -f "./.eth/charon-enr-private-key" && -f "./.eth/charon-enr-public-key" ]]; then
         if (whiptail --title "Lido Obol operator ENR creation" --yesno "You already have ENR. Use it?" 8 50); then
           echo "Use existing ENR"
         else
@@ -4598,12 +4594,12 @@ config() {
         __query_lido_obol_enr
       fi
 
-      if [ -f "./.eth/cluster-definition.json" ]; then
+      if [[ -f "./.eth/cluster-definition.json" ]]; then
         if (whiptail --title "Lido Obol cluster creation in process" --yesno "You already have cluster definition. Use it?" 10 60); then
 # shellcheck disable=SC2086
           __cluster_definition_is_valid=$(__docompose -f ./lido-obol.yml run --rm -v "$(pwd)"/.eth/cluster-definition.json:/cluster-definition.json:ro curl-jq sh -c \
             "cat /cluster-definition.json | jq -r 'all(.validators[]; (.fee_recipient_address | ascii_downcase) == (\"'${FEE_RECIPIENT}'\" | ascii_downcase) and (.withdrawal_address | ascii_downcase) == (\"'$(__lido_withdrawal_credentials_address)'\" | ascii_downcase))'" | tail -n 1)
-          if [ "${__cluster_definition_is_valid}" = "true" ]; then
+          if [[ "${__cluster_definition_is_valid}" = "true" ]]; then
             echo "Your cluster definition is valid."
           else
             whiptail --title "Lido Obol cluster creation" --msgbox "Your cluster definition is not valid.\n\nCheck that every validator has \`fee_recipient_address\` and \`withdrawal_address\` equal to Lido contracts and try again.\n\nLido fee recipient: '${FEE_RECIPIENT}'\nLido withdrawal credentials: '$(__lido_withdrawal_credentials_address)'" 14 90
@@ -4630,7 +4626,7 @@ config() {
     rm -f ./prometheus/custom-prom.yml.original
     OBOL_CHARON_REMOTE_LOKI_ADDRESSES=$(whiptail --title "Obol Loki" --inputbox "Put Obol Loki remote URL \
 (right-click to paste)" 10 60 3>&1 1>&2 2>&3)
-    if [ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]; then
+    if [[ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]]; then
       OBOL_CLUSTER_NAME=$(whiptail --title "Obol cluster name" --inputbox "Put your Obol cluster name \
 (right-click to paste)" 10 60 "${__project_name}" 3>&1 1>&2 2>&3)
       OBOL_CLUSTER_PEER=$(whiptail --title "Obol cluster peer" --inputbox "Put your Obol cluster peer \
@@ -4647,7 +4643,7 @@ config() {
   fi
 
   COMPOSE_FILE="${CONSENSUS_CLIENT}"
-  if [ -n "${EXECUTION_CLIENT+x}" ]; then
+  if [[ -n "${EXECUTION_CLIENT+x}" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:${EXECUTION_CLIENT}"
   fi
   if [[ "${__deployment}" = "ssv" || "${__deployment}" = "lido_ssv" ]]; then
@@ -4656,29 +4652,29 @@ config() {
       COMPOSE_FILE="${COMPOSE_FILE}:ssv-dkg.yml"
     fi
   fi
-  if [ -n "${GRAFANA_CLIENT+x}" ]; then
+  if [[ -n "${GRAFANA_CLIENT+x}" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:${GRAFANA_CLIENT}"
   fi
-  if [ "${MEV_BOOST}" = "true" ] && [ ! "${__deployment}" = "rocket" ]; then
+  if [[ "${MEV_BOOST}" = "true" && ! "${__deployment}" = "rocket" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:mev-boost.yml"
   fi
-  if [ "${__deployment}" = "lido_obol" ]; then
+  if [[ "${__deployment}" = "lido_obol" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:lido-obol.yml"
-    if [ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]; then
+    if [[ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]]; then
       COMPOSE_FILE="${COMPOSE_FILE}:lido-obol-promtail.yml"
     fi
   fi
-  if { [ "${__deployment}" = "node" ] || [ "${__deployment}" = "rocket" ]; } \
-  && [ "${NETWORK}" = "hoodi" ]; then
+  if [[ ("${__deployment}" = "node" || "${__deployment}" = "rocket") \
+       && "${NETWORK}" = "hoodi" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:deposit-cli.yml"
   fi
-  if [ "${__deployment}" = "lido_csm" ]; then
+  if [[ "${__deployment}" = "lido_csm" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:deposit-cli.yml"
   fi
 # Not multi-arch, this would break on ARM64
 
 #    COMPOSE_FILE="${COMPOSE_FILE}:ethdo.yml"
-  if [ "${__deployment}" = "rocket" ]; then
+  if [[ "${__deployment}" = "rocket" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:ext-network.yml"
 # This gets used, but shellcheck doesn't recognize that
 # shellcheck disable=SC2034
@@ -4729,7 +4725,7 @@ config() {
   __update_value_in_env "${__var}" "${!__var-false}" "${__env_file}"
   __var=DOCKER_EXT_NETWORK
   __update_value_in_env "${__var}" "${!__var:-"rocketpool_net"}" "${__env_file}"
-  if [ "${__deployment}" = "lido_obol" ]; then
+  if [[ "${__deployment}" = "lido_obol" ]]; then
     __var=LIDO_DV_EXIT_EXIT_EPOCH
     __update_value_in_env "${__var}" "${!__var-}" "${__env_file}"
     __var=VE_OPERATOR_ID
@@ -4752,7 +4748,7 @@ config() {
     __var=ENABLE_DIST_ATTESTATION_AGGR
     __update_value_in_env "${__var}" "${!__var}" "${__env_file}"
   fi
-  if [[ "${NETWORK}" = "gnosis" ]] && [[ "${CONSENSUS_CLIENT}" =~ "nimbus" ]] ; then
+  if [[ "${NETWORK}" = "gnosis" && "${CONSENSUS_CLIENT}" =~ "nimbus" ]] ; then
 # We are using the variable
 # shellcheck disable=SC2034
     NIM_DOCKERFILE=Dockerfile.sourcegnosis
@@ -4773,7 +4769,7 @@ config() {
   fi
   __var="SIREN_PASSWORD"
   __get_value_from_env "${__var}" "${__env_file}" "SIREN_PASSWORD"
-  if [ -z "${SIREN_PASSWORD}" ]; then
+  if [[ -z "${SIREN_PASSWORD}" ]]; then
     SIREN_PASSWORD=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
     __update_value_in_env "${__var}" "${!__var}" "${__env_file}"
   fi
@@ -5030,7 +5026,7 @@ __during_migrate=0
 __migrated=0
 __command=""
 __me=$(basename "${BASH_SOURCE[0]}")
-if [ ! -f ~/.profile ] || ! grep -q "alias ethd" ~/.profile; then
+if [[ ! -f ~/.profile ]] || ! grep -q "alias ethd" ~/.profile; then
   __me="./$__me"
 fi
 
@@ -5048,7 +5044,7 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 OWNER=$(ls -ld . | awk '{print $3}')
 OWNER_GROUP=$(id -gn "${OWNER}")
 
-if [ "${OWNER}" = "root" ]; then
+if [[ "${OWNER}" = "root" ]]; then
   echo "Please install ${__project_name} as a non-root user."
   exit 0
 fi
@@ -5064,7 +5060,7 @@ __prep_conffiles
 __check_for_snap
 
 # Don't check for Docker before it's installed
-if [ "$__command" = "install" ]; then
+if [[ "$__command" = "install" ]]; then
   $__command "$@"
   exit "$?"
 fi
@@ -5083,7 +5079,7 @@ if [[ "${__old_compose}" -eq 1 && "${__compose_major}" -eq 1 ]]; then
   exit 0
 fi
 
-if [ "${__old_docker}" -eq 1 ]; then
+if [[ "${__old_docker}" -eq 1 ]]; then
   echo
   echo "Docker version ${__docker_version} detected. This version is no longer supported."
   echo "Please update to a current version. Supported versions can be seen at https://endoflife.date/docker-engine."
@@ -5121,7 +5117,7 @@ esac
 
 __check_disk_space
 
-if [ "${__compose_upgraded}" -eq 1 ]; then
+if [[ "${__compose_upgraded}" -eq 1 ]]; then
   echo
   echo "You updated Docker Compose to V2."
   echo "The \"docker-compose\" command is gone and replaced with \"docker compose\"."

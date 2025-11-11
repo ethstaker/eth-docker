@@ -20,11 +20,11 @@ __strip_empty_args() {
 
 
 # Move legacy xdai dir to gnosis
-if [ -d "/var/lib/nethermind/nethermind_db/xdai" ]; then
+if [[ -d /var/lib/nethermind/nethermind_db/xdai ]]; then
   mv /var/lib/nethermind/nethermind_db/xdai /var/lib/nethermind/nethermind_db/gnosis
 fi
 
-if [ -n "${JWT_SECRET}" ]; then
+if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/nethermind/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
 fi
@@ -36,11 +36,11 @@ if [[ ! -f /var/lib/nethermind/ee-secret/jwtsecret ]]; then
   echo -n "${__secret1}""${__secret2}" > /var/lib/nethermind/ee-secret/jwtsecret
 fi
 
-if [[ -O "/var/lib/nethermind/ee-secret" ]]; then
+if [[ -O /var/lib/nethermind/ee-secret ]]; then
   # In case someone specifies JWT_SECRET but it's not a distributed setup
   chmod 777 /var/lib/nethermind/ee-secret
 fi
-if [[ -O "/var/lib/nethermind/ee-secret/jwtsecret" ]]; then
+if [[ -O /var/lib/nethermind/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/nethermind/ee-secret/jwtsecret
 fi
 
@@ -50,7 +50,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
   config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
-  if [ ! -d "/var/lib/nethermind/testnet/${config_dir}" ]; then
+  if [[ ! -d "/var/lib/nethermind/testnet/${config_dir}" ]]; then
     # For want of something more amazing, let's just fail if git fails to pull this
     set -e
     mkdir -p /var/lib/nethermind/testnet
@@ -64,7 +64,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   fi
   bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/nethermind/testnet/${config_dir}/enodes.yaml" | paste -sd ",")"
   __network="--config none.cfg --Init.ChainSpecPath=/var/lib/nethermind/testnet/${config_dir}/chainspec.json --Discovery.Bootnodes=${bootnodes} --Init.IsMining=false"
-  if [ "${ARCHIVE_NODE}" = "false" ]; then
+  if [[ "${ARCHIVE_NODE}" = "false" ]]; then
     __prune="--Pruning.Mode=None"
   fi
 else
@@ -72,16 +72,16 @@ else
 fi
 
 __memtotal=$(awk '/MemTotal/ {printf "%d", int($2/1024/1024)}' /proc/meminfo)
-if [ "${ARCHIVE_NODE}" = "true" ]; then
+if [[ "${ARCHIVE_NODE}" = "true" ]]; then
   echo "Nethermind archive node without pruning"
   __prune="--Sync.DownloadBodiesInFastSync=false --Sync.DownloadReceiptsInFastSync=false --Sync.FastSync=false --Sync.SnapSync=false --Sync.FastBlocks=false --Pruning.Mode=None --Sync.PivotNumber=0"
 elif [[ ! "${NETWORK}" =~ ^https?:// ]]; then  # Only configure prune parameters for named networks
   __parallel=$(($(nproc)/4))
-  if [ "${__parallel}" -lt 2 ]; then
+  if [[ "${__parallel}" -lt 2 ]]; then
     __parallel=2
   fi
   __prune="--Pruning.FullPruningMaxDegreeOfParallelism=${__parallel}"
-  if [ "${AUTOPRUNE_NM}" = true ]; then
+  if [[ "${AUTOPRUNE_NM}" = true ]]; then
     __prune="${__prune} --Pruning.FullPruningTrigger=VolumeFreeSpace"
     if [[ "${NETWORK}" =~ (mainnet|gnosis) ]]; then
       __prune+=" --Pruning.FullPruningThresholdMb=375810"
@@ -89,10 +89,10 @@ elif [[ ! "${NETWORK}" =~ ^https?:// ]]; then  # Only configure prune parameters
       __prune+=" --Pruning.FullPruningThresholdMb=51200"
     fi
   fi
-  if [ "${__memtotal}" -ge 30 ]; then
+  if [[ "${__memtotal}" -ge 30 ]]; then
     __prune+=" --Pruning.FullPruningMemoryBudgetMb=16384 --Init.StateDbKeyScheme=HalfPath"
   fi
-  if [ "${MINIMAL_NODE}" = "true" ]; then
+  if [[ "${MINIMAL_NODE}" = "true" ]]; then
     case "${NETWORK}" in
       mainnet )
         echo "Nethermind minimal node with pre-merge history expiry"
@@ -114,7 +114,7 @@ elif [[ ! "${NETWORK}" =~ ^https?:// ]]; then  # Only configure prune parameters
 fi
 
 # New or old datadir
-if [ -d /var/lib/nethermind-og/nethermind_db ]; then
+if [[ -d /var/lib/nethermind-og/nethermind_db ]]; then
   __datadir="--data-dir /var/lib/nethermind-og"
 else
   __datadir="--data-dir /var/lib/nethermind"

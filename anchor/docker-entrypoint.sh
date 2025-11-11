@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [ "$(id -u)" = '0' ]; then
+if [[ "$(id -u)" -eq 0 ]]; then
   chown -R anchor:anchor /var/lib/anchor
   exec gosu anchor docker-entrypoint.sh "$@"
 fi
@@ -14,14 +14,14 @@ __normalize_int() {
     printf '%s' "$v"
 }
 
-if [ "${IPV6}" = "true" ]; then
+if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Anchor to listen on IPv6 ports"
   __ipv6="--listen-addresses :: --port6 ${SSV_P2P_PORT:-13001} --discovery-port6 ${SSV_P2P_PORT_UDP:-12001} --quic-port6 ${SSV_QUIC_PORT:-13002}"
 else
   __ipv6=""
 fi
 
-if [ "${MEV_BOOST}" = "true" ]; then
+if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--builder-proposals"
   echo "MEV Boost enabled"
 

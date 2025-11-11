@@ -19,16 +19,16 @@ __strip_empty_args() {
 }
 
 
-if [ -n "${JWT_SECRET}" ]; then
+if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/prysm/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
 fi
 
-if [[ -O "/var/lib/prysm/ee-secret" ]]; then
+if [[ -O /var/lib/prysm/ee-secret ]]; then
   # In case someone specifies JWT_SECRET but it's not a distributed setup
   chmod 777 /var/lib/prysm/ee-secret
 fi
-if [[ -O "/var/lib/prysm/ee-secret/jwtsecret" ]]; then
+if [[ -O /var/lib/prysm/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/prysm/ee-secret/jwtsecret
 fi
 
@@ -40,7 +40,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
   # For want of something more amazing, let's just fail if git fails to pull this
   set -e
-  if [ ! -d "/var/lib/prysm/testnet/${config_dir}" ]; then
+  if [[ ! -d "/var/lib/prysm/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/prysm/testnet
     cd /var/lib/prysm/testnet
     git init --initial-branch="${branch}"
@@ -59,7 +59,7 @@ else
 fi
 
 # Check whether we should rapid sync
-if [ -n "${CHECKPOINT_SYNC_URL:+x}" ]; then
+if [[ -n "${CHECKPOINT_SYNC_URL:+x}" ]]; then
   __checkpoint_sync="--checkpoint-sync-url=${CHECKPOINT_SYNC_URL}"
   echo "Checkpoint sync enabled"
 else
@@ -67,7 +67,7 @@ else
 fi
 
 # Check whether we should use MEV Boost
-if [ "${MEV_BOOST}" = "true" ]; then
+if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--http-mev-relay=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
   echo "No MEV Build Factor configured: Prysm doesn't support it, or Eth Docker doesn't know how."
@@ -75,10 +75,10 @@ else
   __mev_boost=""
 fi
 
-if [ "${ARCHIVE_NODE}" = "true" ]; then
+if [[ "${ARCHIVE_NODE}" = "true" ]]; then
   echo "Prysm archive node without pruning"
   __prune="--slots-per-archive-point=32 --blob-retention-epochs=4294967295"
-elif [ "${MINIMAL_NODE}" = "true" ]; then
+elif [[ "${MINIMAL_NODE}" = "true" ]]; then
 #  echo "Prysm node with beacon DB pruning"
 #  __prune="--beacon-db-pruning"
   echo "Prysm node's beacon DB pruning is buggy, not using it. New release expected late Nov 2025"
@@ -93,7 +93,7 @@ set -- "${__args[@]}"
 
 if [[ "${NETWORK}" = "sepolia" ]]; then
   GENESIS=/var/lib/prysm/genesis.ssz
-  if [ ! -f "$GENESIS" ]; then
+  if [[ ! -f "$GENESIS" ]]; then
     echo "Fetching genesis file for Sepolia testnet"
     curl -fsSL -o "$GENESIS" https://github.com/eth-clients/sepolia/raw/main/metadata/genesis.ssz
   fi
@@ -102,7 +102,7 @@ if [[ "${NETWORK}" = "sepolia" ]]; then
   exec "$@" "--genesis-state=$GENESIS" ${__network} ${__checkpoint_sync} ${__prune} ${__mev_boost} ${CL_EXTRAS}
 elif [[ "${NETWORK}" = "hoodi" ]]; then
   GENESIS=/var/lib/prysm/genesis.ssz
-  if [ ! -f "$GENESIS" ]; then
+  if [[ ! -f "$GENESIS" ]]; then
     echo "Fetching genesis file for Hoodi testnet"
     curl -fsSL -o "$GENESIS" https://github.com/eth-clients/hoodi/raw/main/metadata/genesis.ssz
   fi

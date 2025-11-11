@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [ "$(id -u)" = '0' ]; then
+if [[ "$(id -u)" -eq 0 ]]; then
   chown -R prysmvalidator:prysmvalidator /var/lib/prysm
   exec gosu prysmvalidator docker-entrypoint-vc.sh "$@"
 fi
@@ -14,7 +14,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
   # For want of something more amazing, let's just fail if git fails to pull this
   set -e
-  if [ ! -d "/var/lib/prysm/testnet/${config_dir}" ]; then
+  if [[ ! -d "/var/lib/prysm/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/prysm/testnet
     cd /var/lib/prysm/testnet
     git init --initial-branch="${branch}"
@@ -30,7 +30,7 @@ else
 fi
 
 # Check whether we should use MEV Boost
-if [ "${MEV_BOOST}" = "true" ]; then
+if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--enable-builder"
   echo "MEV Boost enabled"
 else
@@ -38,7 +38,7 @@ else
 fi
 
 # Check whether we should enable doppelganger protection
-if [ "${DOPPELGANGER}" = "true" ]; then
+if [[ "${DOPPELGANGER}" = "true" ]]; then
   __doppel="--enable-doppelganger"
   echo "Doppelganger protection enabled, VC will pause for 2 epochs"
 else
@@ -46,12 +46,12 @@ else
 fi
 
 # Web3signer URL
-if [ "${WEB3SIGNER}" = "true" ]; then
+if [[ "${WEB3SIGNER}" = "true" ]]; then
   __w3s_url="--validators-external-signer-url ${W3S_NODE} \
   --validators-external-signer-public-keys ${W3S_NODE}/api/v1/eth2/publicKeys \
   --validators-external-signer-key-file=/var/lib/prysm/w3s-keys.txt"
 
-  if [ ! -f /var/lib/prysm/w3s-keys.txt ]; then
+  if [[ ! -f /var/lib/prysm/w3s-keys.txt ]]; then
     touch /var/lib/prysm/w3s-keys.txt
   fi
 else
@@ -59,13 +59,13 @@ else
 fi
 
 # Distributed attestation aggregation
-if [ "${ENABLE_DIST_ATTESTATION_AGGR}" =  "true" ]; then
+if [[ "${ENABLE_DIST_ATTESTATION_AGGR}" =  "true" ]]; then
   __att_aggr="--distributed"
 else
   __att_aggr=""
 fi
 
-if [ "${DEFAULT_GRAFFITI}" = "true" ]; then
+if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
   exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__doppel} ${__att_aggr} ${VC_EXTRAS}

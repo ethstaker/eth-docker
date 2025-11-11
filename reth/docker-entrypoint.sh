@@ -19,7 +19,7 @@ __strip_empty_args() {
 }
 
 
-if [ -n "${JWT_SECRET}" ]; then
+if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/reth/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
 fi
@@ -31,11 +31,11 @@ if [[ ! -f /var/lib/reth/ee-secret/jwtsecret ]]; then
   echo -n "${__secret1}""${__secret2}" > /var/lib/reth/ee-secret/jwtsecret
 fi
 
-if [[ -O "/var/lib/reth/ee-secret" ]]; then
+if [[ -O /var/lib/reth/ee-secret ]]; then
   # In case someone specifies JWT_SECRET but it's not a distributed setup
   chmod 777 /var/lib/reth/ee-secret
 fi
-if [[ -O "/var/lib/reth/ee-secret/jwtsecret" ]]; then
+if [[ -O /var/lib/reth/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/reth/ee-secret/jwtsecret
 fi
 
@@ -47,7 +47,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
   # For want of something more amazing, let's just fail if git fails to pull this
   set -e
-  if [ ! -d "/var/lib/reth/testnet/${config_dir}" ]; then
+  if [[ ! -d "/var/lib/reth/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/reth/testnet
     cd /var/lib/reth/testnet
     git init --initial-branch="${branch}"
@@ -88,15 +88,15 @@ case ${LOG_LEVEL} in
 esac
 
 __static=""
-if [ -n "${STATIC_DIR}" ] && [ ! "${STATIC_DIR}" = ".nada" ]; then
+if [[ -n "${STATIC_DIR}" && ! "${STATIC_DIR}" = ".nada" ]]; then
   echo "Using separate static files directory at ${STATIC_DIR}."
   __static="--datadir.static-files /var/lib/static"
 fi
 
-if [ "${ARCHIVE_NODE}" = "true" ]; then
+if [[ "${ARCHIVE_NODE}" = "true" ]]; then
   echo "Reth archive node without pruning"
   __prune=""
-elif [ "${MINIMAL_NODE}" = "true" ]; then
+elif [[ "${MINIMAL_NODE}" = "true" ]]; then
   __prune="--block-interval 5 --prune.senderrecovery.full --prune.accounthistory.distance 10064 --prune.storagehistory.distance 10064 --prune.transactionlookup.distance 10064"
   case ${NETWORK} in
     mainnet|sepolia )
@@ -115,7 +115,7 @@ else
   echo "Pruning parameters: ${__prune}"
 fi
 
-if [ -f /var/lib/reth/repair-trie ]; then
+if [[ -f /var/lib/reth/repair-trie ]]; then
   if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "Can't repair database on custom network"
     rm "var/lib/reth/repair-trie"
@@ -130,9 +130,9 @@ fi
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
-if [ -f /var/lib/reth/prune-marker ]; then
+if [[ -f /var/lib/reth/prune-marker ]]; then
   rm -f /var/lib/reth/prune-marker
-  if [ "${ARCHIVE_NODE}" = "true" ]; then
+  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
     echo "Reth is an archive node. Not attempting to prune database: Aborting."
     exit 1
   fi

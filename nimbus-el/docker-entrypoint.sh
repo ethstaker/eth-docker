@@ -29,7 +29,7 @@ __download_era_files() {
 
 # Usage: __download_era_files <download_url> <download_path>
 
-  if [ $# -ne 2 ]; then
+  if [[ $# -ne 2 ]]; then
     echo "__download_era_files called without <download_url> <download_path>. This is a bug."
     exit 70
   fi
@@ -66,7 +66,7 @@ __download_era_files() {
 
   TOTAL_FILES=$(wc -l < "$URLS_FILE")
 
-  if [ "$TOTAL_FILES" -eq 0 ]; then
+  if [[ "$TOTAL_FILES" -eq 0 ]]; then
     echo "❌ No .era, .era1, or .txt files found at $DOWNLOAD_URL"
     exit 1
   fi
@@ -99,7 +99,7 @@ __download_era_files() {
 }
 
 
-if [ -n "${JWT_SECRET}" ]; then
+if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/nimbus/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
 fi
@@ -111,19 +111,19 @@ if [[ ! -f /var/lib/nimbus/ee-secret/jwtsecret ]]; then
   echo -n "${__secret1}""${__secret2}" > /var/lib/nimbus/ee-secret/jwtsecret
 fi
 
-if [[ -O "/var/lib/nimbus/ee-secret" ]]; then
+if [[ -O /var/lib/nimbus/ee-secret ]]; then
   # In case someone specifies JWT_SECRET but it's not a distributed setup
   chmod 777 /var/lib/nimbus/ee-secret
 fi
-if [[ -O "/var/lib/nimbus/ee-secret/jwtsecret" ]]; then
+if [[ -O /var/lib/nimbus/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/nimbus/ee-secret/jwtsecret
 fi
 
-if [ "${ARCHIVE_NODE}" = "true" ]; then
+if [[ "${ARCHIVE_NODE}" = "true" ]]; then
   echo "Nimbus EL does not support running an archive node"
   sleep 30
   exit 1
-elif [ "${MINIMAL_NODE}" = "true" ]; then
+elif [[ "${MINIMAL_NODE}" = "true" ]]; then
   case "${NETWORK}" in
     mainnet|sepolia )
       echo "Nimbus EL minimal node with pre-merge history expiry"
@@ -147,7 +147,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
   # For want of something more amazing, let's just fail if git fails to pull this
   set -e
-  if [ ! -d "/var/lib/nimbus/testnet/${config_dir}" ]; then
+  if [[ ! -d "/var/lib/nimbus/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/nimbus/testnet
     cd /var/lib/nimbus/testnet
     git init --initial-branch="${branch}"
