@@ -19,15 +19,24 @@ x-build: &nimbus-build
     - DOCKER_VC_REPO=${NIM_DOCKER_VC_REPO:-statusim/nimbus-validator-client}
 
 services:
-  consensus:
-    restart: "unless-stopped"
+  nimbus-builder:
+    restart: "no"
     build:
       target: consensus
       <<: *nimbus-build
     image: nimbus:local
     pull_policy: never
+    entrypoint: ["true"]
+
+  consensus:
+    restart: "unless-stopped"
+    image: nimbus:local
+    pull_policy: never
     user: user
     stop_grace_period: 1m
+    depends_on:
+      nimbus-builder:
+        condition: service_completed_successfully
     volumes:
       - nimbus-data:/var/lib/nimbus
       - /etc/localtime:/etc/localtime:ro
@@ -108,12 +117,12 @@ services:
   validator-exit:
     profiles: ["tools"]
     restart: "no"
-    build:
-      target: consensus
-      <<: *nimbus-build
     image: nimbus:local
     pull_policy: never
     user: root
+    depends_on:
+      nimbus-builder:
+        condition: service_completed_successfully
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./.eth/validator_keys:/validator_keys

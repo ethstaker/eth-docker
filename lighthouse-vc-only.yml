@@ -16,13 +16,22 @@ x-build: &lh-build
     - DOCKER_REPO=${LH_DOCKER_REPO:-sigp/lighthouse}
 
 services:
-  validator:
-    restart: "unless-stopped"
+  lighthouse-builder:
+    restart: "no"
     build:
       <<: *lh-build
     image: lighthouse:local
     pull_policy: never
+    entrypoint: ["true"]
+
+  validator:
+    restart: "unless-stopped"
+    image: lighthouse:local
+    pull_policy: never
     user: lhvalidator
+    depends_on:
+      lighthouse-builder:
+        condition: service_completed_successfully
     environment:
       - MEV_BOOST=${MEV_BOOST}
       - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}
@@ -83,11 +92,12 @@ services:
   validator-exit:
     profiles: ["tools"]
     restart: "no"
-    build:
-      <<: *lh-build
     image: lighthouse:local
     pull_policy: never
     user: root
+    depends_on:
+      lighthouse-builder:
+        condition: service_completed_successfully
     volumes:
       - lhvalidator-data:/var/lib/lighthouse
       - ./.eth/validator_keys:/validator_keys
@@ -115,6 +125,8 @@ services:
     image: vc-utils:local
     pull_policy: never
     user: root
+    depends_on:
+      - validator
     volumes:
       - lhvalidator-data:/var/lib/lighthouse
       - ./.eth/validator_keys:/validator_keys
@@ -126,8 +138,6 @@ services:
       - WEB3SIGNER=${WEB3SIGNER:-false}
       - W3S_NODE=${W3S_NODE}
       - CL_NODE=${CL_NODE}
-    depends_on:
-      - validator
     entrypoint:
       - keymanager.sh
       - /var/lib/lighthouse/validators/api-token.txt

@@ -16,13 +16,25 @@ x-build: &ls-build
     - DOCKER_REPO=${LS_DOCKER_REPO:-chainsafe/lodestar}
 
 services:
-  validator:
-    restart: "unless-stopped"
+  lodestar-builder:
+    restart: "no"
     build:
       <<: *ls-build
     image: lodestar:local
     pull_policy: never
+    entrypoint: ["true"]
+
+  validator:
+    restart: "unless-stopped"
+    image: lodestar:local
+    pull_policy: never
     user: lsvalidator
+    depends_on:
+      lodestar-builder:
+        condition: service_completed_successfully
+    volumes:
+      - lsvalidator-data:/var/lib/lodestar/validators
+      - /etc/localtime:/etc/localtime:ro
     environment:
       - MEV_BOOST=${MEV_BOOST}
       - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}
@@ -36,9 +48,6 @@ services:
       - W3S_NODE=${W3S_NODE}
       - NETWORK=${NETWORK}
       - ENABLE_DIST_ATTESTATION_AGGR=${ENABLE_DIST_ATTESTATION_AGGR:-false}
-    volumes:
-      - lsvalidator-data:/var/lib/lodestar/validators
-      - /etc/localtime:/etc/localtime:ro
     networks:
       default:
         aliases:
@@ -79,11 +88,12 @@ services:
   validator-exit:
     profiles: ["tools"]
     restart: "no"
-    build:
-      <<: *ls-build
     image: lodestar:local
     pull_policy: never
     user: lsvalidator
+    depends_on:
+      lodestar-builder:
+        condition: service_completed_successfully
     volumes:
       - lsvalidator-data:/var/lib/lodestar/validators
       - /etc/localtime:/etc/localtime:ro
@@ -110,6 +120,8 @@ services:
     image: vc-utils:local
     pull_policy: never
     user: root
+    depends_on:
+      - validator
     volumes:
       - lsvalidator-data:/var/lib/lodestar/validators
       - ./.eth/validator_keys:/validator_keys
@@ -121,8 +133,6 @@ services:
       - WEB3SIGNER=${WEB3SIGNER:-false}
       - W3S_NODE=${W3S_NODE}
       - CL_NODE=${CL_NODE}
-    depends_on:
-      - validator
     entrypoint:
       - keymanager.sh
       - /var/lib/lodestar/validators/validator-db/api-token.txt

@@ -17,14 +17,23 @@ x-build: &teku-build
     - DOCKER_REPO=${TEKU_DOCKER_REPO:-consensys/teku}
 
 services:
-  consensus:
-    restart: "unless-stopped"
+  teku-builder:
+    restart: "no"
     build:
       <<: *teku-build
     image: teku:local
     pull_policy: never
+    entrypoint: ["true"]
+
+  consensus:
+    restart: "unless-stopped"
+    image: teku:local
+    pull_policy: never
     user: teku
     stop_grace_period: 1m
+    depends_on:
+      teku-builder:
+        condition: service_completed_successfully
     volumes:
       - teku-data:/var/lib/teku
       - /etc/localtime:/etc/localtime:ro
@@ -118,11 +127,12 @@ services:
   validator-exit:
     profiles: ["tools"]
     restart: "no"
-    build:
-      <<: *teku-build
     image: teku:local
     pull_policy: never
     user: teku
+    depends_on:
+      teku-builder:
+        condition: service_completed_successfully
     volumes:
       - teku-data:/var/lib/teku
       - /etc/localtime:/etc/localtime:ro
@@ -142,6 +152,8 @@ services:
     image: vc-utils:local
     pull_policy: never
     user: root
+    depends_on:
+      - consensus
     volumes:
       - teku-data:/var/lib/teku
       - ./.eth/validator_keys:/validator_keys
@@ -154,8 +166,6 @@ services:
       - WEB3SIGNER=${WEB3SIGNER:-false}
       - W3S_NODE=${W3S_NODE}
       - CL_NODE=${CL_NODE}
-    depends_on:
-      - consensus
     entrypoint:
       - keymanager.sh
       - /var/lib/teku/validator/key-manager/validator-api-bearer

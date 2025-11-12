@@ -1,6 +1,5 @@
 services:
-  deposit-cli-new:
-    profiles: ["tools"]
+  deposit-cli-builder:
     restart: "no"
     build:
       context: ./ethstaker-deposit-cli
@@ -12,6 +11,16 @@ services:
         - DOCKER_REPO=${DEPCLI_DOCKER_REPO:-ghcr.io/ethstaker/ethstaker-deposit-cli}
     image: ethstaker-deposit-cli:local
     pull_policy: never
+    entrypoint: ["true"]
+
+  deposit-cli-new:
+    profiles: ["tools"]
+    restart: "no"
+    image: ethstaker-deposit-cli:local
+    pull_policy: never
+    depends_on:
+      deposit-cli-builder:
+        condition: service_completed_successfully
     volumes:
       - ./.eth:/app/.eth/
     entrypoint:
@@ -22,19 +31,15 @@ services:
       - new-mnemonic
       - --chain
       - ${NETWORK}
+
   deposit-cli-existing:
     profiles: ["tools"]
     restart: "no"
-    build:
-      context: ./ethstaker-deposit-cli
-      dockerfile: ${DEPCLI_DOCKERFILE}
-      args:
-        - BUILD_TARGET=${DEPCLI_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
-        - SRC_REPO=${DEPCLI_SRC_REPO:-https://github.com/ethstaker/ethstaker-deposit-cli}
-        - DOCKER_TAG=${DEPCLI_DOCKER_TAG:-latest}
-        - DOCKER_REPO=${DEPCLI_DOCKER_REPO:-ghcr.io/ethstaker/ethstaker-deposit-cli}
     image: ethstaker-deposit-cli:local
     pull_policy: never
+    depends_on:
+      deposit-cli-builder:
+        condition: service_completed_successfully
     volumes:
       - ./.eth:/app/.eth/
     entrypoint:
@@ -45,19 +50,15 @@ services:
       - existing-mnemonic
       - --chain
       - ${NETWORK}
+
   deposit-cli-change:
     profiles: ["tools"]
-    build:
-      context: ./ethstaker-deposit-cli
-      dockerfile: ${DEPCLI_DOCKERFILE}
-      args:
-        - BUILD_TARGET=${DEPCLI_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
-        - SRC_REPO=${DEPCLI_SRC_REPO:-https://github.com/ethstaker/ethstaker-deposit-cli}
-        - DOCKER_TAG=${DEPCLI_DOCKER_TAG:-latest}
-        - DOCKER_REPO=${DEPCLI_DOCKER_REPO:-ghcr.io/ethstaker/ethstaker-deposit-cli}
     restart: "no"
     image: ethstaker-deposit-cli:local
     pull_policy: never
+    depends_on:
+      deposit-cli-builder:
+        condition: service_completed_successfully
     volumes:
       - ./.eth:/app/.eth
     entrypoint:

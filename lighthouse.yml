@@ -17,14 +17,23 @@ x-build: &lh-build
     - DOCKER_REPO=${LH_DOCKER_REPO:-sigp/lighthouse}
 
 services:
-  consensus:
-    restart: "unless-stopped"
+  lighthouse-builder:
+    restart: "no"
     build:
       <<: *lh-build
     image: lighthouse:local
     pull_policy: never
+    entrypoint: ["true"]
+
+  consensus:
+    restart: "unless-stopped"
+    image: lighthouse:local
+    pull_policy: never
     user: lhconsensus
     stop_grace_period: 1m
+    depends_on:
+      lighthouse-builder:
+        condition: service_completed_successfully
     volumes:
       - lhconsensus-data:/var/lib/lighthouse
       - /etc/localtime:/etc/localtime:ro
@@ -95,11 +104,17 @@ services:
 
   validator:
     restart: "unless-stopped"
-    build:
-      <<: *lh-build
     image: lighthouse:local
     pull_policy: never
     user: lhvalidator
+    depends_on:
+      consensus:
+        condition: service_started
+      lighthouse-builder:
+        condition: service_completed_successfully
+    volumes:
+      - lhvalidator-data:/var/lib/lighthouse
+      - /etc/localtime:/etc/localtime:ro
     environment:
       - MEV_BOOST=${MEV_BOOST}
       - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}
@@ -111,9 +126,6 @@ services:
       - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
       - NETWORK=${NETWORK}
       - ENABLE_DIST_ATTESTATION_AGGR=${ENABLE_DIST_ATTESTATION_AGGR:-false}
-    volumes:
-      - lhvalidator-data:/var/lib/lighthouse
-      - /etc/localtime:/etc/localtime:ro
     networks:
       default:
         aliases:
@@ -144,8 +156,6 @@ services:
       - --unencrypted-http-transport
       - --suggested-fee-recipient
       - ${FEE_RECIPIENT}
-    depends_on:
-      - consensus
     labels:
       - traefik.enable=true
       - traefik.http.routers.${VC_HOST:-vc}.service=${VC_HOST:-vc}
@@ -162,13 +172,16 @@ services:
   validator-exit:
     profiles: ["tools"]
     restart: "no"
-    build:
-      <<: *lh-build
     image: lighthouse:local
     pull_policy: never
     # Keys have 440 permissions. Root copies and chowns them,
     # then switches to user lhvalidator
     user: root
+    depends_on:
+      consensus:
+        condition: service_started
+      lighthouse-builder:
+        condition: service_completed_successfully
     volumes:
       - lhvalidator-data:/var/lib/lighthouse
       - ./.eth/validator_keys:/validator_keys
@@ -187,8 +200,6 @@ services:
       - ${NETWORK}
       - --debug-level=${LOG_LEVEL}
       - --keystore
-    depends_on:
-      - consensus
 
   validator-keys:
     profiles: ["tools"]
@@ -202,6 +213,8 @@ services:
     # 1000. The UID has to be able to write .eth/validator_keys
     # for the "keys delete" command.
     user: root
+    depends_on:
+      - validator
     volumes:
       - lhvalidator-data:/var/lib/lighthouse
       - ./.eth/validator_keys:/validator_keys
@@ -213,8 +226,6 @@ services:
       - WEB3SIGNER=${WEB3SIGNER:-false}
       - W3S_NODE=${W3S_NODE}
       - CL_NODE=${CL_NODE}
-    depends_on:
-      - validator
     entrypoint:
       - keymanager.sh
       - /var/lib/lighthouse/validators/api-token.txt
