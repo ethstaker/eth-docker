@@ -43,6 +43,8 @@ jobs:
         run: cp default.env .env
       - name: Test ethd update
         run: ./ethd update --debug --non-interactive
+      - name: Remove .env
+        run: rm .env
       - name: Test ethd config defaults
         run: expect ./.github/test-ethd-config.exp all-defaults
         env:

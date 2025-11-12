@@ -18,14 +18,23 @@ x-build: &prysm-build
     - DOCKER_VC_REPO=${PRYSM_DOCKER_VC_REPO:-gcr.io/offchainlabs/prysm/validator}
 
 services:
-  validator:
-    restart: "unless-stopped"
+  prysm-validator-builder:
+    restart: "no"
     build:
       target: validator
       <<: *prysm-build
     image: prysm-validator:local
     pull_policy: never
+    entrypoint: ["true"]
+
+  validator:
+    restart: "unless-stopped"
+    image: prysm-validator:local
+    pull_policy: never
     user: prysmvalidator
+    depends_on:
+      prysm-validator-builder:
+        condition: service_completed_successfully
     volumes:
       - prysmvalidator-data:/var/lib/prysm
       - /etc/localtime:/etc/localtime:ro
@@ -87,18 +96,18 @@ services:
   create-wallet:
     profiles: ["tools"]
     restart: "no"
-    build:
-      target: validator
-      <<: *prysm-build
     image: prysm-validator:local
     pull_policy: never
     user: prysmvalidator
-    environment:
-      - NETWORK=${NETWORK}
-      - WEB3SIGNER=${WEB3SIGNER:-false}
+    depends_on:
+      prysm-validator-builder:
+        condition: service_completed_successfully
     volumes:
       - prysmvalidator-data:/var/lib/prysm
       - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NETWORK=${NETWORK}
+      - WEB3SIGNER=${WEB3SIGNER:-false}
     entrypoint: create-wallet.sh
 
   validator-exit:
@@ -120,12 +129,12 @@ services:
   validator-backup:
     profiles: ["tools"]
     restart: "no"
-    build:
-      target: validator
-      <<: *prysm-build
     image: prysm-validator:local
     pull_policy: never
     user: root
+    depends_on:
+      prysm-validator-builder:
+        condition: service_completed_successfully
     volumes:
       - prysmvalidator-data:/var/lib/prysm
       - ./.eth/validator_keys:/validator_keys
@@ -152,6 +161,8 @@ services:
     image: vc-utils:local
     pull_policy: never
     user: root
+    depends_on:
+      - validator
     volumes:
       - prysmvalidator-data:/var/lib/prysm
       - ./.eth/validator_keys:/validator_keys
@@ -164,8 +175,6 @@ services:
       - W3S_NODE=${W3S_NODE}
       - CL_NODE=${CL_NODE}
       - PRYSM=true
-    depends_on:
-      - validator
     entrypoint:
       - keymanager.sh
       - /var/lib/prysm/auth-token

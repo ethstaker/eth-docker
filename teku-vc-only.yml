@@ -16,13 +16,22 @@ x-build: &teku-build
     - DOCKER_REPO=${TEKU_DOCKER_REPO:-consensys/teku}
 
 services:
-  validator:
-    restart: "unless-stopped"
+  teku-builder:
+    restart: "no"
     build:
       <<: *teku-build
     image: teku:local
     pull_policy: never
+    entrypoint: ["true"]
+
+  validator:
+    restart: "unless-stopped"
+    image: teku:local
+    pull_policy: never
     user: teku
+    depends_on:
+      teku-builder:
+        condition: service_completed_successfully
     volumes:
       - teku-data:/var/lib/teku
       - /etc/localtime:/etc/localtime:ro
@@ -75,11 +84,12 @@ services:
   validator-exit:
     profiles: ["tools"]
     restart: "no"
-    build:
-      <<: *teku-build
     image: teku:local
     pull_policy: never
     user: teku
+    depends_on:
+      teku-builder:
+        condition: service_completed_successfully
     volumes:
       - teku-data:/var/lib/teku
       - /etc/localtime:/etc/localtime:ro
