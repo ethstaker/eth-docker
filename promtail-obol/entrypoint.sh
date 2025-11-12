@@ -1,16 +1,16 @@
 #!/bin/sh
 
-if [ -z "$CHARON_LOKI_ADDRESSES" ]; then
+if [ -z "${CHARON_LOKI_ADDRESSES}" ]; then
   echo "Error: \$CHARON_LOKI_ADDRESSES variable is empty" >&2
   exit 1
 fi
 
-if [ -z "$CLUSTER_NAME" ]; then
+if [ -z "${CLUSTER_NAME}" ]; then
   echo "Error: \$CLUSTER_NAME variable is empty" >&2
   exit 1
 fi
 
-if [ -z "$CLUSTER_PEER" ]; then
+if [ -z "${CLUSTER_PEER}" ]; then
   echo "Error: \$CLUSTER_PEER variable is empty" >&2
   exit 1
 fi

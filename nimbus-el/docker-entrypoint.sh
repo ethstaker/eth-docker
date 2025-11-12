@@ -29,73 +29,83 @@ __download_era_files() {
 
 # Usage: __download_era_files <download_url> <download_path>
 
+  local download_url
+  local download_dir
+  local base_url
+  local urls_raw_file
+  local urls_file
+  local completed
+  local percent
+  local total_files
+  local aria_pid
+
   if [[ $# -ne 2 ]]; then
     echo "__download_era_files called without <download_url> <download_path>. This is a bug."
     exit 70
   fi
 
-  DOWNLOAD_URL="$1"
-  DOWNLOAD_DIR="$2"
+  download_url="$1"
+  download_dir="$2"
 
-  mkdir -p "$DOWNLOAD_DIR"
-  cd "$DOWNLOAD_DIR" || { echo "Could not change directory to $DOWNLOAD_DIR. This is a bug."; exit 70; }
+  mkdir -p "${download_dir}"
+  cd "${download_dir}" || { echo "Could not change directory to ${download_dir}. This is a bug."; exit 70; }
 
   # Generate safe temp files for URL lists
-  URLS_RAW_FILE=$(mktemp)
-  URLS_FILE=$(mktemp)
+  urls_raw_file=$(mktemp)
+  urls_file=$(mktemp)
 
   # Scrape and filter
-  curl -s "$DOWNLOAD_URL" | \
+  curl -s "${download_url}" | \
   grep -Eo 'href="[^"]+"' | \
   cut -d'"' -f2 | \
   grep -Ei '\.(era|era1|txt)$' | \
-  sort -u > "$URLS_RAW_FILE"
+  sort -u > "${urls_raw_file}"
 
   # Remove trailing file (like index.html) to get actual base path
-  BASE_URL=$(echo "$DOWNLOAD_URL" | sed -E 's|/[^/]*\.[a-zA-Z0-9]+$||')
+  base_url=$(echo "${download_url}" | sed -E 's|/[^/]*\.[a-zA-Z0-9]+$||')
 
   # 🔧 Normalize base URL (handle trailing slash or index.html)
-  case "$DOWNLOAD_URL" in
-    */index.html) BASE_URL="${DOWNLOAD_URL%/index.html}" ;;
-    */)           BASE_URL="${DOWNLOAD_URL%/}" ;;
-    *)            BASE_URL="$DOWNLOAD_URL" ;;
+  case "${download_url}" in
+    */index.html) base_url="${download_url%/index.html}" ;;
+    */)           base_url="${download_url%/}" ;;
+    *)            base_url="${download_url}" ;;
   esac
 
   # Prepend full URL
-  awk -v url="$BASE_URL" '{ print url "/" $0 }' "$URLS_RAW_FILE" > "$URLS_FILE"
+  awk -v url="${base_url}" '{ print url "/" $0 }' "${urls_raw_file}" > "${urls_file}"
 
-  TOTAL_FILES=$(wc -l < "$URLS_FILE")
+  total_files=$(wc -l < "${urls_file}")
 
-  if [[ "$TOTAL_FILES" -eq 0 ]]; then
-    echo "❌ No .era, .era1, or .txt files found at $DOWNLOAD_URL"
+  if [[ "${total_files}" -eq 0 ]]; then
+    echo "❌ No .era, .era1, or .txt files found at ${download_url}"
     exit 1
   fi
 
-  aria2c -x 8 -j 5 -c -i "$URLS_FILE" \
+  aria2c -x 8 -j 5 -c -i "${urls_file}" \
     --dir="." \
     --console-log-level=warn \
     --quiet=true \
     --summary-interval=0 \
     > /dev/null 2>&1 &
 
-  ARIA_PID=$!
+  aria_pid=$!
 
   echo "Downloading Era/Era1 history files"
-  echo "📥 Starting download of $TOTAL_FILES files..."
-  while kill -0 "$ARIA_PID" 2> /dev/null; do
-    COMPLETED=$(find . -type f \( -name '*.era' -o -name '*.era1' -o -name '*.txt' \) | wc -l)
-    PERCENT=$(awk "BEGIN { printf \"%.1f\", ($COMPLETED/$TOTAL_FILES)*100 }")
-    echo "📦 Download Progress: $PERCENT% complete ($COMPLETED / $TOTAL_FILES files)"
+  echo "📥 Starting download of ${total_files} files..."
+  while kill -0 "${aria_pid}" 2> /dev/null; do
+    completed=$(find . -type f \( -name '*.era' -o -name '*.era1' -o -name '*.txt' \) | wc -l)
+    percent=$(awk "BEGIN { printf \"%.1f\", (${completed}/${total_files})*100 }")
+    echo "📦 Download Progress: ${percent}% complete (${completed} / ${total_files} files)"
     sleep 10
   done
 
-  COMPLETED=$(find . -type f \( -name '*.era' -o -name '*.era1' -o -name '*.txt' \) | wc -l)
-  echo "📦 Download Progress: 100% complete ($COMPLETED / $TOTAL_FILES files)"
+  completed=$(find . -type f \( -name '*.era' -o -name '*.era1' -o -name '*.txt' \) | wc -l)
+  echo "📦 Download Progress: 100% complete (${completed} / ${total_files} files)"
 
   # ✅ Cleanup temp files
-  rm -f "$URLS_RAW_FILE" "$URLS_FILE"
+  rm -f "${urls_raw_file}" "${urls_file}"
 
-  echo "✅ All files downloaded to: $DOWNLOAD_DIR"
+  echo "✅ All files downloaded to: ${download_dir}"
 }
 
 
@@ -106,9 +116,9 @@ fi
 
 if [[ ! -f /var/lib/nimbus/ee-secret/jwtsecret ]]; then
   echo "Generating JWT secret"
-  __secret1=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-  __secret2=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-  echo -n "${__secret1}""${__secret2}" > /var/lib/nimbus/ee-secret/jwtsecret
+  secret1=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  secret2=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  echo -n "${secret1}""${secret2}" > /var/lib/nimbus/ee-secret/jwtsecret
 fi
 
 if [[ -O /var/lib/nimbus/ee-secret ]]; then

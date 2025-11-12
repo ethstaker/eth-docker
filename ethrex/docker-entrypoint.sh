@@ -9,11 +9,11 @@ fi
 
 # Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
 __strip_empty_args() {
-  local __arg
+  local arg
   __args=()
-  for __arg in "$@"; do
-    if [[ -n "$__arg" ]]; then
-      __args+=("$__arg")
+  for arg in "$@"; do
+    if [[ -n "${arg}" ]]; then
+      __args+=("${arg}")
     fi
   done
 }
@@ -26,9 +26,9 @@ fi
 
 if [[ ! -f /var/lib/ethrex/ee-secret/jwtsecret ]]; then
   echo "Generating JWT secret"
-  __secret1=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-  __secret2=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-  echo -n "${__secret1}""${__secret2}" > /var/lib/ethrex/ee-secret/jwtsecret
+  secret1=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  secret2=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  echo -n "${secret1}""${secret2}" > /var/lib/ethrex/ee-secret/jwtsecret
 fi
 
 if [[ -O /var/lib/ethrex/ee-secret ]]; then

@@ -9,23 +9,24 @@ fi
 
 # Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
 __strip_empty_args() {
-  local __arg
+  local arg
   __args=()
-  for __arg in "$@"; do
-    if [[ -n "$__arg" ]]; then
-      __args+=("$__arg")
+  for arg in "$@"; do
+    if [[ -n "${arg}" ]]; then
+      __args+=("${arg}")
     fi
   done
 }
 
 
 __normalize_int() {
-    local v=$1
-    if [[ $v =~ ^[0-9]+$ ]]; then
-        v=$((10#$v))
-    fi
-    printf '%s' "$v"
+  local v=$1
+  if [[ "${v}" =~ ^[0-9]+$ ]]; then
+    v=$((10#${v}))
+  fi
+  printf '%s' "${v}"
 }
+
 
 if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/grandine/ee-secret/jwtsecret
@@ -99,8 +100,8 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--builder-url ${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
   if [[ "${EMBEDDED_VC}" = "true" ]]; then
-    __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
-    case "${__build_factor}" in
+    build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+    case "${build_factor}" in
       0)
         __mev_boost=""
         __mev_factor=""
@@ -108,8 +109,8 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
         echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
         ;;
       [1-9]|[1-9][0-9])
-        __mev_factor="--default-builder-boost-factor ${__build_factor}"
-        echo "Enabled MEV Build Factor of ${__build_factor}"
+        __mev_factor="--default-builder-boost-factor ${build_factor}"
+        echo "Enabled MEV Build Factor of ${build_factor}"
         ;;
       100)
         __mev_factor="--default-builder-boost-factor 100"
@@ -121,7 +122,7 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
         ;;
       *)
         __mev_factor=""
-        echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
+        echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${build_factor}\""
         ;;
     esac
   else
@@ -137,12 +138,12 @@ if [[ "${IPV6}" = "true" ]]; then
   __ipv6="--listen-address-ipv6 :: --libp2p-port-ipv6 ${CL_P2P_PORT:-9000} --discovery-port-ipv6 ${CL_P2P_PORT:-9000} \
 --quic-port-ipv6 ${CL_QUIC_PORT:-9001}"
 # ENR discovery on v6 is not yet working, likely too few peers. Manual for now
-  __ipv6_pattern="^[0-9A-Fa-f]{1,4}:" # Sufficient to check the start
+  ipv6_pattern="^[0-9A-Fa-f]{1,4}:"  # Sufficient to check the start
   set +e
-  __public_v6=$(curl -s -6 ifconfig.me)
+  public_v6=$(curl -s -6 ifconfig.me)
   set -e
-  if [[ "$__public_v6" =~ $__ipv6_pattern ]]; then
-    __ipv6+=" --enr-address-ipv6 ${__public_v6} --enr-tcp-port-ipv6 ${CL_P2P_PORT:-9000} --enr-udp-port-ipv6 ${CL_P2P_PORT:-9000}"
+  if [[ "${public_v6}" =~ ${ipv6_pattern} ]]; then
+    __ipv6+=" --enr-address-ipv6 ${public_v6} --enr-tcp-port-ipv6 ${CL_P2P_PORT:-9000} --enr-udp-port-ipv6 ${CL_P2P_PORT:-9000}"
   fi
 else
   __ipv6=""

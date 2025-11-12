@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 
-__service=$1
+service="$1"
 
-__containerID=$(docker compose ps -q "${__service}")
+containerID="$(docker compose ps -q "${service}")"
 
-__restart_count=$(docker inspect --format '{{ .RestartCount }}' "$__containerID")
-__is_running=$(docker inspect --format '{{ .State.Running }}' "$__containerID")
+restart_count="$(docker inspect --format '{{ .RestartCount }}' "$containerID")"
+is_running="$(docker inspect --format '{{ .State.Running }}' "$containerID")"
 
-if [[ "$__is_running" != "true" || "$__restart_count" -gt 1 ]]; then
-  echo "$__service is either not running or continuously restarting"
-  docker compose ps "${__service}"
-  docker compose logs "${__service}"
+if [[ "${is_running}" != "true" || "${restart_count}" -gt 1 ]]; then
+  echo "${service} is either not running or continuously restarting"
+  docker compose ps "${service}"
+  docker compose logs "${service}"
   exit 1
 else
-  echo "$__service is running"
-  docker compose ps "${__service}"
+  echo "${service} is running"
+  docker compose ps "${service}"
   exit 0
 fi

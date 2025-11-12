@@ -5,23 +5,25 @@ if [[ "$(id -u)" -eq 0 ]]; then
   exec su-exec user docker-entrypoint-vc.sh "$@"
 fi
 
+
 __normalize_int() {
-    local v=$1
-    if [[ $v =~ ^[0-9]+$ ]]; then
-        v=$((10#$v))
-    fi
-    printf '%s' "$v"
+  local v=$1
+  if [[ "${v}" =~ ^[0-9]+$ ]]; then
+    v=$((10#${v}))
+  fi
+  printf '%s' "${v}"
 }
+
 
 # Remove old low-entropy token, related to Sigma Prime security audit
 # This detection isn't perfect - a user could recreate the token without ./ethd update
 if [[ -f /var/lib/nimbus/api-token.txt && "$(date +%s -r /var/lib/nimbus/api-token.txt)" -lt "$(date +%s --date="2023-05-02 09:00:00")" ]]; then
-    rm /var/lib/nimbus/api-token.txt
+  rm /var/lib/nimbus/api-token.txt
 fi
 
 if [[ ! -f /var/lib/nimbus/api-token.txt ]]; then
-    __token=api-token-0x$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-    echo "$__token" > /var/lib/nimbus/api-token.txt
+  token=api-token-0x$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  echo "${token}" > /var/lib/nimbus/api-token.txt
 fi
 
 # Check whether we should enable doppelganger protection
@@ -36,8 +38,8 @@ fi
 if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--payload-builder=true"
   echo "MEV Boost enabled"
-  __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
-  case "${__build_factor}" in
+  build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+  case "${build_factor}" in
     0)
       __mev_boost=""
       __mev_factor=""
@@ -45,8 +47,8 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
       ;;
     [1-9]|[1-9][0-9])
-      #__local_factor=$((100 - __build_factor))
-      #__mev_factor="--local-block-value-boost ${__local_factor}"
+      #local_factor=$((100 - build_factor))
+      #mev_factor="--local-block-value-boost ${local_factor}"
       __mev_factor=""
       echo "Nimbus VC does not support setting a builder boost factor"
       ;;
@@ -60,7 +62,7 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       ;;
     *)
       __mev_factor=""
-      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
+      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${build_factor}\""
       ;;
   esac
 else
@@ -69,10 +71,10 @@ else
 fi
 
 # accommodate comma separated list of consensus nodes
-__nodes=$(echo "$CL_NODE" | tr ',' ' ')
+nodes=$(echo "$CL_NODE" | tr ',' ' ')
 __beacon_nodes=()
-for __node in $__nodes; do
-  __beacon_nodes+=("--beacon-node=$__node")
+for node in ${nodes}; do
+  __beacon_nodes+=("--beacon-node=${node}")
 done
 
 __log_level="--log-level=${LOG_LEVEL^^}"
@@ -82,11 +84,11 @@ if [[ "${WEB3SIGNER}" = "true" ]]; then
   __w3s_url="--web3-signer-url=${W3S_NODE}"
   while true; do
     if curl -s -m 5 "${W3S_NODE}" &> /dev/null; then
-        echo "Web3signer is up, starting Nimbus"
-        break
+      echo "Web3signer is up, starting Nimbus"
+      break
     else
-        echo "Waiting for Web3signer to be reachable..."
-        sleep 5
+      echo "Waiting for Web3signer to be reachable..."
+      sleep 5
     fi
   done
 else

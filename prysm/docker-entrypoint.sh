@@ -9,11 +9,11 @@ fi
 
 # Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
 __strip_empty_args() {
-  local __arg
+  local arg
   __args=()
-  for __arg in "$@"; do
-    if [[ -n "$__arg" ]]; then
-      __args+=("$__arg")
+  for arg in "$@"; do
+    if [[ -n "${arg}" ]]; then
+      __args+=("${arg}")
     fi
   done
 }
@@ -92,23 +92,23 @@ __strip_empty_args "$@"
 set -- "${__args[@]}"
 
 if [[ "${NETWORK}" = "sepolia" ]]; then
-  GENESIS=/var/lib/prysm/genesis.ssz
-  if [[ ! -f "$GENESIS" ]]; then
+  __genesis_file="/var/lib/prysm/genesis.ssz"
+  if [[ ! -f "${__genesis_file}" ]]; then
     echo "Fetching genesis file for Sepolia testnet"
-    curl -fsSL -o "$GENESIS" https://github.com/eth-clients/sepolia/raw/main/metadata/genesis.ssz
+    curl -fsSL -o "${__genesis_file}" https://github.com/eth-clients/sepolia/raw/main/metadata/genesis.ssz
   fi
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" "--genesis-state=$GENESIS" ${__network} ${__checkpoint_sync} ${__prune} ${__mev_boost} ${CL_EXTRAS}
+  exec "$@" "--genesis-state=${__genesis_file}" ${__network} ${__checkpoint_sync} ${__prune} ${__mev_boost} ${CL_EXTRAS}
 elif [[ "${NETWORK}" = "hoodi" ]]; then
-  GENESIS=/var/lib/prysm/genesis.ssz
-  if [[ ! -f "$GENESIS" ]]; then
+  __genesis_file=/var/lib/prysm/genesis.ssz
+  if [[ ! -f "${__genesis_file}" ]]; then
     echo "Fetching genesis file for Hoodi testnet"
-    curl -fsSL -o "$GENESIS" https://github.com/eth-clients/hoodi/raw/main/metadata/genesis.ssz
+    curl -fsSL -o "${__genesis_file}" https://github.com/eth-clients/hoodi/raw/main/metadata/genesis.ssz
   fi
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" "--genesis-state=$GENESIS" ${__network} ${__checkpoint_sync} ${__prune} ${__mev_boost} ${CL_EXTRAS}
+  exec "$@" "--genesis-state=${__genesis_file}" ${__network} ${__checkpoint_sync} ${__prune} ${__mev_boost} ${CL_EXTRAS}
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086

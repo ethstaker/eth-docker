@@ -6,13 +6,15 @@ if [[ "$(id -u)" -eq 0 ]]; then
   exec gosu lsvalidator docker-entrypoint-vc.sh "$@"
 fi
 
+
 __normalize_int() {
-    local v=$1
-    if [[ $v =~ ^[0-9]+$ ]]; then
-        v=$((10#$v))
-    fi
-    printf '%s' "$v"
+  local v=$1
+  if [[ "${v}" =~ ^[0-9]+$ ]]; then
+    v=$((10#${v}))
+  fi
+  printf '%s' "${v}"
 }
+
 
 if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
@@ -42,8 +44,8 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--builder"
   echo "MEV Boost enabled"
 
-  __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
-  case "${__build_factor}" in
+  build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+  case "${build_factor}" in
     0)
       __mev_boost=""
       __mev_factor=""
@@ -52,8 +54,8 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       ;;
     [1-9]|[1-9][0-9])
       __mev_boost="--builder.selection maxprofit"
-      __mev_factor="--builder.boostFactor ${__build_factor}"
-      echo "Enabled MEV Build Factor of ${__build_factor}"
+      __mev_factor="--builder.boostFactor ${build_factor}"
+      echo "Enabled MEV Build Factor of ${build_factor}"
       ;;
     100)
       __mev_boost="--builder.selection builderalways"
@@ -66,7 +68,7 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       ;;
     *)
       __mev_factor=""
-      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
+      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${build_factor}\""
       ;;
   esac
 else

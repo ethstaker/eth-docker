@@ -5,13 +5,15 @@ if [[ "$(id -u)" -eq 0 ]]; then
   exec gosu teku docker-entrypoint-vc.sh "$@"
 fi
 
+
 __normalize_int() {
-    local v=$1
-    if [[ $v =~ ^[0-9]+$ ]]; then
-        v=$((10#$v))
-    fi
-    printf '%s' "$v"
+  local v=$1
+  if [[ "${v}" =~ ^[0-9]+$ ]]; then
+    v=$((10#${v}))
+  fi
+  printf '%s' "${v}"
 }
+
 
 if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
@@ -45,14 +47,14 @@ if [[ -f /var/lib/teku/teku-keyapi.keystore ]]; then
 fi
 
 if [[ ! -f /var/lib/teku/teku-keyapi.keystore ]]; then
-    __password=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-    echo "$__password" > /var/lib/teku/teku-keyapi.password
-    openssl req -x509 -newkey rsa:4096 -sha256 -days 365 -nodes -keyout /var/lib/teku/teku-keyapi.key -out /var/lib/teku/teku-keyapi.crt -subj '/CN=teku-keyapi-cert' -extensions san -config <( \
-      echo '[req]'; \
-      echo 'distinguished_name=req'; \
-      echo '[san]'; \
-      echo "subjectAltName=DNS:localhost,DNS:consensus,DNS:validator,DNS:${VC_ALIAS},IP:127.0.0.1")
-    openssl pkcs12 -export -in /var/lib/teku/teku-keyapi.crt -inkey /var/lib/teku/teku-keyapi.key -out /var/lib/teku/teku-keyapi.keystore -name teku-keyapi -passout pass:"$__password"
+  password=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  echo "${password}" > /var/lib/teku/teku-keyapi.password
+  openssl req -x509 -newkey rsa:4096 -sha256 -days 365 -nodes -keyout /var/lib/teku/teku-keyapi.key -out /var/lib/teku/teku-keyapi.crt -subj '/CN=teku-keyapi-cert' -extensions san -config <( \
+    echo '[req]'; \
+    echo 'distinguished_name=req'; \
+    echo '[san]'; \
+    echo "subjectAltName=DNS:localhost,DNS:consensus,DNS:validator,DNS:${VC_ALIAS},IP:127.0.0.1")
+  openssl pkcs12 -export -in /var/lib/teku/teku-keyapi.crt -inkey /var/lib/teku/teku-keyapi.key -out /var/lib/teku/teku-keyapi.keystore -name teku-keyapi -passout pass:"${password}"
 fi
 
 # Check whether we should enable doppelganger protection
@@ -67,8 +69,8 @@ fi
 if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--validators-builder-registration-default-enabled"
   echo "MEV Boost enabled"
-  __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
-  case "${__build_factor}" in
+  build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+  case "${build_factor}" in
     0)
       __mev_boost=""
       __mev_factor=""
@@ -88,7 +90,7 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       ;;
     *)
       __mev_factor=""
-      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
+      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${build_factor}\""
       ;;
   esac
 else
@@ -101,11 +103,11 @@ if [[ "${WEB3SIGNER}" = "true" ]]; then
   __w3s_url="--validators-external-signer-url ${W3S_NODE}"
 #  while true; do
 #    if curl -s -m 5 ${W3S_NODE} &> /dev/null; then
-#        echo "web3signer is up, starting Teku"
-#        break
+#      echo "web3signer is up, starting Teku"
+#      break
 #    else
-#        echo "Waiting for web3signer to be reachable..."
-#        sleep 5
+#      echo "Waiting for web3signer to be reachable..."
+#      sleep 5
 #    fi
 #  done
 else

@@ -8,11 +8,11 @@ fi
 
 # Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
 __strip_empty_args() {
-  local __arg
+  local arg
   __args=()
-  for __arg in "$@"; do
-    if [[ -n "$__arg" ]]; then
-      __args+=("$__arg")
+  for arg in "$@"; do
+    if [[ -n "${arg}" ]]; then
+      __args+=("${arg}")
     fi
   done
 }
@@ -25,8 +25,8 @@ if [[ -f /var/lib/lodestar/consensus/api-token.txt  && "$(date +%s -r /var/lib/l
 fi
 
 if [[ ! -f /var/lib/lodestar/consensus/api-token.txt ]]; then
-    __token=api-token-0x$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-    echo "$__token" > /var/lib/lodestar/consensus/api-token.txt
+    token=api-token-0x$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+    echo "$token" > /var/lib/lodestar/consensus/api-token.txt
 fi
 
 if [[ -n "${JWT_SECRET}" ]]; then
@@ -109,12 +109,12 @@ if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Lodestar to listen on IPv6 ports"
   __ipv6="--listenAddress 0.0.0.0 --listenAddress6 :: --port6 ${CL_P2P_PORT:-9000}"
 # ENR discovery on v6 is not yet working, likely too few peers. Manual for now
-  __ipv6_pattern="^[0-9A-Fa-f]{1,4}:" # Sufficient to check the start
+  ipv6_pattern="^[0-9A-Fa-f]{1,4}:" # Sufficient to check the start
   set +e
-  __public_v6=$(wget -6 -q -O- ifconfig.me)
+  public_v6=$(wget -6 -q -O- ifconfig.me)
   set -e
-  if [[ "$__public_v6" =~ $__ipv6_pattern ]]; then
-    __ipv6+=" --enr.ip6 ${__public_v6}"
+  if [[ "${public_v6}" =~ ${ipv6_pattern} ]]; then
+    __ipv6+=" --enr.ip6 ${public_v6}"
   fi
 else
   __ipv6="--listenAddress 0.0.0.0"

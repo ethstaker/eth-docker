@@ -8,34 +8,34 @@ fi
 
 # Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
 __strip_empty_args() {
-  local __arg
+  local arg
   __args=()
-  for __arg in "$@"; do
-    if [[ -n "$__arg" ]]; then
-      __args+=("$__arg")
+  for arg in "$@"; do
+    if [[ -n "${arg}" ]]; then
+      __args+=("${arg}")
     fi
   done
 }
 
 
 __normalize_int() {
-    local v=$1
-    if [[ $v =~ ^[0-9]+$ ]]; then
-        v=$((10#$v))
-    fi
-    printf '%s' "$v"
+  local v=$1
+  if [[ "${v}" =~ ^[0-9]+$ ]]; then
+    v=$((10#${v}))
+  fi
+  printf '%s' "${v}"
 }
 
 
 # Remove old low-entropy token, related to Sigma Prime security audit
 # This detection isn't perfect - a user could recreate the token without ./ethd update
 if [[ -f /var/lib/nimbus/api-token.txt && "$(date +%s -r /var/lib/nimbus/api-token.txt)" -lt "$(date +%s --date="2023-05-02 09:00:00")" ]]; then
-    rm /var/lib/nimbus/api-token.txt
+  rm /var/lib/nimbus/api-token.txt
 fi
 
 if [[ ! -f /var/lib/nimbus/api-token.txt ]]; then
-    __token=api-token-0x$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-    echo "$__token" > /var/lib/nimbus/api-token.txt
+  token=api-token-0x$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  echo "${token}" > /var/lib/nimbus/api-token.txt
 fi
 
 if [[ -n "${JWT_SECRET}" ]]; then
@@ -76,27 +76,27 @@ else
 fi
 
 if [[ -n "${CHECKPOINT_SYNC_URL:+x}" && ! -f /var/lib/nimbus/setupdone ]]; then
-    if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-        echo "Starting checkpoint sync with backfill and archive reindex. Nimbus will restart when done."
+  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
+    echo "Starting checkpoint sync with backfill and archive reindex. Nimbus will restart when done."
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-        /usr/local/bin/nimbus_beacon_node trustedNodeSync --backfill=true --reindex ${__network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
-        touch /var/lib/nimbus/setupdone
-    else
-        echo "Starting checkpoint sync. Nimbus will restart when done."
+    /usr/local/bin/nimbus_beacon_node trustedNodeSync --backfill=true --reindex ${__network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
+    touch /var/lib/nimbus/setupdone
+  else
+    echo "Starting checkpoint sync. Nimbus will restart when done."
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-        /usr/local/bin/nimbus_beacon_node trustedNodeSync --backfill=false ${__network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
-        touch /var/lib/nimbus/setupdone
-    fi
+    /usr/local/bin/nimbus_beacon_node trustedNodeSync --backfill=false ${__network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
+    touch /var/lib/nimbus/setupdone
+  fi
 fi
 
 # Check whether we should use MEV Boost
 if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--payload-builder=true --payload-builder-url=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
-  __build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
-  case "${__build_factor}" in
+  build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+  case "${build_factor}" in
     0)
       __mev_boost=""
       __mev_factor=""
@@ -104,9 +104,9 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
       ;;
     [1-9]|[1-9][0-9])
-      __local_factor=$((100 - __build_factor))
-      __mev_factor="--local-block-value-boost=${__local_factor}"
-      echo "Enabled MEV local block value boost of ${__local_factor}"
+      local_factor=$((100 - build_factor))
+      __mev_factor="--local-block-value-boost=${local_factor}"
+      echo "Enabled MEV local block value boost of ${local_factor}"
       ;;
     100)
       __mev_factor="--local-block-value-boost=0"
@@ -119,7 +119,7 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       ;;
     *)
       __mev_factor=""
-      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${__build_factor}\""
+      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${build_factor}\""
       ;;
   esac
 else
@@ -149,11 +149,11 @@ if [[ "${EMBEDDED_VC}" = "true" && "${WEB3SIGNER}" = "true" ]]; then
   __w3s_url="--web3-signer-url=${W3S_NODE}"
   while true; do
     if curl -s -m 5 "${W3S_NODE}" &> /dev/null; then
-        echo "Web3signer is up, starting Nimbus"
-        break
+      echo "Web3signer is up, starting Nimbus"
+      break
     else
-        echo "Waiting for Web3signer to be reachable..."
-        sleep 5
+      echo "Waiting for Web3signer to be reachable..."
+      sleep 5
     fi
   done
 else

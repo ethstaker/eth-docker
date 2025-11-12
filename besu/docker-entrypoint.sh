@@ -9,11 +9,11 @@ fi
 
 # Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
 __strip_empty_args() {
-  local __arg
+  local arg
   __args=()
-  for __arg in "$@"; do
-    if [[ -n "$__arg" ]]; then
-      __args+=("$__arg")
+  for arg in "$@"; do
+    if [[ -n "${arg}" ]]; then
+      __args+=("${arg}")
     fi
   done
 }
@@ -26,9 +26,9 @@ fi
 
 if [[ ! -f /var/lib/besu/ee-secret/jwtsecret ]]; then
   echo "Generating JWT secret"
-  __secret1=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-  __secret2=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-  echo -n "${__secret1}""${__secret2}" > /var/lib/besu/ee-secret/jwtsecret
+  secret1=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  secret2=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  echo -n "${secret1}""${secret2}" > /var/lib/besu/ee-secret/jwtsecret
 fi
 
 if [[ -O /var/lib/besu/ee-secret ]]; then
@@ -71,14 +71,14 @@ elif [[ "${MINIMAL_NODE}" = "true" ]]; then
     mainnet | sepolia )
       echo "Besu minimal node with pre-merge history expiry"
       __prune="--snapsync-server-enabled"
-      __timestamp_file="/var/lib/besu/prune-history-timestamp.txt"
-      if [[ -f "${__timestamp_file}" ]]; then
-        __saved_ts=$(<"${__timestamp_file}")
-        __current_ts=$(date +%s)
-        __diff=$((__current_ts - __saved_ts))
+      timestamp_file="/var/lib/besu/prune-history-timestamp.txt"
+      if [[ -f "${timestamp_file}" ]]; then
+        saved_ts=$(<"${timestamp_file}")
+        current_ts=$(date +%s)
+        diff=$((current_ts - saved_ts))
 
-        if (( __diff >= 172800 )); then  # 48 * 60 * 60 - 48 hours have passed
-          rm -f "${__timestamp_file}"
+        if (( diff >= 172800 )); then  # 48 * 60 * 60 - 48 hours have passed
+          rm -f "${timestamp_file}"
         else
           echo "Enabling RocksDB garbage collection after history prune. You should see Besu DB space usage go down."
           echo "This may take 6-12 hours. Eth Docker will keep RocksDB garbage collection on for 48 hours."

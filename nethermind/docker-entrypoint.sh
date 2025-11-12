@@ -9,11 +9,11 @@ fi
 
 # Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
 __strip_empty_args() {
-  local __arg
+  local arg
   __args=()
-  for __arg in "$@"; do
-    if [[ -n "$__arg" ]]; then
-      __args+=("$__arg")
+  for arg in "$@"; do
+    if [[ -n "${arg}" ]]; then
+      __args+=("${arg}")
     fi
   done
 }
@@ -31,9 +31,9 @@ fi
 
 if [[ ! -f /var/lib/nethermind/ee-secret/jwtsecret ]]; then
   echo "Generating JWT secret"
-  __secret1=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-  __secret2=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-  echo -n "${__secret1}""${__secret2}" > /var/lib/nethermind/ee-secret/jwtsecret
+  secret1=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  secret2=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  echo -n "${secret1}""${secret2}" > /var/lib/nethermind/ee-secret/jwtsecret
 fi
 
 if [[ -O /var/lib/nethermind/ee-secret ]]; then
@@ -71,16 +71,16 @@ else
   __network="--config ${NETWORK}"
 fi
 
-__memtotal=$(awk '/MemTotal/ {printf "%d", int($2/1024/1024)}' /proc/meminfo)
 if [[ "${ARCHIVE_NODE}" = "true" ]]; then
   echo "Nethermind archive node without pruning"
   __prune="--Sync.DownloadBodiesInFastSync=false --Sync.DownloadReceiptsInFastSync=false --Sync.FastSync=false --Sync.SnapSync=false --Sync.FastBlocks=false --Pruning.Mode=None --Sync.PivotNumber=0"
 elif [[ ! "${NETWORK}" =~ ^https?:// ]]; then  # Only configure prune parameters for named networks
-  __parallel=$(($(nproc)/4))
-  if [[ "${__parallel}" -lt 2 ]]; then
-    __parallel=2
+  memtotal=$(awk '/MemTotal/ {printf "%d", int($2/1024/1024)}' /proc/meminfo)
+  parallel=$(($(nproc)/4))
+  if [[ "${parallel}" -lt 2 ]]; then
+    parallel=2
   fi
-  __prune="--Pruning.FullPruningMaxDegreeOfParallelism=${__parallel}"
+  __prune="--Pruning.FullPruningMaxDegreeOfParallelism=${parallel}"
   if [[ "${AUTOPRUNE_NM}" = true ]]; then
     __prune="${__prune} --Pruning.FullPruningTrigger=VolumeFreeSpace"
     if [[ "${NETWORK}" =~ (mainnet|gnosis) ]]; then
@@ -89,7 +89,7 @@ elif [[ ! "${NETWORK}" =~ ^https?:// ]]; then  # Only configure prune parameters
       __prune+=" --Pruning.FullPruningThresholdMb=51200"
     fi
   fi
-  if [[ "${__memtotal}" -ge 30 ]]; then
+  if [[ "${memtotal}" -ge 30 ]]; then
     __prune+=" --Pruning.FullPruningMemoryBudgetMb=16384 --Init.StateDbKeyScheme=HalfPath"
   fi
   if [[ "${MINIMAL_NODE}" = "true" ]]; then
