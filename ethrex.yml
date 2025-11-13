@@ -83,6 +83,16 @@ services:
       - metrics.instance=execution
       - metrics.network=${NETWORK}
 
+  set-prune-marker:
+    profiles: ["tools"]
+    image: alpine:3
+    user: "10001:10001"
+    restart: "no"
+    volumes:
+      - ethrex-el-data:/var/lib/ethrex
+    entrypoint: ["/bin/sh", "-c"]
+    command: /bin/sh
+
 volumes:
   ethrex-el-data:
   jwtsecret:
