@@ -38,9 +38,15 @@ jobs:
         run: sudo apt-get install -y expect whiptail
       - name: Prerequisites on macOS
         if: ${{ startsWith(matrix.os, 'macos-') }}
-        run: brew install bash newt coreutils expect docker-buildx
+        run: brew install bash newt coreutils expect gawk
       - name: Use default.env
         run: cp default.env .env
+      - name: Set old .env version
+        run: |
+          source ./.github/helper.sh
+          ENV_VERSION=42
+          var=ENV_VERSION
+          set_value_in_env
       - name: Test ethd update
         run: ./ethd update --debug --non-interactive
       - name: Remove .env

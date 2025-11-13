@@ -125,6 +125,7 @@ __determine_distro() {
 __handle_docker() {
   local exitstatus
   local var
+  local regex
 
   set +e
   if [[ "${__distro}" =~ (debian|ubuntu) ]] && ! grep -qi microsoft /proc/version; then
@@ -169,8 +170,8 @@ __handle_docker() {
     __get_value_from_env "${var}" "${__env_file}" "__value"
 # Match either of the patterns Eth Docker uses. Leave alone if there are user changes to the var
 # Match literal `'^/(dev|proc|sys|run|some/path/.+)($|/)'` or `'^/(dev|proc|sys|run|var/snap/.+|some/path/.+)($|/)'
-    __regex="^'\^\/\(dev\|proc\|sys\|run\|(var\/snap\/\.\+\|)?[a-zA-Z/]+\/\.\+\)\(\\$\|\/\)'$"
-    if [[ "${__value}" =~ ${__regex} ]]; then
+    regex="^'\^\/\(dev\|proc\|sys\|run\|(var\/snap\/\.\+\|)?[a-zA-Z/]+\/\.\+\)\(\\$\|\/\)'$"
+    if [[ "${__value}" =~ ${regex} ]]; then
 # This gets used, but shellcheck doesn't recognize that
 # shellcheck disable=SC2034
       NODE_EXPORTER_IGNORE_MOUNT_REGEX="'^/(dev|proc|sys|run|var/snap/.+|${DOCKER_ROOT#/}/.+)($|/)'"
@@ -198,6 +199,8 @@ __upgrade_docker() {
   local runc_major_version
   local runc_minor_version
   local runc_patch_version
+  local runc_dpkg_version
+  local runc_fixed_version
   local yn
 
   if [[ -n "${ETHDSECUNDO-}" || ! "${__command}" = "update" ]]; then  # Don't run this twice
@@ -215,15 +218,15 @@ __upgrade_docker() {
             if [[ "${__os_major_version}" -gt 13 ]]; then  # Assume Debian 14 and up are fine
               return
             fi
-            __runc_dpkg_version=$(dpkg-query -W -f='${Version}\n' runc)
+            runc_dpkg_version=$(dpkg-query -W -f='${Version}\n' runc)
             case ${__os_major_version} in
 # These fixed versions are a guess and have not been released
-              13) __runc_fixed_version="1.1.15+ds1-2+deb13u1";;
-              12) __runc_fixed_version="1.1.5+ds1-1+deb12u2";;  # I don't expect to hit this, because docker.io is old
-              11) __runc_fixed_version="1.0.0~rc93+ds1-5+deb11u6";;  # I don't expect to hit this, because docker.io is old
+              13) runc_fixed_version="1.1.15+ds1-2+deb13u1";;
+              12) runc_fixed_version="1.1.5+ds1-1+deb12u2";;  # I don't expect to hit this, because docker.io is old
+              11) runc_fixed_version="1.0.0~rc93+ds1-5+deb11u6";;  # I don't expect to hit this, because docker.io is old
               *) echo "Cannot check runc on Debian ${__os_major_version}. Please update to ${__min_debian} or later"; return;;
             esac
-            if dpkg --compare-versions "${__runc_dpkg_version}" lt "${__runc_fixed_version}"; then
+            if dpkg --compare-versions "${runc_dpkg_version}" lt "${runc_fixed_version}"; then
               echo
               echo "Docker ${__docker_version} with runc ${runc_version} detected"
               echo "This version of runc is vulnerable"
@@ -1380,156 +1383,174 @@ __enable_v6() {
 __get_value_from_env() {
   # Call with variable name to read, env file name, and global variable to assign the __value to
   # Also sets global __found
-    local var_name="$1"
-    local env_file="$2"
-    local output_var="$3"
-    local output
-    local parsed_value
+  local var_name="$1"
+  local env_file="$2"
+  local output_var="$3"
+  local output
+  local parsed_value
+  local awk_exe
 
-    if [[ "${output_var}" = "parsed_value" || "${output_var}" = "output_var" \
-        || "${output_var}" = "output" || "${output_var}" = "env_file" \
-        || "${output_var}" = "var_name" ]]; then
-      echo "__get_value_from_env was called with a conflicting output variable: ${output_var}"
-      echo "This is a bug."
-      exit 70
-    fi
+  if [[ "${output_var}" = "parsed_value" || "${output_var}" = "output_var" \
+      || "${output_var}" = "output" || "${output_var}" = "env_file" \
+      || "${output_var}" = "var_name" ]]; then
+    echo "__get_value_from_env was called with a conflicting output variable: ${output_var}"
+    echo "This is a bug."
+    exit 70
+  fi
 
-    output=$(awk -v var="${var_name}" '
-        BEGIN { __found = 0; __value = "" }
+  if [[ "$OSTYPE" = "darwin"* ]]; then
+    awk_exe="gawk"  # Built-in awk can't handle multi-line. Does require brew install gawk
+  else
+    awk_exe="awk"
+  fi
 
-        # Skip empty lines and comments
-        /^#|^\s*$/ {
-            next
-        }
+#shellcheck disable=SC2016
+  output=$(${awk_exe} -v var="${var_name}" '
+    BEGIN { __found = 0; __value = "" }
 
-        # Match single-line unquoted __value
-        $0 ~ "^[ \t]*"var"=[^\"].*$" {
-            gsub("^[ \t]*"var"=", "")
-            gsub(/^[ \t]*|[ \t]*$/, "", $0)
-            __value = $0
-            __found = 1
-            exit
-        }
+    # Skip empty lines and comments
+    /^#|^\s*$/ {
+      next
+    }
 
-        # Match empty unquoted __value
-        $0 ~ "^[ \t]*"var"=$" {
-            __value = ""
-            __found = 1
-            exit
-        }
+    # Match single-line unquoted __value
+    $0 ~ "^[ \t]*"var"=[^\"].*$" {
+      gsub("^[ \t]*"var"=", "")
+      gsub(/^[ \t]*|[ \t]*$/, "", $0)
+      __value = $0
+      __found = 1
+      exit
+    }
 
-        # Match a quoted single-line __value
-        $0 ~ "^[ \t]*"var"=\"[^\"]*\"[ \t]*$" {
-            gsub("^[ \t]*"var"=\"", "")
-            gsub(/"[ \t]*$/, "", $0)
-            __value = "\"" $0 "\""
-            __found = 1
-            exit
-        }
+    # Match empty unquoted __value
+    $0 ~ "^[ \t]*"var"=$" {
+      __value = ""
+      __found = 1
+      exit
+    }
 
-        # Match the start of a multi-line __value (with opening quote)
-        $0 ~ "^[ \t]*"var"=\"[^\"]*$" {
-            gsub("^[ \t]*"var"=\"", "")
-            __value = "\"" $0 "\n"
-            __found = 1
-            next
-        }
+    # Match a quoted single-line __value
+    $0 ~ "^[ \t]*"var"=\"[^\"]*\"[ \t]*$" {
+      gsub("^[ \t]*"var"=\"", "")
+      gsub(/"[ \t]*$/, "", $0)
+      __value = "\"" $0 "\""
+      __found = 1
+      exit
+    }
 
-        # Continue collecting lines for a multi-line __value
-        __found && !/"[ \t]*$/ {
-            __value = __value $0 "\n"
-            next
-        }
+    # Match the start of a multi-line __value (with opening quote)
+    $0 ~ "^[ \t]*"var"=\"[^\"]*$" {
+      gsub("^[ \t]*"var"=\"", "")
+      __value = "\"" $0 "\n"
+      __found = 1
+      next
+    }
 
-        # End of a multi-line __value (with closing quote)
-        __found && /"[ \t]*$/ {
-            gsub(/[ \t]*"[ \t]*$/, "")
-            __value = __value $0 "\""
-            __found = 1
-            exit
-        }
+    # Continue collecting lines for a multi-line __value
+    __found && !/"[ \t]*$/ {
+      __value = __value $0 "\n"
+      next
+    }
 
-        END {
-            # Print here-doc style so we can parse with awk
-            # Print the __value as is, including quotes for multi-line
-            print "__value<<EOF"
-            print __value
-            print "EOF"
-            print "__found=" __found
-        }
-    ' "${env_file}")
+    # End of a multi-line __value (with closing quote)
+    __found && /"[ \t]*$/ {
+      gsub(/[ \t]*"[ \t]*$/, "")
+      __value = __value $0 "\""
+      __found = 1
+      exit
+    }
 
-    # Parse __value using here-doc style
-    parsed_value=$(awk '/^__value<<EOF$/ {getline; while ($0 != "EOF") { print; getline } }' <<< "${output}")
-    # Parse __found directly into a global variable
-    __found=$(awk -F= '/^__found=/ {print $2}' <<< "${output}")
+    END {
+      # Print here-doc style so we can parse with awk
+      # Print the __value as is, including quotes for multi-line
+      print "__value<<EOF"
+      print __value
+      print "EOF"
+      print "__found=" __found
+    }
+  ' "${env_file}")
 
-    # assign __value to caller’s variable
-    printf -v "${output_var}" '%s' "${parsed_value}"
+  # Parse __value using here-doc style
+#shellcheck disable=SC2016
+  parsed_value=$(${awk_exe} '/^__value<<EOF$/ {getline; while ($0 != "EOF") { print; getline } }' <<< "${output}")
+  # Parse __found directly into a global variable
+#shellcheck disable=SC2016
+  __found=$(${awk_exe} -F= '/^__found=/ {print $2}' <<< "${output}")
+
+  # assign __value to caller’s variable
+  printf -v "${output_var}" '%s' "${parsed_value}"
 }
 
 
 __update_value_in_env() {
 # Call as __update_value_in_env "${var}" "${value}" "${env_file}"
-    local var_name="$1"
-    local new_value="$2"
-    local env_file="$3"
-    local escaped_value
+  local var_name="$1"
+  local new_value="$2"
+  local env_file="$3"
+  local escaped_value
+  local awk_exe
 
-    # Escape backslashes for safety
-    escaped_value=$(printf '%s' "${new_value}" | sed 's/\\/\\\\/g')
+  if [[ "$OSTYPE" = "darwin"* ]]; then
+    awk_exe="gawk"  # Built-in awk can't handle multi-line. Does require brew install gawk
+  else
+    awk_exe="awk"
+  fi
 
-    # Check if the variable already exists in the .env file
-    if grep -q "^[ \t]*${var_name}=" "${env_file}"; then
-        # Variable exists, update it
-        awk -v var="${var_name}" -v new_value="${escaped_value}" '
-            BEGIN { in_block = 0; multi_line = 0 }
+  # Escape backslashes for safety
+  escaped_value=$(printf '%s' "${new_value}" | sed 's/\\/\\\\/g')
 
-            # Match the line that starts with the variable name
-            $0 ~ "^[ \t]*" var "=" {
-                # If the __value starts with a quote, it may be a multi-line
-                if ($0 ~ "^[ \t]*" var "=\"") {
-                    # Start of multi-line __value
-                    multi_line = 1
-                    # Print the variable name with the new __value, replacing & safely
-                    gsub(/&/, "\\&", new_value)
-                    print var "=" new_value
-                } else {
-                    # Single-line __value
-                    gsub(/&/, "\\&", new_value)
-                    print var "=" new_value
-                }
-                # Set the flag to indicate we are processing the target variable block
-                in_block = 1
-                next
-            }
+  # Check if the variable already exists in the .env file
+  if grep -q "^[ \t]*${var_name}=" "${env_file}"; then
+    # Variable exists, update it
+#shellcheck disable=SC2016
+    ${awk_exe} -v var="${var_name}" -v new_value="${escaped_value}" '
+      BEGIN { in_block = 0; multi_line = 0 }
 
-            # If we encounter a new variable definition, stop skipping lines
-            /^[A-Z_][A-Z0-9_]*=/ && in_block {
-                in_block = 0
-                multi_line = 0
-            }
+      # Match the line that starts with the variable name
+      $0 ~ "^[ \t]*" var "=" {
+        # If the __value starts with a quote, it may be a multi-line
+        if ($0 ~ "^[ \t]*" var "=\"") {
+          # Start of multi-line __value
+          multi_line = 1
+          # Print the variable name with the new __value, replacing & safely
+          gsub(/&/, "\\&", new_value)
+          print var "=" new_value
+        } else {
+          # Single-line __value
+          gsub(/&/, "\\&", new_value)
+          print var "=" new_value
+        }
+        # Set the flag to indicate we are processing the target variable block
+        in_block = 1
+        next
+      }
 
-            # Continue to skip lines in a multi-line block if multi_line is true
-            multi_line && !/"[ \t]*$/ {
-                next
-            }
+      # If we encounter a new variable definition, stop skipping lines
+      /^[A-Z_][A-Z0-9_]*=/ && in_block {
+        in_block = 0
+        multi_line = 0
+      }
 
-            # If we reach the end of a multi-line __value, reset flags
-            multi_line && /"[ \t]*$/ {
-                in_block = 0
-                multi_line = 0
-                next
-            }
+      # Continue to skip lines in a multi-line block if multi_line is true
+      multi_line && !/"[ \t]*$/ {
+        next
+      }
 
-            # Print all lines if not in the target variable block
-            { print }
-        ' "${env_file}" | ${__as_owner} tee "${env_file}.tmp" >/dev/null
-        ${__as_owner} mv "${env_file}.tmp" "${env_file}"
-    else
-        # Variable does not exist, append it
-        printf "%s=%s\n" "${var_name}" "${escaped_value}" | ${__as_owner} tee -a "${env_file}" >/dev/null
-    fi
+      # If we reach the end of a multi-line __value, reset flags
+      multi_line && /"[ \t]*$/ {
+        in_block = 0
+        multi_line = 0
+        next
+      }
+
+      # Print all lines if not in the target variable block
+      { print }
+    ' "${env_file}" | ${__as_owner} tee "${env_file}.tmp" >/dev/null
+    ${__as_owner} mv "${env_file}.tmp" "${env_file}"
+  else
+    # Variable does not exist, append it
+    printf "%s=%s\n" "${var_name}" "${escaped_value}" | ${__as_owner} tee -a "${env_file}" >/dev/null
+  fi
 }
 
 
@@ -1544,6 +1565,7 @@ __env_migrate() {
   local line
   local index
   local var
+  local varname
 
   if [[ "${__debug}" -eq 1 ]]; then  # Find any values in default.env that contain dashes
     error=0
@@ -1553,12 +1575,12 @@ __env_migrate() {
 
       # Warn on dash-containing variable names
       if [[ "${line}" =~ ^([A-Za-z0-9_-]+)= ]]; then
-        __varname="${BASH_REMATCH[1]}"
-        if [[ "${__varname}" = *-* ]]; then
-          echo "❌ Error: Variable '${__varname}' contains a dash and would not be usable in Bash."
+        varname="${BASH_REMATCH[1]}"
+        if [[ "${varname}" = *-* ]]; then
+          echo "Error: Variable '${varname}' contains a dash and would not be usable in Bash."
           (( ++error ))
         fi
-        if [[ "${__varname}" = "ENV_VERSION" ]]; then
+        if [[ "${varname}" = "ENV_VERSION" ]]; then
           continue
         fi
       else
@@ -1840,6 +1862,7 @@ update() {
   local log
   local no_screen_cmd
   local dirty
+  local branch
 
   if [[ "$*" =~ "--debug" ]]; then
     __debug=1
@@ -1895,7 +1918,7 @@ update() {
     no_screen_cmd=0
     echo "\"${__me} update\" benefits from running in a session that protects it against disconnects."
     if [[ -z "$(command -v screen)" ]]; then
-      if [[ "__cannot_sudo" -eq 0 && "${__distro}" =~ (ubuntu|debian) ]]; then
+      if [[ "${__cannot_sudo}" -eq 0 && "${__distro}" =~ (ubuntu|debian) ]]; then
         echo "Installing screen"
         ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get -y install screen
       else
@@ -1961,8 +1984,8 @@ update() {
     __get_value_from_env "${var}" "${__env_file}" "__value"
     if [[ -z "${__value}" || "${__value}" = "latest" ]]; then
       export ETHDPINNED=""
-      __branch=$(git rev-parse --abbrev-ref HEAD)
-      if [[ "${__branch}" =~ ^tag-* ]]; then
+      branch=$(git rev-parse --abbrev-ref HEAD)
+      if [[ "${branch}" =~ ^tag-* ]]; then
         git checkout main
       fi
       ${__as_owner} git pull origin main
@@ -2852,8 +2875,8 @@ prune-history() {
 
 # We only get here if the client can prune
   rpc_line=$(grep '^EL_RPC_PORT=' "${__env_file}")
-  __regex='^EL_RPC_PORT=([0-9]+)'
-  if [[ ! "${rpc_line}" =~ ${__regex} ]]; then
+  regex='^EL_RPC_PORT=([0-9]+)'
+  if [[ ! "${rpc_line}" =~ ${regex} ]]; then
     echo "Unable to determine EL_RPC_PORT, aborting."
     exit 1
   else
@@ -4342,9 +4365,9 @@ want to use MEV Boost?" 10 65); then
     message="Do you want to use MEV Boost?"
     default=""
   fi
-  if (whiptail --title "MEV Boost" --yesno "${message}" 10 65 "${__default}") then
+  if (whiptail --title "MEV Boost" --yesno "${message}" 10 65 "${default}") then
     MEV_BOOST="true"
-    if [[ "${__value}" = "true" ]]; then
+    if [[ "${__value}" = "true" ]]; then  # MEV_BOOST=true was already configured
       var="MEV_RELAYS"
       __get_value_from_env "${var}" "${__env_file}" "MEV_RELAYS"
     else
@@ -4433,8 +4456,7 @@ __query_mev_factor() {
     __final_msg+="\nLocal block building was disabled, because your upload speed is low."
   else
     message="Your upload speed is ${up_speed} Mbit/s. Do you want to build local blocks, when the relay pays less than 10% more?"
-    __default=""
-    if (whiptail --title "MEV Build Factor" --yesno "${message}" 10 65 "${default}") then
+    if (whiptail --title "MEV Build Factor" --yesno "${message}" 10 65) then
       MEV_BUILD_FACTOR="90"
       __final_msg+="\nLocal block building is preferred, when the relay pays less than 10% more."
     else
