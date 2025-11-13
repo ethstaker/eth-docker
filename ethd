@@ -1152,7 +1152,7 @@ __migrate_compose_file() {
 
   __value=""
   for n in "${!ymlarray[@]}"; do
-    __ymlfile="${ymlarray[n]}"
+    ymlfile="${ymlarray[n]}"
     for index in "${!from_yml[@]}"; do
       if [[ "${from_yml[index]}" = "${ymlfile}" ]]; then
         ymlfile=${to_yml[index]}
