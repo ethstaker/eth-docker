@@ -4086,7 +4086,7 @@ __query_checkpoint_beacon() {
         CHECKPOINT_SYNC_URL="https://sepolia.beaconstate.info"
         ;;
       "hoodi")
-        CHECKPOINT_SYNC_URL="https://hoodi.beaconstate.info"
+        CHECKPOINT_SYNC_URL="https://hoodi.checkpoint.sigp.io"
         ;;
       "ephemery")
         CHECKPOINT_SYNC_URL="https://ephemery.beaconstate.ethstaker.cc/"
