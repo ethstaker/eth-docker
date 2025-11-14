@@ -47,7 +47,6 @@ services:
       - ethrex
       - --datadir
       - /var/lib/ethrex
-      - --p2p.enabled
       - --p2p.port
       - ${EL_P2P_PORT:-30303}
       - --discovery.port
