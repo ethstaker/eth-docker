@@ -1141,8 +1141,8 @@ __migrate_compose_file() {
   local index
 
 # Some files have been renamed and others removed altogether
-  local from_yml=( caplin-ports.yml )
-  local to_yml=( caplin.yml )
+  local from_yml=( )
+  local to_yml=( )
 
   IFS=":"
   set -o noglob
@@ -1286,9 +1286,6 @@ __upgrade_postgres() {
 repair-reth() {
   local exitstatus
   local var
-  local reth_db_version
-  local reth_major
-  local reth_minor
   local yn
 
 # Check for Reth
@@ -1297,33 +1294,8 @@ repair-reth() {
 # I do mean to match literally
 # shellcheck disable=SC2076
   if [[ ! "${__value}" =~ "reth.yml" ]]; then
-    if [[ "${__during_update}" -eq 1 ]]; then
-      return 0
-    else
-      echo "You do not appear to be using Reth. Aborting"
-      return 0
-    fi
-  fi
-
-  if [[ "${__during_update}" -eq 1 ]]; then
-  # Check for last Reth that touched the DB
-    set +e
-    __docompose exec -T -u root execution /bin/bash -c 'apt-get update && apt-get install -y --no-install-recommends jq'
-    reth_db_version=$(__docompose exec -T execution /bin/bash -c 'RUST_LOG=off reth db --datadir /var/lib/reth list VersionHistory -r -l 1 --json --quiet | jq -r .[0][1].version')
-    exitstatus=$?
-    set -e
-
-    if [[ "${exitstatus}" -ne 0 || -z "${reth_db_version}" ]]; then
-      echo "Cannot determine Reth DB version, skipping repair"
-      return 0
-    fi
-
-    reth_major=$(echo "${reth_db_version}" | awk -F. '{print $1}')
-    reth_minor=$(echo "${reth_db_version}" | awk -F. '{print $2}')
-
-    if [[ "${reth_major}" -ge 2 || ( "${reth_major}" -le 1 && "${reth_minor}" -ge 7 ) ]]; then  # Last touched by Reth >= 1.7
-      return 0
-    fi
+    echo "You do not appear to be using Reth. Aborting"
+    return 0
   fi
 
   if [[ "${__non_interactive}" -eq 0 ]]; then
@@ -1656,31 +1628,6 @@ __env_migrate() {
 
       if [[ "${__keep_targets}" -eq 0 && "${var}" =~ (_TAG|_REPO|_TARGET|_DOCKERFILE)$ && ! "${var}" = "PG_DOCKER_TAG" ]]; then
         __get_value_from_env "${var}" "default.env" "__value"  # Reset build target to default.env __value
-      else
-        if [[ "${var}" = "PRYSM_DOCKER_REPO" && "${__value}" = "gcr.io/prysmaticlabs/prysm/beacon-chain" ]]; then  # Prysm new repo
-          __value="gcr.io/offchainlabs/prysm/beacon-chain"
-        fi
-        if [[ "${var}" = "PRYSM_DOCKER_VC_REPO" && "${__value}" = "gcr.io/prysmaticlabs/prysm/validator" ]]; then  # Prysm new repo
-          __value="gcr.io/offchainlabs/prysm/validator"
-        fi
-        if [[ "${var}" = "PRYSM_DOCKER_CTL_REPO" && "${__value}" = "gcr.io/prysmaticlabs/prysm/cmd/prysmctl" ]]; then  # Prysm new repo
-          __value="gcr.io/offchainlabs/prysm/cmd/prysmctl"
-        fi
-        if [[ "${var}" = "PRYSM_DOCKER_CTL_TAG" && "${__value}" = "latest" && "${__source_ver}" -lt "34" ]]; then  # Prysm new stable ctl tag
-          __value="stable"
-        fi
-        if [[ "${var}" = "BESU_DOCKER_TAG" && ( "${__value}" =~ "latest-openjdk" || "${__value}" =~ "latest-openj9" || "${__value}" =~ "latest-graalvm" ) ]]; then  # Besu switched to latest
-          __value="latest"
-        fi
-        if [[ "${var}" = "SIREN_DOCKER_REPO" && "${__value}" = "sigmaprime/siren" ]]; then  # Siren new repo
-          __value="sigp/siren"
-        fi
-        if [[ "${var}" = "DEPCLI_DOCKER_REPO" && "${__value}" = "ghcr.io/eth-educators/ethstaker-deposit-cli" ]]; then  # Deposit CLI new repo
-          __value="ghcr.io/ethstaker/ethstaker-deposit-cli"
-        fi
-        if [[ "${var}" = "DEPCLI_SRC_REPO" && "${__value}" = "https://github.com/eth-educators/ethstaker-deposit-cli" ]]; then  # Deposit CLI new repo
-          __value="https://github.com/ethstaker/ethstaker-deposit-cli"
-        fi
       fi
       __update_value_in_env "${var}" "${__value}" "${__env_file}"
     else  # New variables, but they need to be adjusted
@@ -2025,13 +1972,6 @@ update() {
     exec "${BASH_SOURCE[0]}" update "$@"
   fi
 
-# This can be removed post-Fusaka
-  if [[ -f "ext-network.yml.bak" ]]; then
-    ${__as_owner} rm ext-network.yml.bak
-  fi
-  if [[ -f "ext-network.yml.original" ]]; then
-    ${__as_owner} rm ext-network.yml.original
-  fi
 
   __keep_targets=1
   targetcli=""
@@ -2084,7 +2024,6 @@ update() {
   __pull_and_build
 
   __upgrade_postgres
-  repair-reth
 
   echo
   if [[ "${__migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then

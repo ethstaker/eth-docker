@@ -19,11 +19,6 @@ __strip_empty_args() {
 }
 
 
-# Move legacy xdai dir to gnosis
-if [[ -d /var/lib/nethermind/nethermind_db/xdai ]]; then
-  mv /var/lib/nethermind/nethermind_db/xdai /var/lib/nethermind/nethermind_db/gnosis
-fi
-
 if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/nethermind/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
