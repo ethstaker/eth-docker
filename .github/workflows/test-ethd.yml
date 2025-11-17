@@ -30,7 +30,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       - name: Set up Docker on macOS
         if: ${{ startsWith(matrix.os, 'macos-') }}
-        uses: douglascamata/setup-docker-macos-action@de9dc31504356970f7ab9b785d6afee99b994692
+        uses: douglascamata/setup-docker-macos-action@5643cfd7e434881308f89f2f3ae8852da11df909
         with:
           lima: v1.2.2
       - name: Install Expect
