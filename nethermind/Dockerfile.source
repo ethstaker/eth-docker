@@ -1,6 +1,6 @@
 # hadolint global ignore=DL3007,DL3008,DL3059,DL4006
 # Partially from Nethermind github
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS builder
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS builder
 # Unused, this is here to avoid build time complaints
 ARG DOCKER_TAG
 ARG DOCKER_REPO
@@ -33,7 +33,7 @@ RUN bash -eo pipefail <<'EOF'
 EOF
 
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y --no-install-recommends install ca-certificates gosu tzdata wget git git-lfs \
   && gosu nobody true \
