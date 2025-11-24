@@ -160,7 +160,7 @@ jobs:
           contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
           contains(github.event.pull_request.labels.*.name, 'test-all') ||
           github.event_name == 'push'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Set up Docker buildx
         if: >
           contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
