@@ -786,7 +786,7 @@ install() {
   echo "Installing packages that ${__me} requires or considers helpful"
   echo
   ${__auto_sudo} apt-get update
-  ${__auto_sudo} apt-get install -y ca-certificates curl gnupg whiptail chrony pkg-config screen ncdu gzip speedtest-cli
+  ${__auto_sudo} apt-get install -y ca-certificates curl gnupg whiptail chrony pkg-config screen ncdu gzip speedtest-cli jq
 
   echo
   read -rp "Do you want to install Docker and make your user part of the docker group? (no/yes) " yn
