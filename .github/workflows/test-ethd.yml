@@ -31,8 +31,6 @@ jobs:
       - name: Set up Docker on macOS
         if: ${{ startsWith(matrix.os, 'macos-') }}
         uses: douglascamata/setup-docker-macos-action@5643cfd7e434881308f89f2f3ae8852da11df909
-        with:
-          lima: v1.2.2
       - name: Install Expect
         if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         run: sudo apt-get install -y expect whiptail
