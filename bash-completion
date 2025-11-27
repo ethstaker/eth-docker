@@ -5,7 +5,7 @@ completions() {
 
     case ${COMP_CWORD} in
         1)
-            COMPREPLY=($(compgen -W "install config keys update up start down stop restart version logs cmd terminate prune-geth prune-nethermind resync-execution resync-consensus attach-geth" -- ${cur}))
+            COMPREPLY=($(compgen -W "install config keys update up start down stop restart version logs cmd terminate prune-geth prune-nethermind prune-history prune-reth prune-lighthouse prune-besu repair-reth resync-execution resync-consensus space attach-geth" -- ${cur}))
             ;;
         2)
             case ${prev} in
