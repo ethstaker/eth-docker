@@ -15,8 +15,12 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
     <<: *logging
-    command:
+    entrypoint:
+      - sentry
       - --network=${NETWORK}
       - --beacon-node-address=${CL_NODE}
       - --username=${CONTRIBUTOOR_USERNAME}
       - --password=${CONTRIBUTOOR_PASSWORD}
+      - --attestation-subnet-check-enabled
+      - --log-level=${LOG_LEVEL}
+    command: ${CONTRIBUTOOR_EXTRAS}
