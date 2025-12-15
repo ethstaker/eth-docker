@@ -113,8 +113,8 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
         echo "Enabled MEV Build Factor of ${build_factor}"
         ;;
       100)
-        __mev_factor="--default-builder-boost-factor 100"
-        echo "Always prefer MEV builder blocks, build factor 100"
+        __mev_factor="--default-builder-boost-factor 18446744073709551615"
+        echo "Always prefer MEV builder blocks, MEV_BUILD_FACTOR 100"
         ;;
       "")
         __mev_factor=""
