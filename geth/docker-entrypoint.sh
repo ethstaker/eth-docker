@@ -105,31 +105,40 @@ case ${LOG_LEVEL} in
     ;;
 esac
 
-if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-  echo "Geth archive node without pruning"
-  if [[ ! -d /var/lib/geth/geth/chaindata && ! -d /var/lib/goethereum/geth/chaindata ]]; then
-    touch /var/lib/geth/path-archive
-  fi
-  if [[ -f /var/lib/geth/path-archive ]]; then
-    __prune="--syncmode=full --state.scheme=path --history.state=0"
-  else
-    __prune="--syncmode=full --gcmode=archive"
-  fi
-elif [[ "${MINIMAL_NODE}" = "true" ]]; then
-  case "${NETWORK}" in
-    mainnet | sepolia )
-       echo "Geth minimal node with pre-merge history expiry"
-      __prune="--history.chain postmerge"
-      ;;
-    * )
-      echo "There is no pre-merge history for ${NETWORK} network, EL_MINIMAL_NODE has no effect."
-      __prune=""
-      ;;
-  esac
-else
-  echo "Geth full node without history expiry"
-  __prune=""
-fi
+case "${NODE_TYPE}" in
+  archive)
+    echo "Geth archive node without pruning"
+    if [[ ! -d /var/lib/geth/geth/chaindata && ! -d /var/lib/goethereum/geth/chaindata ]]; then
+      touch /var/lib/geth/path-archive
+    fi
+    if [[ -f /var/lib/geth/path-archive ]]; then
+      __prune="--syncmode=full --state.scheme=path --history.state=0"
+    else
+      __prune="--syncmode=full --gcmode=archive"
+    fi
+    ;;
+  full)
+    echo "Geth full node without history expiry"
+    __prune=""
+    ;;
+  pre-merge-expiry )
+    case "${NETWORK}" in
+      mainnet|sepolia)
+         echo "Geth minimal node with pre-merge history expiry"
+        __prune="--history.chain postmerge"
+        ;;
+      *)
+        echo "There is no pre-merge history for ${NETWORK} network, \"pre-merge-expiry\" has no effect."
+        __prune=""
+        ;;
+    esac
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Geth implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
 
 __strip_empty_args "$@"
 set -- "${__args[@]}"
@@ -138,7 +147,7 @@ set -- "${__args[@]}"
 # shellcheck disable=SC2086
 if [[ -f /var/lib/geth/prune-marker ]]; then
   rm -f /var/lib/geth/prune-marker
-  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
+  if [[ "${NODE_TYPE}" = "archive" ]]; then
     echo "Geth is an archive node. Not attempting to prune: Aborting."
     exit 1
   fi

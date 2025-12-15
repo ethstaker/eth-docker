@@ -63,25 +63,34 @@ else
   __network="--network ${NETWORK}"
 fi
 
-if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-  echo "Ethrex does not support running an archive node; or Eth Docker doesn't know how"
-  sleep 30
-  exit 1
-elif [[ "${MINIMAL_NODE}" = "true" ]]; then
-  echo "Ethrex minimal node with pre-merge history expiry and snap sync"
-  __sync="--syncmode snap"
-else
-  case ${NETWORK} in
-    mainnet|sepolia )
-      echo "Ethrex does not support full sync on ${NETWORK}. Running an expired node with snap sync"
-      __sync="--syncmode snap"
-      ;;
-    *)
-      echo "There is no pre-merge history for ${NETWORK} network, running a full sync as requested"
-      __sync="--syncmode full"
-      ;;
-  esac
-fi
+case "${NODE_TYPE}" in
+  archive)
+    echo "Ethrex does not support running an archive node; or Eth Docker doesn't know how"
+    sleep 30
+    exit 1
+    ;;
+  full)
+    case ${NETWORK} in
+      mainnet|sepolia)
+        echo "Ethrex does not support full sync on ${NETWORK}. Running an expired node with snap sync"
+        __sync="--syncmode snap"
+        ;;
+      *)
+        echo "There is no pre-merge history for ${NETWORK} network, running a full sync as requested"
+        __sync="--syncmode full"
+        ;;
+    esac
+    ;;
+  pre-merge-expiry)
+    echo "Ethrex minimal node with pre-merge history expiry and snap sync"
+    __sync="--syncmode snap"
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Ethrex implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
 
 __strip_empty_args "$@"
 set -- "${__args[@]}"

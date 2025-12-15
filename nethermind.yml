@@ -27,8 +27,7 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET}
       - EL_EXTRAS=${EL_EXTRAS:-}
-      - ARCHIVE_NODE=${EL_ARCHIVE_NODE:-false}
-      - MINIMAL_NODE=${EL_MINIMAL_NODE:-false}
+      - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - AUTOPRUNE_NM=${AUTOPRUNE_NM:-true}
       - NETWORK=${NETWORK}
     volumes:

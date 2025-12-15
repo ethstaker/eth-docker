@@ -46,7 +46,7 @@ services:
       - BEACON_STATS_API=${BEACON_STATS_API}
       - BEACON_STATS_MACHINE=${BEACON_STATS_MACHINE}
       - CL_EXTRAS=${CL_EXTRAS:-}
-      - ARCHIVE_NODE=${CL_ARCHIVE_NODE:-false}
+      - NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - IPV6=${IPV6:-false}
       - CL_P2P_PORT=${CL_P2P_PORT:-9000}
       - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}

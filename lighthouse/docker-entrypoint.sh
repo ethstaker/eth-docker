@@ -56,19 +56,30 @@ else
   __network="--network=${NETWORK}"
 fi
 
+case "${NODE_TYPE}" in
+  archive)
+    echo "Lighthouse archive node without pruning"
+    __prune="--prune-blobs=false"
+    ;;
+  full|pruned)
+    __prune=""
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Lighthouse implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
+
 # Check whether we should rapid sync
 if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
   __checkpoint_sync="--checkpoint-sync-url=${CHECKPOINT_SYNC_URL}"
   echo "Checkpoint sync enabled"
-  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-    echo "Lighthouse archive node without pruning"
-    __prune="--reconstruct-historic-states --genesis-backfill --disable-backfill-rate-limiting --prune-blobs=false"
-  else
-    __prune=""
+  if [[ "${NODE_TYPE}" = "archive" ]]; then
+    __prune+=" --reconstruct-historic-states --genesis-backfill --disable-backfill-rate-limiting"
   fi
 else
   __checkpoint_sync="--allow-insecure-genesis-sync"
-  __prune=""
 fi
 
 # Check whether we should use MEV Boost
@@ -107,7 +118,7 @@ set -- "${__args[@]}"
 
 if [[ -f /var/lib/lighthouse/beacon/prune-marker ]]; then
   rm -f /var/lib/lighthouse/beacon/prune-marker
-  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
+  if [[ "${NODE_TYPE}" = "archive" ]]; then
     echo "Lighthouse is an archive node. Not attempting to prune state: Aborting."
     exit 1
   fi

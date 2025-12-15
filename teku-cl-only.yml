@@ -41,7 +41,7 @@ services:
       - EMBEDDED_VC=false
       - VC_EXTRAS=
       - DOPPELGANGER=false
-      - ARCHIVE_NODE=${CL_ARCHIVE_NODE:-false}
+      - NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - GRAFFITI=
       - DEFAULT_GRAFFITI=true
       - WEB3SIGNER=false

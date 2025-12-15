@@ -70,14 +70,23 @@ else
   __network="--network=${NETWORK}"
 fi
 
-if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-  echo "Grandine archive node without pruning"
-  __prune="--back-sync"
-elif [[ "${CL_MINIMAL_NODE}" = "true" ]]; then
-  __prune="--prune-storage"
-else
-  __prune=""
-fi
+case "${NODE_TYPE}" in
+  archive)
+    echo "Grandine archive node without pruning"
+    __prune="--back-sync"
+    ;;
+  pruned)
+    __prune="--prune-storage"
+    ;;
+  full)
+    __prune=""
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Grandine implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
 
 # Check whether we should rapid sync
 if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then

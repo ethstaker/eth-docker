@@ -61,7 +61,7 @@ fi
 
 # Check whether we should rapid sync
 if [[ -n "${CHECKPOINT_SYNC_URL:+x}" ]]; then
-  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
+  if [[ "${NODE_TYPE}" = "archive" ]]; then
     echo "Teku archive node cannot use checkpoint sync: Syncing from genesis."
       __checkpoint_sync="--ignore-weak-subjectivity-period-enabled=true"
     if [[ "${NETWORK}" = "hoodi" ]]; then
@@ -154,12 +154,24 @@ else
   __doppel=""
 fi
 
-if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-  echo "Teku archive node without pruning"
-  __prune="--data-storage-mode=ARCHIVE"
-else
-  __prune="--data-storage-mode=MINIMAL"
-fi
+case "${NODE_TYPE}" in
+  archive)
+    echo "Teku archive node without pruning"
+    __prune="--data-storage-mode=ARCHIVE"
+    ;;
+  full)
+    __prune=""
+    ;;
+  pruned)
+    echo "Teku pruned node"
+    __prune="--data-storage-mode=MINIMAL"
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Teku implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
 
 # Web3signer URL
 if [[ "${EMBEDDED_VC}" = "true" && "${WEB3SIGNER}" = "true" ]]; then

@@ -83,26 +83,36 @@ else
   __beacon_stats=""
 fi
 
+case "${NODE_TYPE}" in
+  archive)
+    echo "Lodestar archive node without pruning"
+    __prune="--chain.archiveBlobEpochs Infinity --serveHistoricalState"
+    ;;
+  full)
+    __prune=""
+    ;;
+  pruned)
+    echo "Lodestar pruned node"
+    __prune="--chain.pruneHistory"
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Lodestar implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
+
 # Check whether we should rapid sync
 if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
-  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-    echo "Lodestar archive node cannot use checkpoint sync: Syncing from genesis."
-    __checkpoint_sync="--chain.archiveBlobEpochs Infinity --serveHistoricalState"
-  else
+  if [[ ! "${NODE_TYPE}" = "archive" ]]; then
     __checkpoint_sync="--checkpointSyncUrl=${CHECKPOINT_SYNC_URL}"
     echo "Checkpoint sync enabled"
+  else
+    echo "Lodestar does not support checkpoint sync for an archive node. Syncing from genesis."
+    __checkpoint_sync=""
   fi
 else
   __checkpoint_sync=""
-fi
-if [[ "${MINIMAL_NODE}" = "true" ]]; then
-  if [[ ! -d /var/lib/lodestar/consensus/chain-db ]]; then  # It's a fresh sync - pruneHistory is too intense to run on an existing DB
-    touch /var/lib/lodestar/consensus/prune-marker
-  fi
-fi
-
-if [[ -f /var/lib/lodestar/consensus/prune-marker ]]; then  # This gets set above
-  __checkpoint_sync+=" --chain.pruneHistory"
 fi
 
 if [[ "${IPV6}" = "true" ]]; then
@@ -125,4 +135,4 @@ set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__ipv6} ${__network} ${__mev_boost} ${__beacon_stats} ${__checkpoint_sync} ${CL_EXTRAS}
+exec "$@" ${__ipv6} ${__network} ${__mev_boost} ${__beacon_stats} ${__checkpoint_sync} ${__prune} ${CL_EXTRAS}

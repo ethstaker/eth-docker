@@ -52,7 +52,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL}
       - CL_EXTRAS=${CL_EXTRAS:-}
       - VC_EXTRAS=${VC_EXTRAS:-}
-      - ARCHIVE_NODE=${CL_ARCHIVE_NODE:-}
+      - NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - GRAFFITI=${GRAFFITI:-}
       - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
       - WEB3SIGNER=${WEB3SIGNER:-false}

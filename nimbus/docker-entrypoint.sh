@@ -76,7 +76,7 @@ else
 fi
 
 if [[ -n "${CHECKPOINT_SYNC_URL:+x}" && ! -f /var/lib/nimbus/setupdone ]]; then
-  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
+  if [[ "${NODE_TYPE}" = "archive" ]]; then
     echo "Starting checkpoint sync with backfill and archive reindex. Nimbus will restart when done."
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
@@ -137,12 +137,24 @@ fi
 
 __log_level="--log-level=${LOG_LEVEL^^}"
 
-if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-  echo "Nimbus archive node without pruning"
-  __prune="--history=archive"
-else
-  __prune="--history=prune"
-fi
+case "${NODE_TYPE}" in
+  archive)
+    echo "Nimbus archive node without pruning"
+    __prune="--history=archive"
+    ;;
+  full)
+    __prune=""
+    ;;
+  pruned)
+    echo "Nimbus pruned node"
+    __prune="--history=prune"
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Nimbus implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
 
 # Web3signer URL
 if [[ "${EMBEDDED_VC}" = "true" && "${WEB3SIGNER}" = "true" ]]; then

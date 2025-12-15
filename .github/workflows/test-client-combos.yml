@@ -151,7 +151,7 @@ jobs:
           - "CL_MAX_PEER_COUNT=100 CL_MIN_PEER_COUNT=20 EL_MAX_PEER_COUNT=10"
           - IPV6=true
           - IPV6=false
-          - EL_MINIMAL_NODE=false
+          - EL_NODE_TYPE=full
           - CHECKPOINT_SYNC_URL=
     steps:
       - name: Checkout

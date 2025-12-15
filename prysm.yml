@@ -46,8 +46,7 @@ services:
       - MEV_BOOST=${MEV_BOOST}
       - MEV_NODE=${MEV_NODE}
       - CL_EXTRAS=${CL_EXTRAS:-}
-      - ARCHIVE_NODE=${CL_ARCHIVE_NODE:-}
-      - MINIMAL_NODE=${CL_MINIMAL_NODE:-}
+      - NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - NETWORK=${NETWORK}
     ports:
       - ${HOST_IP:-}:${PRYSM_PORT}:${PRYSM_PORT}/tcp

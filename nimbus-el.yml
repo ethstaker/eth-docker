@@ -25,8 +25,7 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET:-}
       - EL_EXTRAS=${EL_EXTRAS:-}
-      - ARCHIVE_NODE=${EL_ARCHIVE_NODE:-false}
-      - MINIMAL_NODE=${EL_MINIMAL_NODE:-false}
+      - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - NETWORK=${NETWORK}
       - ERA1_URL=${ERA1_URL:-}
       - ERA_URL=${ERA_URL:-}

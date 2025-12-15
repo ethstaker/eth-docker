@@ -933,8 +933,8 @@ __check_disk_space() {
   __get_value_from_env "${var}" "${__env_file}" "AUTOPRUNE_NM"
   var="NETWORK"
   __get_value_from_env "${var}" "${__env_file}" "NETWORK"
-  var="EL_MINIMAL_NODE"
-  __get_value_from_env "${var}" "${__env_file}" "EL_MINIMAL_NODE"
+  var="EL_NODE_TYPE"
+  __get_value_from_env "${var}" "${__env_file}" "EL_NODE_TYPE"
 
   if [[ "${NETWORK}" =~ ^(mainnet|gnosis)$ ]]; then
     min_free=314572800
@@ -990,7 +990,7 @@ Full\". Free space:"
 
   if [[ "${low}" -eq 1 && "${NETWORK}" = "mainnet" ]]; then
 #shellcheck disable=SC2154
-    if [[ "${EL_MINIMAL_NODE}" =~ (true|aggressive|rolling) ]]; then
+    if [[ "${EL_NODE_TYPE}" =~ ^(pre-merge-expiry|aggressive-expiry|rolling-expiry)$ ]]; then
       echo "You are already configured to expire execution layer history."
     else
       echo "You are not configured to expire execution layer history. You can free space with \"${__me} prune-history\"."
@@ -1653,13 +1653,6 @@ __env_migrate() {
           echo "Adjusted CL_QUIC_PORT to ${__value} so it does not conflict with PRYSM_UDP_PORT"
         fi
       fi
-      if [[ "${__source_ver}" -lt "36" && "${var}" = "EL_MINIMAL_NODE" ]]; then
-        __get_value_from_env "COMPOSE_FILE" "${__env_file}.source" "COMPOSE_FILE"
-# shellcheck disable=SC2154
-        if [[ "${COMPOSE_FILE}" = *"erigon.yml"* && "${__value}" = "true" ]]; then
-          __value=aggressive
-        fi
-      fi
 
       if [[ "${__keep_targets}" -eq 0 && "${var}" =~ (_TAG|_REPO|_TARGET|_DOCKERFILE)$ && ! "${var}" = "PG_DOCKER_TAG" ]]; then
         __get_value_from_env "${var}" "default.env" "__value"  # Reset build target to default.env __value
@@ -1689,8 +1682,38 @@ __env_migrate() {
           __value="https://github.com/ethstaker/ethstaker-deposit-cli"
         fi
       fi
-      # Handle & in GRAFFITI gracefully, as well as multi-line
       __update_value_in_env "${var}" "${__value}" "${__env_file}"
+    else  # New variables, but they need to be adjusted
+      # Remove after Glamsterdam
+      if [[ "${__source_ver}" -lt "48" && "${var}" = "EL_NODE_TYPE" ]]; then
+        __get_value_from_env "EL_ARCHIVE_NODE" "${__env_file}.source" "EL_ARCHIVE_NODE"
+        if [[ "${EL_ARCHIVE_NODE}" = "true" ]]; then
+          __value=archive
+        else
+          __get_value_from_env "EL_MINIMAL_NODE" "${__env_file}.source" "EL_MINIMAL_NODE"
+          case "${EL_MINIMAL_NODE}" in
+            true ) __value=pre-merge-expiry;;
+            aggressive ) __value=aggressive-expiry;;
+            rolling ) __value=rolling-expiry;;
+            * ) __value=full;;
+          esac
+        fi
+        __update_value_in_env "${var}" "${__value}" "${__env_file}"
+      fi
+      # Remove after Glamsterdam
+      if [[ "${__source_ver}" -lt "48" && "${var}" = "CL_NODE_TYPE" ]]; then
+        __get_value_from_env "CL_ARCHIVE_NODE" "${__env_file}.source" "CL_ARCHIVE_NODE"
+        if [[ "${CL_ARCHIVE_NODE}" = "true" ]]; then
+          __value=archive
+        else
+          __get_value_from_env "CL_MINIMAL_NODE" "${__env_file}.source" "CL_MINIMAL_NODE"
+          case "${CL_MINIMAL_NODE}" in
+            true ) __value=pruned;;
+            * ) __value=full;;
+          esac
+        fi
+        __update_value_in_env "${var}" "${__value}" "${__env_file}"
+      fi
     fi
   done < "./default.env"
 
@@ -2416,9 +2439,9 @@ prune-besu() {
   fi
 
   # Check for archive node
-  var="ARCHIVE_NODE"
+  var="EL_NODE_TYPE"
   __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "true" ]]; then
+  if [[ "${__value}" = "archive" ]]; then
     echo "Besu is an archive node: Aborting."
     exit 1
   fi
@@ -2516,9 +2539,9 @@ prune-reth() {
   fi
 
   # Check for archive node
-  var="ARCHIVE_NODE"
+  var="EL_NODE_TYPE"
   __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "true" ]]; then
+  if [[ "${__value}" = "archive" ]]; then
     echo "Reth is an archive node: Aborting."
     exit 1
   fi
@@ -2621,9 +2644,9 @@ prune-nethermind() {
   fi
 
   # Check for archive node
-  var="ARCHIVE_NODE"
+  var="EL_NODE_TYPE"
   __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "true" ]]; then
+  if [[ "${__value}" = "archive" ]]; then
     echo "Nethermind is an archive node: Aborting."
     exit 1
   fi
@@ -2780,10 +2803,15 @@ prune-history() {
   fi
 
 # Check whether this has already been done
-  var=EL_MINIMAL_NODE
+  var=EL_NODE_TYPE
   __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" =~ ^(true|aggressive)$ ]]; then
+  if [[ "${__value}" =~ ^(pre-merge-expiry|aggressive-expiry|rolling-expiry)$ ]]; then
     echo "This node is already configured for \"${var}=${__value}\"."
+    echo "Nothing to do. Aborting."
+    exit 0
+  fi
+  if [[ "${__value}" = "archive" ]]; then
+    echo "This node is an archive node, and should not use expired history."
     echo "Nothing to do. Aborting."
     exit 0
   fi
@@ -2812,13 +2840,13 @@ prune-history() {
     *besu.yml* )
       client="Besu"
       min_ver="25.6.0"
-      extra_msg="This may require up to 200GiB of additional storage before pruning finishes.\nIn 3 days, run \"${__me} restart execution\" to remove the Besu pruner, see Besu release notes.\nA resync saves more space than a prune: You can set \"EL_MINIMAL_NODE=true\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
+      extra_msg="This may require up to 200GiB of additional storage before pruning finishes.\nIn 3 days, run \"${__me} restart execution\" to remove the Besu pruner, see Besu release notes.\nA resync saves more space than a prune: You can set \"EL_NODE_TYPE=pre-merge-expiry\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
       prune_marker="/var/lib/besu/prune-history-marker"
       ;;
     *reth.yml* )
       client="Reth"
       min_ver="v1.8.0"
-      extra_msg="Pruning pre-merge history does not require a resync and should be immediate.\nA resync saves more space than a prune: You can set \"EL_MINIMAL_NODE=true\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
+      extra_msg="Pruning pre-merge history does not require a resync and should be immediate.\nA resync saves more space than a prune: You can set \"EL_NODE_TYPE=pre-merge-expiry\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
       prune_marker="/var/lib/reth/minimal-node"
       ;;
     *erigon.yml* )
@@ -2840,14 +2868,6 @@ prune-history() {
       ;;
   esac
 
-  # Check for archive node
-  var="ARCHIVE_NODE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "true" ]]; then
-    echo "${client} is an archive node: Aborting."
-    exit 1
-  fi
-
   echo "Pruning pre-merge history requires ${client} ${min_ver} or later."
   echo
   if [[ -n "${extra_msg:-}" ]]; then
@@ -2865,8 +2885,8 @@ prune-history() {
         esac
       done
     fi
-    var=EL_MINIMAL_NODE
-    EL_MINIMAL_NODE=true
+    var=EL_NODE_TYPE
+    EL_NODE_TYPE=pre-merge-expiry
     __update_value_in_env "${var}" "${!var}" "${__env_file}"
     __non_interactive=1
     resync-execution
@@ -2914,15 +2934,15 @@ prune-history() {
     done
   fi
 
-  var=EL_MINIMAL_NODE
-  EL_MINIMAL_NODE=true
+  var=EL_NODE_TYPE
+  EL_NODE_TYPE=pre-merge-expiry
   __update_value_in_env "${var}" "${!var}" "${__env_file}"
   echo
   echo "Starting ${client} pre-merge history prune"
   __docompose run --rm set-prune-marker "touch ${prune_marker}"
   restart execution
   echo
-  echo "Pre-merge history prune is running, you can observe it with '${__me} logs -f execution'"
+  echo "Pre-merge history prune is running, you can observe it with \"${__me} logs -f execution\""
   echo
   echo "When prune is done, ${client} will automatically start again."
   echo
@@ -2971,9 +2991,9 @@ prune-lighthouse() {
   fi
 
   # Check for archive node
-  var="ARCHIVE_NODE"
+  var="CL_NODE_TYPE"
   __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "true" ]]; then
+  if [[ "${__value}" = "archive" ]]; then
     echo "Lighthouse is an archive node: Aborting."
     exit 1
   fi
@@ -4052,10 +4072,10 @@ __query_ssv_client() {
 
 __query_4444() {  # Call with with --defaultno for RPC
   if (whiptail --title "History expiry" --yesno "Do you want to expire pre-merge history? Good for a validator node, but makes eth_getLogs RPC calls impossible pre-merge" 10 65 "$1") then
-    EL_MINIMAL_NODE=true
+    EL_NODE_TYPE=pre-merge-expiry
   else
 # shellcheck disable=SC2034
-    EL_MINIMAL_NODE=false
+    EL_NODE_TYPE=full
   fi
 }
 
@@ -4851,7 +4871,7 @@ config() {
       fi
     else  # On all other networks, disable
 #shellcheck disable=SC2034
-      EL_MINIMAL_NODE=false
+      EL_NODE_TYPE=full
     fi
 
     __query_checkpoint_sync
@@ -5088,7 +5108,7 @@ config() {
   __update_value_in_env "${var}" "${!var-}" "${__env_file}"
   var=MEV_RELAYS
   __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=EL_MINIMAL_NODE
+  var=EL_NODE_TYPE
   __update_value_in_env "${var}" "${!var-false}" "${__env_file}"
   var=DOCKER_EXT_NETWORK
   __update_value_in_env "${var}" "${!var:-"rocketpool_net"}" "${__env_file}"

@@ -64,17 +64,14 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   fi
   bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/nethermind/testnet/${config_dir}/enodes.yaml" | paste -sd ",")"
   __network="--config none.cfg --Init.ChainSpecPath=/var/lib/nethermind/testnet/${config_dir}/chainspec.json --Discovery.Bootnodes=${bootnodes} --Init.IsMining=false"
-  if [[ "${ARCHIVE_NODE}" = "false" ]]; then
+  if [[ ! "${NODE_TYPE}" = "archive" ]]; then
     __prune="--Pruning.Mode=None"
   fi
 else
   __network="--config ${NETWORK}"
 fi
 
-if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-  echo "Nethermind archive node without pruning"
-  __prune="--Sync.DownloadBodiesInFastSync=false --Sync.DownloadReceiptsInFastSync=false --Sync.FastSync=false --Sync.SnapSync=false --Sync.FastBlocks=false --Pruning.Mode=None --Sync.PivotNumber=0"
-elif [[ ! "${NETWORK}" =~ ^https?:// ]]; then  # Only configure prune parameters for named networks
+if [[ ! "${NETWORK}" =~ ^https?:// && ! "${NODE_TYPE}" = "archive" ]]; then  # Only configure prune parameters for named networks
   memtotal=$(awk '/MemTotal/ {printf "%d", int($2/1024/1024)}' /proc/meminfo)
   parallel=$(($(nproc)/4))
   if [[ "${parallel}" -lt 2 ]]; then
@@ -92,26 +89,40 @@ elif [[ ! "${NETWORK}" =~ ^https?:// ]]; then  # Only configure prune parameters
   if [[ "${memtotal}" -ge 30 ]]; then
     __prune+=" --Pruning.FullPruningMemoryBudgetMb=16384 --Init.StateDbKeyScheme=HalfPath"
   fi
-  if [[ "${MINIMAL_NODE}" = "true" ]]; then
+fi
+
+case "${NODE_TYPE}" in
+  archive)
+    echo "Nethermind archive node without pruning"
+    __prune="--Sync.DownloadBodiesInFastSync=false --Sync.DownloadReceiptsInFastSync=false --Sync.FastSync=false --Sync.SnapSync=false --Sync.FastBlocks=false --Pruning.Mode=None --Sync.PivotNumber=0"
+    ;;
+  full)
+    echo "Nethermind full node without history expiry"
+    __prune+=" --Sync.AncientBodiesBarrier=0 --Sync.AncientReceiptsBarrier=0"
+    ;;
+  pre-merge-expiry)
     case "${NETWORK}" in
-      mainnet )
+      mainnet)
         echo "Nethermind minimal node with pre-merge history expiry"
         __prune+=" --Sync.AncientBodiesBarrier=15537394 --Sync.AncientReceiptsBarrier=15537394"
         ;;
-      sepolia )
+      sepolia)
         echo "Nethermind minimal node with pre-merge history expiry"
         ;;
-      * )
-        echo "There is no pre-merge history for ${NETWORK} network, EL_MINIMAL_NODE has no effect."
+      *)
+        echo "There is no pre-merge history for ${NETWORK} network, \"pre-merge-expiry\" has no effect."
         ;;
     esac
-  else  # Full node
-    echo "Nethermind full node without history expiry"
-    __prune+=" --Sync.AncientBodiesBarrier=0 --Sync.AncientReceiptsBarrier=0"
-  fi
-  echo "Using pruning parameters:"
-  echo "${__prune}"
-fi
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Nethermind implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
+
+echo "Using pruning parameters:"
+echo "${__prune}"
 
 # New or old datadir
 if [[ -d /var/lib/nethermind-og/nethermind_db ]]; then

@@ -26,8 +26,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-}
       - EL_EXTRAS=${EL_EXTRAS:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      - ARCHIVE_NODE=${EL_ARCHIVE_NODE:-}
-      - MINIMAL_NODE=${EL_MINIMAL_NODE:-}
+      - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - NETWORK=${NETWORK}
       - STATIC_DIR=${ANCIENT_DIR}
       # Make this RUST_LOG=${LOG_LEVEL:-info},engine=trace when requiring deep debug

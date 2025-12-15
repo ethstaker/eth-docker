@@ -63,38 +63,47 @@ else
   __network="--network ${NETWORK}"
 fi
 
-if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-  echo "Besu archive node without pruning"
-  __prune="--data-storage-format=FOREST --sync-mode=FULL"
-elif [[ "${MINIMAL_NODE}" = "true" ]]; then
-  case "${NETWORK}" in
-    mainnet | sepolia )
-      echo "Besu minimal node with pre-merge history expiry"
-      __prune="--snapsync-server-enabled"
-      timestamp_file="/var/lib/besu/prune-history-timestamp.txt"
-      if [[ -f "${timestamp_file}" ]]; then
-        saved_ts=$(<"${timestamp_file}")
-        current_ts=$(date +%s)
-        diff=$((current_ts - saved_ts))
+case "${NODE_TYPE}" in
+  archive)
+    echo "Besu archive node without pruning"
+    __prune="--data-storage-format=FOREST --sync-mode=FULL"
+    ;;
+  full)
+    echo "Besu full node without history expiry"
+    __prune="--snapsync-synchronizer-pre-checkpoint-headers-only-enabled=false --snapsync-server-enabled"
+    ;;
+  pre-merge-expiry)
+    case "${NETWORK}" in
+      mainnet|sepolia)
+        echo "Besu minimal node with pre-merge history expiry"
+        __prune="--snapsync-server-enabled"
+        timestamp_file="/var/lib/besu/prune-history-timestamp.txt"
+        if [[ -f "${timestamp_file}" ]]; then
+          saved_ts=$(<"${timestamp_file}")
+          current_ts=$(date +%s)
+          diff=$((current_ts - saved_ts))
 
-        if (( diff >= 172800 )); then  # 48 * 60 * 60 - 48 hours have passed
-          rm -f "${timestamp_file}"
-        else
-          echo "Enabling RocksDB garbage collection after history prune. You should see Besu DB space usage go down."
-          echo "This may take 6-12 hours. Eth Docker will keep RocksDB garbage collection on for 48 hours."
-          __prune+=" --history-expiry-prune"
+          if (( diff >= 172800 )); then  # 48 * 60 * 60 - 48 hours have passed
+            rm -f "${timestamp_file}"
+          else
+            echo "Enabling RocksDB garbage collection after history prune. You should see Besu DB space usage go down."
+            echo "This may take 6-12 hours. Eth Docker will keep RocksDB garbage collection on for 48 hours."
+            __prune+=" --history-expiry-prune"
+          fi
         fi
-      fi
-      ;;
-    * )
-      echo "There is no pre-merge history for ${NETWORK} network, EL_MINIMAL_NODE has no effect."
-      __prune=""
-      ;;
-  esac
-else
-  echo "Besu full node without history expiry"
-  __prune="--snapsync-synchronizer-pre-checkpoint-headers-only-enabled=false --snapsync-server-enabled"
-fi
+        ;;
+      *)
+        echo "There is no pre-merge history for ${NETWORK} network, \"pre-merge-expiry\" has no effect."
+        __prune=""
+        ;;
+    esac
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Besu implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
 
 # New or old datadir
 if [[ -d /var/lib/besu-og/database ]]; then
@@ -116,7 +125,7 @@ set -- "${__args[@]}"
 
 if [[ -f /var/lib/besu/prune-history-marker ]]; then
   rm -f /var/lib/besu/prune-history-marker
-  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
+  if [[ "${NODE_TYPE}" = "archive" ]]; then
     echo "Besu is an archive node. Not attempting to prune history: Aborting."
     exit 1
   fi
@@ -127,7 +136,7 @@ if [[ -f /var/lib/besu/prune-history-marker ]]; then
   exec /opt/besu/bin/besu ${__datadir} ${__network} storage prune-pre-merge-blocks
 elif [[ -f /var/lib/besu/prune-marker ]]; then
   rm -f /var/lib/besu/prune-marker
-  if [[ "${ARCHIVE_NODE}" = "true" ]]; then
+  if [[ "${NODE_TYPE}" = "archive" ]]; then
     echo "Besu is an archive node. Not attempting to prune trie-logs: Aborting."
     exit 1
   fi

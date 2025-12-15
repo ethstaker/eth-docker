@@ -129,25 +129,34 @@ if [[ -O /var/lib/nimbus/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/nimbus/ee-secret/jwtsecret
 fi
 
-if [[ "${ARCHIVE_NODE}" = "true" ]]; then
-  echo "Nimbus EL does not support running an archive node"
-  sleep 30
-  exit 1
-elif [[ "${MINIMAL_NODE}" = "true" ]]; then
-  case "${NETWORK}" in
-    mainnet|sepolia )
-      echo "Nimbus EL minimal node with pre-merge history expiry"
-      __prune="--history-expiry=true"
-      ;;
-    * )
-      echo "There is no pre-merge history for ${NETWORK} network, EL_MINIMAL_NODE has no effect."
-      __prune=""
-      ;;
-  esac
-else
-  echo "Nimbus EL full node without history expiry"
-  __prune=""
-fi
+case "${NODE_TYPE}" in
+  archive)
+    echo "Nimbus EL does not support running an archive node"
+    sleep 30
+    exit 1
+    ;;
+  full)
+    echo "Nimbus EL full node without history expiry"
+    __prune=""
+    ;;
+  pre-merge-expiry)
+    case "${NETWORK}" in
+      mainnet|sepolia)
+        echo "Nimbus EL minimal node with pre-merge history expiry"
+        __prune="--history-expiry=true"
+        ;;
+      *)
+        echo "There is no pre-merge history for ${NETWORK} network, \"pre-merge-expiry\" has no effect."
+        __prune=""
+        ;;
+    esac
+    ;;
+  *)
+    echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Nimbus EL implementation."
+    sleep 30
+    exit 1
+    ;;
+esac
 
 if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"

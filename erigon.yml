@@ -24,8 +24,8 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET}
       - EL_EXTRAS=${EL_EXTRAS:-}
-      - ARCHIVE_NODE=${EL_ARCHIVE_NODE:-}
-      - MINIMAL_NODE=${EL_MINIMAL_NODE:-}
+      - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
+      - CL_NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
       - COMPOSE_FILE=${COMPOSE_FILE}
