@@ -236,8 +236,8 @@ __upgrade_docker() {
 #                while true; do
 #                  read -rp "Do you want to update runc (yes/no) " yn
 #                  case "${yn}" in
-#                    [Nn]* ) echo "Please be sure to update runc yourself!"; return;;
-#                    * )
+#                    [Nn]*) echo "Please be sure to update runc yourself!"; return;;
+#                    *)
 #                      ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install --only-upgrade runc
 #                      break
 #                      ;;
@@ -261,8 +261,8 @@ __upgrade_docker() {
                 while true; do
                   read -rp "Do you want to update runc (yes/no) " yn
                   case "${yn}" in
-                    [Nn]* ) echo "Please be sure to update runc yourself!"; return;;
-                    * )
+                    [Nn]*) echo "Please be sure to update runc yourself!"; return;;
+                    *)
                       ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install --only-upgrade runc
                       break
                       ;;
@@ -285,8 +285,8 @@ __upgrade_docker() {
             while true; do
               read -rp "Do you want to update Docker-CE? (yes/no) " yn
               case "${yn}" in
-                [Nn]* ) echo "Please be sure to update Docker CE yourself!"; return;;
-                * )
+                [Nn]*) echo "Please be sure to update Docker CE yourself!"; return;;
+                *)
                   ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install --only-upgrade docker-ce containerd.io
                   break
                   ;;
@@ -401,14 +401,14 @@ __check_compose_version() {
           while true; do
             read -rp "Do you want to update Docker Compose to V2? (yes/no) " yn
             case "${yn}" in
-              [Nn]* )
+              [Nn]*)
                 echo "Please be sure to update Docker Compose yourself!"
                 echo "You can install it with \"sudo apt update && sudo apt install docker-compose-v2\"."
                 echo "You can remove the old docker-compose:"
                 echo "\"sudo apt-mark manual docker.io && sudo apt --autoremove remove docker-compose\""
                 break
                 ;;
-              * ) __upgrade_compose; break;;
+              *) __upgrade_compose; break;;
             esac
           done
         fi
@@ -791,8 +791,8 @@ install() {
   echo
   read -rp "Do you want to install Docker and make your user part of the docker group? (no/yes) " yn
   case "${yn}" in
-    [Yy]* ) __install_docker;;
-    * ) ;;
+    [Yy]*) __install_docker;;
+    *) ;;
   esac
 
   if [[ -n "$(command -v docker)" ]]; then
@@ -806,8 +806,8 @@ install() {
   echo
   read -rp "Do you want ${__me} to apply common performance optimizations? (no/yes) " yn
   case "${yn}" in
-    [Yy]* ) __optimize_host;;
-    * ) ;;
+    [Yy]*) __optimize_host;;
+    *) ;;
   esac
 
   __install_bash_completions
@@ -816,8 +816,8 @@ install() {
     echo
     read -rp "Do you want to be able to call 'ethd' from anywhere? (yes/no) " yn
     case "${yn}" in
-      [Nn]* ) return 0;;
-      * ) ;;
+      [Nn]*) return 0;;
+      *) ;;
     esac
     echo "alias ethd=$(realpath "${BASH_SOURCE[0]}")" >>~/.profile
     echo "cat $(dirname "$(realpath "${BASH_SOURCE[0]}")")/.motd" >>~/.profile
@@ -1007,7 +1007,7 @@ __source_build() {
   __get_value_from_env "${var}" "${__env_file}" "COMPOSE_FILE"
 
   case "${COMPOSE_FILE}" in
-    *deposit-cli.yml* )
+    *deposit-cli.yml*)
       var="DEPCLI_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
 # shellcheck disable=SC2154
@@ -1017,7 +1017,7 @@ __source_build() {
       ;;
   esac
   case "${COMPOSE_FILE}" in
-    *mev-boost.yml* )
+    *mev-boost.yml*)
       var="MEV_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
@@ -1026,49 +1026,49 @@ __source_build() {
       ;;
   esac
   case "${COMPOSE_FILE}" in
-    *reth.yml* )
+    *reth.yml*)
       var="RETH_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
-    *geth.yml* )
+    *geth.yml*)
       var="GETH_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
-    *besu.yml* )
+    *besu.yml*)
       var="BESU_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
-    *nethermind.yml* )
+    *nethermind.yml*)
       var="NM_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
-    *erigon.yml* )
+    *erigon.yml*)
       var="ERIGON_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
-    *nimbus-el.yml* )
+    *nimbus-el.yml*)
       var="NIMEL_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
-    *ethrex.yml* )
+    *ethrex.yml*)
       var="ETHREX_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
@@ -1077,42 +1077,42 @@ __source_build() {
       ;;
   esac
   case "${COMPOSE_FILE}" in
-    *lighthouse.yml* | *lighthouse-cl-only.yml* )
+    *lighthouse.yml*|*lighthouse-cl-only.yml*)
       var="LH_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
-    *teku.yml* | *teku-allin1.yml* | *teku-cl-only.yml* )
+    *teku.yml*|*teku-allin1.yml*|*teku-cl-only.yml*)
       var="TEKU_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
-    *lodestar.yml* | *lodestar-cl-only.yml* )
+    *lodestar.yml*|*lodestar-cl-only.yml*)
       var="LS_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
-    *nimbus.yml* | *nimbus-allin1.yml* | *nimbus-cl-only.yml* )
+    *nimbus.yml*|*nimbus-allin1.yml*|*nimbus-cl-only.yml*)
       var="NIM_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
-    *prysm.yml* | *prysm-cl-only.yml* )
+    *prysm.yml*|*prysm-cl-only.yml*)
       var="PRYSM_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
-    *grandine.yml* | *grandine-allin1.yml* | *grandine-cl-only.yml* )
+    *grandine.yml*| *grandine-allin1.yml*|*grandine-cl-only.yml*)
       var="GRANDINE_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
@@ -1121,7 +1121,7 @@ __source_build() {
       ;;
   esac
   case "${COMPOSE_FILE}" in
-    *vero-vc-only.yml* )
+    *vero-vc-only.yml*)
       var="VERO_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
@@ -1207,8 +1207,8 @@ __upgrade_postgres() {
       while true; do
         read -rp "Would you like to migrate to PostgreSQL ${__target_pg}? (Y/n) " yn
         case "${yn}" in
-          [Nn]o | [Nn]  ) echo "Keeping PostgreSQL at version ${source_pg}"; return 0;;
-          * ) break;;
+          [Nn]o|[Nn]) echo "Keeping PostgreSQL at version ${source_pg}"; return 0;;
+          *) break;;
         esac
       done
     fi
@@ -1331,8 +1331,8 @@ repair-reth() {
     while true; do
       read -rp "WARNING - About to repair the Reth database. This can take 2 hours or more. Do you wish to continue? (Y/n) " yn
       case "${yn}" in
-        [Nn]o | [Nn]  ) echo "Skipping Reth database repair"; return 0;;
-        * ) break;;
+        [Nn]o|[Nn]) echo "Skipping Reth database repair"; return 0;;
+        *) break;;
       esac
     done
   fi
@@ -2027,7 +2027,7 @@ update() {
         targetcli="--keep-targets"
         shift
         ;;
-      --refresh-targets | --reset-targets)
+      --refresh-targets|--reset-targets)
         if [[ -n "${targetcli}" ]]; then
           echo "Error: --keep-targets and --refresh-targets cannot be used together; use either option once only"
           exit 1
@@ -2189,42 +2189,42 @@ resync-execution() {
   __get_value_from_env "${var}" "${__env_file}" "__value"
 
   case "${__value}" in
-    *erigon.yml* )
+    *erigon.yml*)
       el_volume='erigon-el-data'
       el_client="Erigon"
       extra_msg="A full resync should take 6-8 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
-    *geth.yml* )
+    *geth.yml*)
       el_volume='geth-el-data'
       el_client="Geth"
       extra_msg="A full resync should take 6-8 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
-    *reth.yml* )
+    *reth.yml*)
       el_volume='reth-el-data'
       el_client="Reth"
       extra_msg="A full resync should take 4 days.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
-    *besu.yml* )
+    *besu.yml*)
       el_volume='besu-el-data'
       el_client="Besu"
       extra_msg="A full resync should take 30 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
-    *nethermind.yml* )
+    *nethermind.yml*)
       el_volume='nethermind-el-data'
       el_client="Nethermind"
       extra_msg="A full resync should take 1-2 hours to where attestations work.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
-    *nimbus-el.yml* )
+    *nimbus-el.yml*)
       el_volume='nimbus-el-data'
       el_client="Nimbus"
       extra_msg="A full resync should take 5 days.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
-    *ethrex.yml* )
+    *ethrex.yml*)
       el_volume='ethrex-el-data'
       el_client="Ethrex"
       extra_msg="A full resync should take a few hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
-    * ) echo "You do not appear to be running an execution layer client. Nothing to do."; return 0;;
+    *) echo "You do not appear to be running an execution layer client. Nothing to do."; return 0;;
   esac
 
   if ! __dodocker volume ls -q | grep -qi "$(basename "$(realpath .)")[_-]${el_volume}"; then
@@ -2239,8 +2239,8 @@ resync-execution() {
     fi
     read -rp "WARNING - resync will take validators offline unless rescue node is used. Do you wish to continue? (No/yes) " yn
     case "${yn}" in
-      [Yy][Ee][Ss] ) ;;
-      * ) echo "Aborting."; exit 130;;
+      [Yy][Ee][Ss]) ;;
+      *) echo "Aborting."; exit 130;;
     esac
   fi
 
@@ -2288,17 +2288,17 @@ resync-consensus() {
   __get_value_from_env "${var}" "${__env_file}" "__value"
 
   case "${__value}" in
-    *lighthouse.yml* | *lighthouse-cl-only.yml* ) cl_volume='lhconsensus-data'; cl_client="lighthouse";;
-    *teku-allin1.yml* ) cl_volume='wipe-db'; cl_client="teku";;
-    *teku.yml* | *teku-cl-only.yml* ) cl_volume='tekuconsensus-data'; cl_client="teku";;
-    *nimbus-allin1.yml* ) cl_volume='wipe-db'; cl_client="nimbus";;
-    *nimbus.yml* | *nimbus-cl-only.yml* ) cl_volume='nimbus-consensus-data'; cl_client="nimbus";;
-    *lodestar.yml* | *lodestar-cl-only.yml* ) cl_volume='lsconsensus-data'; cl_client="lodestar";;
-    *prysm.yml* | *prysm-cl-only.yml* ) cl_volume='prysmconsensus-data'; cl_client="prysm";;
-    *grandine-allin1.yml* ) cl_volume='wipe-db'; cl_client="grandine";;
-    *grandine.yml* | *grandine-cl-only.yml* ) cl_volume='grandineconsensus-data'; cl_client="grandine";;
-    *erigon.yml* ) cl_volume='wipe-db'; cl_client="caplin";;
-    * ) echo "You do not appear to be running a consensus layer client. Nothing to do."; return;;
+    *lighthouse.yml*|*lighthouse-cl-only.yml*) cl_volume='lhconsensus-data'; cl_client="lighthouse";;
+    *teku-allin1.yml*) cl_volume='wipe-db'; cl_client="teku";;
+    *teku.yml*|*teku-cl-only.yml*) cl_volume='tekuconsensus-data'; cl_client="teku";;
+    *nimbus-allin1.yml*) cl_volume='wipe-db'; cl_client="nimbus";;
+    *nimbus.yml*|*nimbus-cl-only.yml*) cl_volume='nimbus-consensus-data'; cl_client="nimbus";;
+    *lodestar.yml*|*lodestar-cl-only.yml*) cl_volume='lsconsensus-data'; cl_client="lodestar";;
+    *prysm.yml*|*prysm-cl-only.yml*) cl_volume='prysmconsensus-data'; cl_client="prysm";;
+    *grandine-allin1.yml*) cl_volume='wipe-db'; cl_client="grandine";;
+    *grandine.yml*|*grandine-cl-only.yml*) cl_volume='grandineconsensus-data'; cl_client="grandine";;
+    *erigon.yml*) cl_volume='wipe-db'; cl_client="caplin";;
+    *) echo "You do not appear to be running a consensus layer client. Nothing to do."; return;;
   esac
 
   if [[ ! "${cl_volume}" = "wipe-db" ]] && ! __dodocker volume ls -q \
@@ -2317,8 +2317,8 @@ resync-consensus() {
     read -rp "CHECKPOINT_SYNC_URL set, resync should finish in minutes. Do you wish to continue? (No/yes) " yn
   fi
   case "${yn}" in
-    [Yy][Ee][Ss] ) ;;
-    * ) echo "Aborting."; exit 130;;
+    [Yy][Ee][Ss]) ;;
+    *) echo "Aborting."; exit 130;;
   esac
 
   echo "Stopping ${cl_client} container"
@@ -2456,8 +2456,8 @@ prune-besu() {
     while true; do
       read -rp "WARNING - this will stop Besu and prune its trie-logs. Do you wish to continue? (No/Yes) " yn
       case "${yn}" in
-        [Yy][Ee][Ss] ) break;;
-        * ) echo "Aborting, no changes made"; exit 130;;
+        [Yy][Ee][Ss]) break;;
+        *) echo "Aborting, no changes made"; exit 130;;
       esac
     done
   fi
@@ -2556,8 +2556,8 @@ prune-reth() {
     while true; do
       read -rp "WARNING - this will stop Reth and prune its database. Do you wish to continue? (No/Yes) " yn
       case "${yn}" in
-        [Yy][Ee][Ss] ) break;;
-        * ) echo "Aborting, no changes made"; exit 130;;
+        [Yy][Ee][Ss]) break;;
+        *) echo "Aborting, no changes made"; exit 130;;
       esac
     done
   fi
@@ -2695,8 +2695,8 @@ execution | grep Full\" to see whether it is."
       fi
       read -rp "WARNING - this will prune Nethermind's database in the background. Do you wish to continue? (No/Yes) " yn
       case "${yn}" in
-        [Yy][Ee][Ss] ) break;;
-        * ) echo "Aborting, no changes made"; exit 130;;
+        [Yy][Ee][Ss]) break;;
+        *) echo "Aborting, no changes made"; exit 130;;
       esac
     done
   fi
@@ -2791,49 +2791,49 @@ prune-history() {
   var="COMPOSE_FILE"
   __get_value_from_env "${var}" "${__env_file}" "__value"
   case "${__value}" in
-    *geth.yml* )
+    *geth.yml*)
       client="Geth"
       min_ver="v1.16.0"
       extra_msg="Pre-merge history can be pruned by Geth without requiring a full resync. You can observe pruning with \"./ethd logs -f execution\"."
       prune_marker="/var/lib/geth/prune-marker"
       ;;
-    *nimbus-el.yml* )
+    *nimbus-el.yml*)
       client="Nimbus"
       min_ver="v0.10.0"
       extra_msg="To prune pre-merge history, a full resync is required, which should take 5 days.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
-    *nethermind.yml* )
+    *nethermind.yml*)
       client="Nethermind"
       min_ver="v1.31.9"
       extra_msg="To prune pre-merge history, a full resync is required, which should take 1-2 hours to where attestations work.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
-    *besu.yml* )
+    *besu.yml*)
       client="Besu"
       min_ver="25.6.0"
       extra_msg="This may require up to 200GiB of additional storage before pruning finishes.\nIn 3 days, run \"${__me} restart execution\" to remove the Besu pruner, see Besu release notes.\nA resync saves more space than a prune: You can set \"EL_MINIMAL_NODE=true\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
       prune_marker="/var/lib/besu/prune-history-marker"
       ;;
-    *reth.yml* )
+    *reth.yml*)
       client="Reth"
       min_ver="v1.8.0"
       extra_msg="Pruning pre-merge history does not require a resync and should be immediate.\nA resync saves more space than a prune: You can set \"EL_MINIMAL_NODE=true\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
       prune_marker="/var/lib/reth/minimal-node"
       ;;
-    *erigon.yml* )
+    *erigon.yml*)
       client="Erigon"
       min_ver="v3.0.12"
       extra_msg="To prune pre-merge history, a full resync is required, which should take 2-3 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
-    *ethrex.yml* )
+    *ethrex.yml*)
       client="Ethrex"
       min_ver="v1.0.0"
       extra_msg="Ethrex always expires pre-merge history. This command will have no effect."
       prune_marker="/var/lib/ethrex/minimal-node"
       ;;
-    * )
+    *)
       echo "${__me} does not know how to prune pre-merge history on ${client:-MysteryClient},"
       echo "nor how to configure it for pre-merge history expiry on fresh sync."
       exit 0
@@ -2860,8 +2860,8 @@ prune-history() {
       while true; do
         read -rp "${warning}" yn
         case "${yn}" in
-          [Yy][Ee][Ss] ) break;;
-          * ) echo "Aborting, no changes made"; exit 130;;
+          [Yy][Ee][Ss]) break;;
+          *) echo "Aborting, no changes made"; exit 130;;
         esac
       done
     fi
@@ -2908,8 +2908,8 @@ prune-history() {
     while true; do
       read -rp "${warning}" yn
       case "${yn}" in
-        [Yy][Ee][Ss] ) break;;
-        * ) echo "Aborting, no changes made"; exit 130;;
+        [Yy][Ee][Ss]) break;;
+        *) echo "Aborting, no changes made"; exit 130;;
       esac
     done
   fi
@@ -3010,8 +3010,8 @@ prune-lighthouse() {
     while true; do
       read -rp "WARNING - this will stop Lighthouse and prune its state. Do you wish to continue? (No/Yes) " yn
       case "${yn}" in
-        [Yy][Ee][Ss] ) break;;
-        * ) echo "Aborting, no changes made"; exit 130;;
+        [Yy][Ee][Ss]) break;;
+        *) echo "Aborting, no changes made"; exit 130;;
       esac
     done
   fi
@@ -3163,8 +3163,8 @@ __i_haz_ethdo() {
     echo
     read -rp "Do you want me to make this change for you? (n/y)" yn
     case "${yn}" in
-      [Yy] );;
-      * ) exit 130;;
+      [Yy]);;
+      *) exit 130;;
     esac
     if [[ -n "${__value}" ]]; then
       COMPOSE_FILE="${__value}:ethdo.yml"
@@ -3205,8 +3205,8 @@ __i_haz_web3signer() {
     echo
     read -rp "Do you want me to make this change for you? (n/y)" yn
     case "${yn}" in
-      [Yy] );;
-      * ) exit 130;;
+      [Yy]);;
+      *) exit 130;;
     esac
     if [[ -n "${__value}" ]]; then
       COMPOSE_FILE="${__value}:web3signer.yml"
@@ -3443,9 +3443,9 @@ keys() {
         while true; do
           read -rp "Do all validator keys have the same password? (y/n) " yn
           case "${yn}" in
-            [Yy]* ) justone=1; break;;
-            [Nn]* ) justone=0; break;;
-            * ) echo "Please answer yes or no.";;
+            [Yy]*) justone=1; break;;
+            [Nn]*) justone=0; break;;
+            *) echo "Please answer yes or no.";;
           esac
         done
       else
@@ -3637,8 +3637,8 @@ terminate() {
     read -rp "WARNING - this action will destroy all data stores for this Ethereum node. Do you wish to continue? \
 (No/Yes) " yn
     case "${yn}" in
-      [Yy][Ee][Ss] ) break;;
-      * ) echo "Aborting, no changes made"; exit 130;;
+      [Yy][Ee][Ss]) break;;
+      *) echo "Aborting, no changes made"; exit 130;;
     esac
   done
 
@@ -3667,16 +3667,16 @@ __query_network() {
   "custom" "Custom Testnet (needs a URL)" 3>&1 1>&2 2>&3)
 
   case "${NETWORK}" in
-    "mainnet")
+    mainnet)
       echo "You chose to run on Ethereum mainnet"
       ;;
-    "gnosis")
+    gnosis)
       echo "You chose to run on Gnosis Chain"
       ;;
-    "sepolia" | "hoodi" )
+    sepolia|hoodi)
       echo "You chose to run on ${NETWORK} testnet"
       ;;
-    "custom" )
+    custom)
       while true; do
         NETWORK=$(whiptail --title "Configure testnet URL" --inputbox "What is github URL of your custom testnet \
 spec? (right-click to paste)" 10 60 3>&1 1>&2 2>&3)
@@ -4105,19 +4105,19 @@ __query_checkpoint_beacon() {
   fi
   if [[ -z "${CHECKPOINT_SYNC_URL}" ]]; then
     case "${NETWORK}" in
-      "sepolia")
+      sepolia)
         CHECKPOINT_SYNC_URL="https://sepolia.beaconstate.info"
         ;;
-      "hoodi")
+      hoodi)
         CHECKPOINT_SYNC_URL="https://hoodi.checkpoint.sigp.io"
         ;;
-      "ephemery")
+      ephemery)
         CHECKPOINT_SYNC_URL="https://ephemery.beaconstate.ethstaker.cc/"
         ;;
-      "mainnet")
+      mainnet)
         CHECKPOINT_SYNC_URL="https://beaconstate.info"
         ;;
-      "gnosis")
+      gnosis)
         CHECKPOINT_SYNC_URL="https://checkpoint.gnosischain.com"
         ;;
       *)
@@ -4183,10 +4183,10 @@ __query_coinbase() {
     set +e # Can't rely on the error handler here because of the special-casing below for update()
     if [[  "${__during_update}" -eq 0 && "${__deployment}" =~ "lido_" ]]; then  # Lido Execution Layer Rewards Vault
       case "${NETWORK}" in
-        "mainnet")
+        mainnet)
           FEE_RECIPIENT="0x388C818CA8B9251b393131C08a736A67ccB19297"
           ;;
-        "hoodi")
+        hoodi)
           FEE_RECIPIENT="0x9b108015fe433F173696Af3Aa0CF7CDb3E104258"
           ;;
         *)
@@ -4249,10 +4249,10 @@ __query_mev() {
   if [[ "${__deployment}" = "ssv" ]]; then
     MEV_BOOST="true"
     case "${NETWORK}" in
-      "hoodi")
+      hoodi)
         MEV_RELAYS="https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz,https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live,https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@boost-relay-hoodi.flashbots.net,https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
         ;;
-      "mainnet")
+      mainnet)
         MEV_RELAYS="https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,\
 https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,\
 https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money,\
@@ -4280,7 +4280,7 @@ want to use MEV Boost?" 10 65); then
       MEV_RELAYS=""
       selected=""
       case "${NETWORK}" in
-          "mainnet")
+          mainnet)
               relays=(
                   ['Agnostic']="https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net"
                   ['bloXroute']="https://0xb0b07cd0abef743db4260b0ed50619cf6ad4d82064cb4fbec9d3ec530f7c5e6793d9f286c4e082c0244ffb9f2658fe88@bloxroute.regulated.blxrbdn.com"
@@ -4306,7 +4306,7 @@ want to use MEV Boost?" 10 65); then
                   "Titan Relay Regional" "(optional)" ON \
                   "Manifold Finance" "(optional)" ON 3>&1 1>&2 2>&3)
               ;;
-          "hoodi")
+          hoodi)
               relays=(
                   ['Aestus']="https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live"
                   ['Titan']="https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz"
@@ -4372,13 +4372,13 @@ want to use MEV Boost?" 10 65); then
       __get_value_from_env "${var}" "${__env_file}" "MEV_RELAYS"
     else
       case "${NETWORK}" in
-        "sepolia")
+        sepolia)
           MEV_RELAYS=https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@boost-relay-sepolia.flashbots.net
           ;;
-        "hoodi")
+        hoodi)
           MEV_RELAYS="https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz,https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live,https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@boost-relay-hoodi.flashbots.net,https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
           ;;
-        "mainnet")
+        mainnet)
           MEV_RELAYS=https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,\
 https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,\
 https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@global.titanrelay.xyz,\
@@ -4470,10 +4470,10 @@ __query_mev_factor() {
 __lido_withdrawal_credentials_address() {
     local lido_address=""
     case "${NETWORK}" in  # Lido Withdrawal Vault
-        "mainnet")
+        mainnet)
             lido_address="0xB9D7934878B5FB9610B3fE8A5e441e8fad7E293f"
             ;;
-        "hoodi")
+        hoodi)
             lido_address="0x4473dCDDbf77679A643BdB654dbd86D67F8d32f2"
             ;;
         *)
@@ -4766,16 +4766,16 @@ config() {
   __query_network
   __query_deployment
   case "${__deployment}" in
-    "node" | "lido_csm")
+    node|lido_csm)
       __query_consensus_client
       ;;
-    "lido_obol")
+    lido_obol)
       __query_consensus_client
       ;;
-    "validator" | "rocket")
+    validator|rocket)
       __query_validator_client
       ;;
-    "ssv" | "lido_ssv")
+    ssv|lido_ssv)
       if [[ "${NETWORK}" = "hoodi" ]]; then
         sed -i'.original' 's/  Network: .*/  Network: hoodi/' ssv-config/config.yaml
       elif [[ "${NETWORK}" = "mainnet" ]]; then
@@ -4819,7 +4819,7 @@ config() {
       __query_dkg
       __query_consensus_only_client
       ;;
-    "rpc")
+    rpc)
       __query_consensus_only_client
       ;;
     *)
@@ -4893,7 +4893,7 @@ config() {
   if [[ "${__deployment}" = "lido_obol" ]]; then
     CL_NODE="http://charon:3600"
     case "${NETWORK}" in  # Lido Locator, and oracle allowlist for exits
-      "mainnet")
+      mainnet)
 # We are using the variable
 # shellcheck disable=SC2034
         VE_LOCATOR_ADDRESS="0xC1d0b3DE6792Bf6b4b37EccdcC24e45978Cfd2Eb"
@@ -4907,7 +4907,7 @@ config() {
 # shellcheck disable=SC2034
         LIDO_DV_EXIT_EXIT_EPOCH="194048" # capella
         ;;
-      "hoodi")
+      hoodi)
 # We are using the variable
 # shellcheck disable=SC2034
         VE_LOCATOR_ADDRESS="0xe2EF9536DAAAEBFf5b1c130957AB3E80056b06D8"
@@ -5164,33 +5164,33 @@ version() {
 
   # CL versions
   case "${__value}" in
-    *lighthouse.yml* | *lighthouse-cl-only* )
+    *lighthouse.yml*|*lighthouse-cl-only*)
       __docompose exec consensus lighthouse --version
       echo
       ;;
-    *lodestar.yml* | *lodestar-cl-only* )
+    *lodestar.yml*|*lodestar-cl-only*)
       __docompose exec consensus node /usr/app/node_modules/.bin/lodestar --version
       echo
       ;;
-    *prysm.yml* )
+    *prysm.yml*)
       __docompose exec consensus beacon-chain --version
       echo
       __docompose exec validator validator --version
       echo
       ;;
-    *prysm-cl-only* )
+    *prysm-cl-only*)
       __docompose exec consensus beacon-chain --version
       echo
       ;;
-    *nimbus.yml* | *nimbus-allin1.yml* |  *nimbus-cl-only* )
+    *nimbus.yml*|*nimbus-allin1.yml*|*nimbus-cl-only*)
       __docompose exec consensus nimbus_beacon_node --version
       echo
       ;;
-    *teku.yml* | *teku-allin1.yml* | *teku-cl-only* )
+    *teku.yml*|*teku-allin1.yml*|*teku-cl-only*)
       __docompose exec consensus /opt/teku/bin/teku --version
       echo
       ;;
-    *grandine.yml* | *grandine-allin1.yml* | *grandine-cl-only* )
+    *grandine.yml*|*grandine-allin1.yml*|*grandine-cl-only*)
       __docompose exec consensus grandine --version
       echo
       ;;
@@ -5198,32 +5198,32 @@ version() {
 
   # EL versions
   case "${__value}" in
-    *geth.yml* )
+    *geth.yml*)
       __docompose exec execution geth version
       echo
       ;;
-    *reth.yml* )
+    *reth.yml*)
       __docompose exec execution reth --version
       echo
       ;;
-    *besu.yml* )
+    *besu.yml*)
       __docompose exec execution /opt/besu/bin/besu --version
       echo
       ;;
-    *nethermind.yml* )
+    *nethermind.yml*)
       echo "Nethermind version"
       __docompose exec execution /nethermind/nethermind --version
       echo
       ;;
-    *erigon.yml* )
+    *erigon.yml*)
       __docompose exec execution erigon --version
       echo
       ;;
-    *nimbus-el.yml* )
+    *nimbus-el.yml*)
       __docompose exec execution nimbus_execution_client --version
       echo
       ;;
-    *ethrex.yml* )
+    *ethrex.yml*)
       __docompose exec execution ethrex --version
       echo
       ;;
@@ -5231,31 +5231,31 @@ version() {
 
   # VC versions
   case "${__value}" in
-    *lighthouse-vc-only* )
+    *lighthouse-vc-only*)
       __docompose exec validator lighthouse --version
       echo
       ;;
-    *lodestar-vc-only* )
+    *lodestar-vc-only*)
       __docompose exec validator node /usr/app/node_modules/.bin/lodestar --version
       echo
       ;;
-    *prysm-vc-only* )
+    *prysm-vc-only*)
       __docompose exec validator validator --version
       echo
       ;;
-    *nimbus-vc-only* )
+    *nimbus-vc-only*)
       __docompose exec validator nimbus_validator_client --version
       echo
       ;;
-    *teku-vc-only* )
+    *teku-vc-only*)
       __docompose exec validator /opt/teku/bin/teku --version
       echo
       ;;
-    *grandine-vc-only* )
+    *grandine-vc-only*)
       __docompose exec validator grandine --version
       echo
       ;;
-    *vero-vc-only* )
+    *vero-vc-only*)
       __docompose exec validator python main.py --version
       echo
       ;;
@@ -5263,15 +5263,15 @@ version() {
 
   # DVT versions
   case "${__value}" in
-    *lido-obol.yml* )
+    *lido-obol.yml*)
       __docompose exec charon charon version
       echo
       ;;
-    *ssv.yml* )
+    *ssv.yml*)
       __docompose exec ssv-node /go/bin/ssvnode --version
       echo
       ;;
-    *anchor.yml* )
+    *anchor.yml*)
       __docompose exec anchor anchor node --version
       echo
       ;;
@@ -5279,7 +5279,7 @@ version() {
 
   # Web3signer version
   case "${__value}" in
-    *web3signer.yml* )
+    *web3signer.yml*)
       __docompose exec web3signer /opt/web3signer/bin/web3signer --version
       echo
       __docompose exec postgres pg_config --version
@@ -5289,11 +5289,11 @@ version() {
 
   # PBS versions
   case "${__value}" in
-    *mev-boost.yml* )
+    *mev-boost.yml*)
       __docompose exec mev-boost /app/mev-boost -version
       echo
       ;;
-    *commit-boost-pbs.yml* )
+    *commit-boost-pbs.yml*)
       __docompose exec cb-pbs commit-boost-pbs --version
       echo
       ;;
@@ -5301,7 +5301,7 @@ version() {
 
   # Grafana version
   case "${__value}" in
-    *grafana.yml* )
+    *grafana.yml*)
       __docompose exec prometheus /bin/prometheus --version
       echo
       echo -n "Grafana "
@@ -5312,7 +5312,7 @@ version() {
 
   # Traefik version
   case "${__value}" in
-    *traefik-*.yml* )
+    *traefik-*.yml*)
       echo "Traefik"
       __docompose exec traefik traefik version
       echo
@@ -5321,7 +5321,7 @@ version() {
 
   # Contributoor version
   case "${__value}" in
-    *contributoor.yml* )
+    *contributoor.yml*)
       echo -n "Contributoor "
       __docompose exec contributoor sentry --release
       echo
@@ -5526,8 +5526,8 @@ fi
 
 case "${__command}" in
   help|config|keys|update|up|start|down|stop|restart|version|logs|cmd|terminate|prune-nethermind\
-      |prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
-      |repair-reth|keyimport|space)
+|prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
+|repair-reth|keyimport|space)
     ${__command} "$@";;
   *)
     echo "Unrecognized command ${__command}"
