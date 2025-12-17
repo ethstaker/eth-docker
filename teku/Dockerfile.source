@@ -33,7 +33,7 @@ EOF
 
 
 # Pull all binaries into a second stage deploy Ubuntu container
-FROM eclipse-temurin:21-jre-noble
+FROM eclipse-temurin:25-jre-noble
 
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
@@ -43,6 +43,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   git-lfs \
   adduser \
   libjemalloc-dev \
+  curl \
   gosu \
   && gosu nobody true \
   && apt-get clean \
