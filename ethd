@@ -783,7 +783,7 @@ install() {
     return 0
   fi
 
-  echo "Installing packages that ${__me} requires or considers helpful"
+  echo "Installing packages that ${__project_name} requires or considers helpful"
   echo
   ${__auto_sudo} apt-get update
   ${__auto_sudo} apt-get install -y ca-certificates curl gnupg whiptail chrony pkg-config screen ncdu gzip speedtest-cli jq
@@ -798,13 +798,13 @@ install() {
   if [[ -n "$(command -v docker)" ]]; then
     __handle_docker
   else
-    echo "${__me} requires Docker to be present to continue with install steps."
+    echo "${__project_name} requires Docker to be present to continue with install steps."
     echo "Please install Docker and run \"${__me} install\" again."
     return 0
   fi
 
   echo
-  read -rp "Do you want ${__me} to apply common performance optimizations? (no/yes) " yn
+  read -rp "Do you want ${__project_name} to apply common performance optimizations? (no/yes) " yn
   case "${yn}" in
     [Yy]*) __optimize_host;;
     *) ;;
@@ -2834,7 +2834,7 @@ prune-history() {
       prune_marker="/var/lib/ethrex/minimal-node"
       ;;
     *)
-      echo "${__me} does not know how to prune pre-merge history on ${client:-MysteryClient},"
+      echo "${__project_name} does not know how to prune pre-merge history on ${client:-MysteryClient},"
       echo "nor how to configure it for pre-merge history expiry on fresh sync."
       exit 0
       ;;
@@ -3120,7 +3120,7 @@ __i_haz_deposit_cli() {
   local var
 
   if [[ ! -f "${__env_file}" ]]; then
-    echo "${__project_name} has not been configured. Please run ${__me} config first."
+    echo "${__project_name} has not been configured. Please run \"${__me} config\" first."
     exit 0
   fi
   var="COMPOSE_FILE"
@@ -3149,7 +3149,7 @@ __i_haz_ethdo() {
   local yn
 
   if [[ ! -f "${__env_file}" ]]; then
-    echo "${__project_name} has not been configured. Please run ${__me} config first."
+    echo "${__project_name} has not been configured. Please run \"${__me} config\" first."
     exit 0
   fi
   var="COMPOSE_FILE"
@@ -3183,7 +3183,7 @@ __i_haz_web3signer() {
   local yn
 
   if [[ ! -f "${__env_file}" ]]; then
-    echo "${__project_name} has not been configured. Please run ${__me} config first."
+    echo "${__project_name} has not been configured. Please run \"${__me} config\" first."
     exit 0
   fi
 
@@ -3201,7 +3201,7 @@ __i_haz_web3signer() {
     echo "WEB3SIGNER=true in ${__env_file}, but web3signer.yml is not in use"
     echo "Please edit the ${__env_file} file and make sure \":web3signer.yml\" is added to the \"COMPOSE_FILE\" line"
     echo "For example, \"nano ${__env_file}\" will open the nano text editor with the \"${__env_file}\" file loaded."
-    echo "Without it, ${__me} keys cannot be run"
+    echo "Without it, \"${__me} keys\" cannot be run"
     echo
     read -rp "Do you want me to make this change for you? (n/y)" yn
     case "${yn}" in
@@ -4782,7 +4782,7 @@ config() {
         sed -i'.original' 's/  Network: .*/  Network: mainnet/' ssv-config/config.yaml
       else
         echo "${NETWORK} is not something that works with SSV."
-        echo "Please choose Hoodi or Mainnet when running ${__me} config again"
+        echo "Please choose Hoodi or Mainnet when running \"${__me} config\" again"
         echo "Aborting."
         exit 1
       fi

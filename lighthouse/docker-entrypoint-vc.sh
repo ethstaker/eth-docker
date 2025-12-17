@@ -58,7 +58,7 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       ;;
     100)
       __mev_factor="--prefer-builder-proposals"
-      echo "Always prefer MEV builder blocks, build factor 100"
+      echo "Always prefer MEV builder blocks, MEV_BUILD_FACTOR 100"
       ;;
     "")
       __mev_factor=""
