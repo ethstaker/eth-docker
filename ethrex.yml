@@ -30,7 +30,7 @@ services:
     volumes:
       - ethrex-el-data:/var/lib/ethrex
       - /etc/localtime:/etc/localtime:ro
-      - jwtsecret:/var/lib/ethrex/ee-secret
+      - jwtsecret:/var/lib/ee-secret
     ports:
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/tcp
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/udp
@@ -67,7 +67,7 @@ services:
       - --metrics.port
       - "6060"
       - --authrpc.jwtsecret
-      - /var/lib/ethrex/ee-secret/jwtsecret
+      - /var/lib/ee-secret/jwtsecret
       - --authrpc.addr
       - 0.0.0.0
       - --authrpc.port

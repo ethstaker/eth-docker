@@ -31,7 +31,8 @@ RUN adduser \
   --uid "${UID}" \
   "${USER}"
 
-RUN mkdir -p /var/lib/ethrex/ee-secret && chown -R ${USER}:${USER} /var/lib/ethrex && chmod -R 700 /var/lib/ethrex && chmod 777 /var/lib/ethrex/ee-secret
+RUN mkdir -p /var/lib/ee-secret && chown -R ${USER}:${USER} /var/lib/ee-secret && chmod 777 /var/lib/ee-secret
+RUN mkdir -p /var/lib/ethrex && chown -R ${USER}:${USER} /var/lib/ethrex && chmod -R 700 /var/lib/ethrex
 
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/

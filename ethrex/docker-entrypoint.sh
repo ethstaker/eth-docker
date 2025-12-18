@@ -19,24 +19,28 @@ __strip_empty_args() {
 }
 
 
+if [[ -d /var/lib/ethrex/ee-secret ]]; then
+  rm -rf /var/lib/ethrex/ee-secret/  # Remove legacy dir
+fi
+
 if [[ -n "${JWT_SECRET}" ]]; then
-  echo -n "${JWT_SECRET}" > /var/lib/ethrex/ee-secret/jwtsecret
+  echo -n "${JWT_SECRET}" > /var/lib/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
 fi
 
-if [[ ! -f /var/lib/ethrex/ee-secret/jwtsecret ]]; then
+if [[ ! -f /var/lib/ee-secret/jwtsecret ]]; then
   echo "Generating JWT secret"
   secret1=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
   secret2=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-  echo -n "${secret1}""${secret2}" > /var/lib/ethrex/ee-secret/jwtsecret
+  echo -n "${secret1}""${secret2}" > /var/lib/ee-secret/jwtsecret
 fi
 
-if [[ -O /var/lib/ethrex/ee-secret ]]; then
+if [[ -O /var/lib/ee-secret ]]; then
   # In case someone specifies JWT_SECRET but it's not a distributed setup
-  chmod 777 /var/lib/ethrex/ee-secret
+  chmod 777 /var/lib/ee-secret
 fi
-if [[ -O /var/lib/ethrex/ee-secret/jwtsecret ]]; then
-  chmod 666 /var/lib/ethrex/ee-secret/jwtsecret
+if [[ -O /var/lib/ee-secret/jwtsecret ]]; then
+  chmod 666 /var/lib/ee-secret/jwtsecret
 fi
 
 if [[ "${NETWORK}" =~ ^https?:// ]]; then
