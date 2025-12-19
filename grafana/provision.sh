@@ -249,6 +249,14 @@ case "${CLIENT}" in
     url="https://grafana.com/api/dashboards/${id}/revisions/${revision}/download"
     file='/etc/grafana/provisioning/dashboards/docker-host-container-overview.json'
     wget -t 3 -T 10 -qcO - "${url}" | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${file}"
+    # Another cadvisor and node exporter dashboard
+    id=15120
+    revision=$(wget -t 3 -T 10 -qO - https://grafana.com/api/dashboards/${id} | jq .revision)
+    url="https://grafana.com/api/dashboards/${id}/revisions/${revision}/download"
+    file='/etc/grafana/provisioning/dashboards/host-docker-monitoring.json'
+    wget -t 3 -T 10 -qcO - "${url}" | jq '.title = "Host & Docker Monitoring"' \
+      | jq '.panels |= map(if .title == "Temp" then .targets[0] |= (.legendFormat = "{{type}}" | .expr = "node_thermal_zone_temp")| .options.orientation = "vertical" elif .title == "Temperature" then .targets[0].expr = "node_thermal_zone_temp" else . end)' \
+      | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${file}"
     # Log file dashboard (via loki)
     id=20223
     revision=$(wget -t 3 -T 10 -qO - https://grafana.com/api/dashboards/${id} | jq .revision)
