@@ -37,6 +37,7 @@ services:
       - BEACON_STATS_MACHINE=${BEACON_STATS_MACHINE}
       - CL_EXTRAS=${CL_EXTRAS:-}
       - NODE_TYPE=${CL_NODE_TYPE:-pruned}
+      - EL_NODE=${EL_NODE}
       - IPV6=${IPV6:-false}
       - CL_P2P_PORT=${CL_P2P_PORT:-9000}
       - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}
@@ -73,10 +74,6 @@ services:
       - ${CL_QUIC_PORT:-9001}
       - ${CL_MAX_PEER_COUNT:+--target-peers}
       - ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}
-      - --execution-endpoint
-      - ${EL_NODE}
-      - --execution-jwt
-      - /var/lib/lighthouse/beacon/ee-secret/jwtsecret
       - --debug-level=${LOG_LEVEL}
       - --metrics
       - --metrics-address
