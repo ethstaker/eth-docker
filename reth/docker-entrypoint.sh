@@ -139,6 +139,15 @@ fi
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
+# Traces
+if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
+  __trace="--tracing-otlp=http://tempo:4318/v1/traces"
+  export OTEL_EXPORTER_OTLP_INSECURE=true
+  export OTEL_SERVICE_NAME=reth
+else
+  __trace=""
+fi
+
 if [[ -f /var/lib/reth/prune-marker ]]; then
   rm -f /var/lib/reth/prune-marker
   if [[ "${NODE_TYPE}" = "archive" ]]; then
@@ -151,5 +160,5 @@ if [[ -f /var/lib/reth/prune-marker ]]; then
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__verbosity} ${__static} ${__prune} ${EL_EXTRAS}
+  exec "$@" ${__network} ${__verbosity} ${__static} ${__prune} ${__trace} ${EL_EXTRAS}
 fi

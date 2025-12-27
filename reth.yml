@@ -29,6 +29,7 @@ services:
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - NETWORK=${NETWORK}
       - STATIC_DIR=${ANCIENT_DIR}
+      - COMPOSE_FILE=${COMPOSE_FILE}
       # Make this RUST_LOG=${LOG_LEVEL:-info},engine=trace when requiring deep debug
       # RPC debug can be done with jsonrpsee=trace or jsonrpsee::target=trace for a specific target
       # - RUST_LOG=${LOG_LEVEL:-info},engine=trace

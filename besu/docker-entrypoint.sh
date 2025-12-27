@@ -123,6 +123,14 @@ fi
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
+# Traces
+if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
+  export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+  export OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
+  export OTEL_EXPORTER_OTLP_INSECURE=true
+  export OTEL_SERVICE_NAME=besu
+fi
+
 if [[ -f /var/lib/besu/prune-history-marker ]]; then
   rm -f /var/lib/besu/prune-history-marker
   if [[ "${NODE_TYPE}" = "archive" ]]; then

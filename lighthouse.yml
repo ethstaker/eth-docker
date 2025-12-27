@@ -52,6 +52,7 @@ services:
       - CL_P2P_PORT=${CL_P2P_PORT:-9000}
       - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}
       - NETWORK=${NETWORK}
+      - COMPOSE_FILE=${COMPOSE_FILE}
     ports:
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
