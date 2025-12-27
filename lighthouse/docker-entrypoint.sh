@@ -116,6 +116,17 @@ fi
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
+# Traces
+if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
+  __trace="--telemetry-collector-url http://tempo:4317 --telemetry-service-name lighthouse"
+# These may become default in future. Here so Lighthouse doesn't murder itself in the meantime
+  export OTEL_TRACES_SAMPLER=parentbased_traceidratio
+  export OTEL_TRACES_SAMPLER_ARG=0.01
+  export OTEL_EXPORTER_OTLP_INSECURE=true
+else
+  __trace=""
+fi
+
 if [[ -f /var/lib/lighthouse/beacon/prune-marker ]]; then
   rm -f /var/lib/lighthouse/beacon/prune-marker
   if [[ "${NODE_TYPE}" = "archive" ]]; then
@@ -128,5 +139,5 @@ if [[ -f /var/lib/lighthouse/beacon/prune-marker ]]; then
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__mev_boost} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${CL_EXTRAS}
+  exec "$@" ${__network} ${__mev_boost} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__trace} ${__ipv6} ${CL_EXTRAS}
 fi

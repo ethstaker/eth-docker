@@ -28,6 +28,7 @@ services:
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
+      - COMPOSE_FILE=${COMPOSE_FILE}
     volumes:
       - besu-el-data:/var/lib/besu
       - besu-eth1-data:/var/lib/besu-og

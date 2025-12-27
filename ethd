@@ -488,6 +488,13 @@ __prep_conffiles() {
   if [[ ! -f "commit-boost/cb-config.toml" ]]; then
     ${__as_owner} cp commit-boost/cb-config.toml.sample commit-boost/cb-config.toml
   fi
+# Create tempo.yaml if it doesn't exist
+  if [[ ! -f "tempo/tempo.yaml" ]]; then
+    ${__as_owner} cp tempo/tempo.yaml.sample tempo/tempo.yaml
+  fi
+  if [[ ! -f "tempo/overrides.yaml" ]]; then
+    ${__as_owner} cp tempo/overrides.yaml.sample tempo/overrides.yaml
+  fi
 # Make sure local user owns .env
   if find . -name .env \! -user "${__owner}" -o \! -group "${__owner_group}" | grep -q ./.env; then
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
