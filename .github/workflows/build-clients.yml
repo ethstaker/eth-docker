@@ -10,9 +10,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-besu:
+  build-client:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         client:
           - env: |-
