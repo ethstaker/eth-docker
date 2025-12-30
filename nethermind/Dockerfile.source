@@ -35,7 +35,7 @@ EOF
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y --no-install-recommends install ca-certificates gosu tzdata wget git git-lfs \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y --no-install-recommends install ca-certificates gosu tzdata wget git git-lfs adduser \
   && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*

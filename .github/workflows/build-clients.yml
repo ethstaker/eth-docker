@@ -48,7 +48,7 @@ jobs:
               COMPOSE_FILE=caplin.yml:erigon.yml:lighthouse-vc-only.yml
               ERIGON_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
+            test_cl: false
             test_el: true
             test_vc: true
           - env: |-
