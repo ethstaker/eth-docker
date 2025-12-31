@@ -36,6 +36,7 @@ services:
       - NETWORK=${NETWORK}
       - CL_NODE=${CL_NODE}
       - LOG_LEVEL=${LOG_LEVEL}
+      - COMPOSE_FILE=${COMPOSE_FILE}
     volumes:
       - vero-data:/var/lib/vero
       - /etc/localtime:/etc/localtime:ro

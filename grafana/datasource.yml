@@ -30,3 +30,11 @@ datasources:
     uid: P8E80F9AEF21F6940
     url: http://loki:3100
     editable: true
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    orgId: 1
+    uid: CF8JGFRTIV4SGB
+    url: http://tempo:3200
+    editable: true

@@ -64,6 +64,23 @@ services:
       - --config.file
       - /config/json.yml
 
+  tempo:
+    image: grafana/tempo:latest
+    command:
+      - '-config.file=/etc/tempo.yaml'
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml
+      - ./tempo/overrides.yaml:/etc/overrides.yaml
+      - tempo-data:/var/tempo
+    restart: "unless-stopped"
+    <<: *logging
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=3200
+      - metrics.instance=tempo
+      - metrics.network=${NETWORK}
+
   grafana:
     restart: "unless-stopped"
     build:
@@ -94,3 +111,4 @@ volumes:
   grafana-data:
   grafana-config:
   prom-data:
+  tempo-data:
