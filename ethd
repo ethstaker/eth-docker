@@ -1409,13 +1409,13 @@ __get_value_from_env() {
     BEGIN { __found = 0; __value = "" }
 
     # Skip empty lines and comments
-    /^#|^\s*$/ {
+    /^[[:space:]]*($|#)/ {
       next
     }
 
     # Match single-line unquoted __value
-    $0 ~ "^[ \t]*"var"=[^\"].*$" {
-      gsub("^[ \t]*"var"=", "")
+    $0 ~ "^[ \t]*" var "=" && $0 !~ "^[ \t]*" var "=[ \t]*[\"'\'']" {
+      sub("^[ \t]*"var"=", "")
       gsub(/^[ \t]*|[ \t]*$/, "", $0)
       __value = $0
       __found = 1
@@ -1429,33 +1429,53 @@ __get_value_from_env() {
       exit
     }
 
-    # Match a quoted single-line __value
-    $0 ~ "^[ \t]*"var"=\"[^\"]*\"[ \t]*$" {
-      gsub("^[ \t]*"var"=\"", "")
-      gsub(/"[ \t]*$/, "", $0)
+    # Single-line DOUBLE-quoted: VAR="..."; allow trailing spaces
+    $0 ~ "^[ \t]*" var "=\"[^\"]*\"[ \t]*$" {
+      sub("^[ \t]*" var "=\"", "", $0)
+      sub(/"[ \t]*$/, "", $0)
       __value = "\"" $0 "\""
       __found = 1
       exit
     }
 
-    # Match the start of a multi-line __value (with opening quote)
-    $0 ~ "^[ \t]*"var"=\"[^\"]*$" {
-      gsub("^[ \t]*"var"=\"", "")
-      __value = "\"" $0 "\n"
+    # Single-line SINGLE-quoted: VAR='\''...'\''; allow trailing spaces
+    $0 ~ "^[ \t]*" var "='\''[^'\'']*'\''[ \t]*$" {
+      sub("^[ \t]*" var "='\''", "", $0)
+      sub(/'\''[ \t]*$/, "", $0)
+      __value = "'"'"'" $0 "'"'"'"
+      __found = 1
+      exit
+    }
+
+    # Match the start of a multi-line __value (with opening double or single quote)
+    $0 ~ "^[ \t]*"var"=\"[^\"]*$" || $0 ~ "^[ \t]*" var "='\''[^'\'']*$" {
+      # Pick which quote we matched and strip the var=<quote> prefix
+      if ($0 ~ "^[ \t]*" var "=\"[^\"]*$") {
+        __q="\""; sub("^[ \t]*" var "=\"", "", $0)
+      } else {
+        __q="'\''";  sub("^[ \t]*" var "='\''", "", $0)
+      }
+      # Accumulator starts with the opening quote, plus first chunk + newline
+      __value = __q $0 "\n"
       __found = 1
       next
     }
 
     # Continue collecting lines for a multi-line __value
-    __found && !/"[ \t]*$/ {
+    __found && ($0 !~ (__q=="\"" ? "\"[ \t]*$" : "'\''[ \t]*$")) {
       __value = __value $0 "\n"
       next
     }
 
     # End of a multi-line __value (with closing quote)
-    __found && /"[ \t]*$/ {
-      gsub(/[ \t]*"[ \t]*$/, "")
-      __value = __value $0 "\""
+    __found && ($0 ~ (__q=="\"" ? "\"[ \t]*$" : "'\''[ \t]*$")) {
+      # Remove the trailing quote + any spaces/tabs around it
+      if (__q == "\"") {
+        sub(/[ \t]*"[ \t]*$/, "", $0)
+      } else {
+        sub(/[ \t]*'\''[ \t]*$/, "", $0)
+      }
+      __value = __value $0 __q
       __found = 1
       exit
     }
@@ -1504,42 +1524,56 @@ __update_value_in_env() {
     # Variable exists, update it
 #shellcheck disable=SC2016
     ${awk_exe} -v var="${var_name}" -v new_value="${escaped_value}" '
-      BEGIN { in_block = 0; multi_line = 0 }
-
-      # Match the line that starts with the variable name
+      BEGIN { in_block = 0; multi_line = 0; __q="" }
+      # Start of the target variable
       $0 ~ "^[ \t]*" var "=" {
-        # If the __value starts with a quote, it may be a multi-line
+        # Determine opening quote (if any)
         if ($0 ~ "^[ \t]*" var "=\"") {
-          # Start of multi-line __value
-          multi_line = 1
-          # Print the variable name with the new __value, replacing & safely
-          gsub(/&/, "\\&", new_value)
-          print var "=" new_value
-        } else {
-          # Single-line __value
-          gsub(/&/, "\\&", new_value)
-          print var "=" new_value
+          __q = "\""
+          # If there is NOT a second " later on the line, it is multiline
+          if ($0 !~ "^[ \t]*" var "=\".*\"[ \t]*$")
+            multi_line = 1
+          else
+            multi_line = 0
         }
-        # Set the flag to indicate we are processing the target variable block
+        else if ($0 ~ "^[ \t]*" var "='\''") {
+          __q = "'\''"
+          # If there is NOT a second '\'' later on the line, it is multiline
+          if ($0 !~ "^[ \t]*" var "='\''.*'\''[ \t]*$")
+            multi_line = 1
+          else
+            multi_line = 0
+        }
+        else {
+          __q = ""
+          multi_line = 0
+        }
+
+        # Replace with new value, verbatim (already escaped upstream)
+        gsub(/&/, "\\&", new_value)   # AWK print safety
+        print var "=" new_value
+
         in_block = 1
         next
       }
 
-      # If we encounter a new variable definition, stop skipping lines
-      /^[A-Z_][A-Z0-9_]*=/ && in_block {
-        in_block = 0
-        multi_line = 0
+      # A new variable definition resets skipping
+      /^[ \t]*[A-Z_][A-Z0-9_]*=/ && in_block {
+        in_block=0
+        multi_line=0
+        __q=""
       }
 
-      # Continue to skip lines in a multi-line block if multi_line is true
-      multi_line && !/"[ \t]*$/ {
+      # Skip multiline content until closing quote line
+      multi_line && ( $0 !~ (__q=="\"" ? "\"[ \t]*$" : "'\''[ \t]*$") ) {
         next
       }
 
-      # If we reach the end of a multi-line __value, reset flags
-      multi_line && /"[ \t]*$/ {
-        in_block = 0
-        multi_line = 0
+      # Closing line of the multi-line block: consume it and reset
+      multi_line && ( $0 ~ (__q=="\"" ? "\"[ \t]*$" : "'\''[ \t]*$") ) {
+        in_block=0
+        multi_line=0
+        __q=""
         next
       }
 
