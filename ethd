@@ -2833,9 +2833,9 @@ prune-history() {
       ;;
     *nethermind.yml*)
       client="Nethermind"
-      min_ver="v1.31.9"
-      extra_msg="To prune pre-merge history, a full resync is required, which should take 1-2 hours to where attestations work.\nYou can use https://rescuenode.com to keep attesting during resync."
-      prune_marker=""
+      min_ver="v1.35.2"
+      extra_msg="Pruning pre-merge history does not require a resync and should be immediate."
+      prune_marker="/var/lib/nethermind/minimal-node"
       ;;
     *besu.yml*)
       client="Besu"
