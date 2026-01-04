@@ -1,0 +1,52 @@
+# grandine-plugin.yml to be used with nethermind.yml for Nethermind with Grandine plugin
+services:
+  execution:
+    ports:
+      # Grandine consensus P2P ports
+      - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp"
+      - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp"
+    environment:
+      - CL_NODE_TYPE=${CL_NODE_TYPE:-pruned}
+      - CL_EXTRAS=${CL_EXTRAS:-}
+      - WEB3SIGNER=${WEB3SIGNER:-false}
+      - W3S_NODE=${W3S_NODE}
+      - CHECKPOINT_SYNC_URL=${CHECKPOINT_SYNC_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - MEV_BOOST=${MEV_BOOST}
+      - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}
+      - MEV_NODE=${MEV_NODE}
+      - BEACON_STATS_API=${BEACON_STATS_API}
+      - BEACON_STATS_MACHINE=${BEACON_STATS_MACHINE}
+      - VC_EXTRAS=${VC_EXTRAS:-}
+      - GRAFFITI=${GRAFFITI:-}
+      - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
+      - DOPPELGANGER=${DOPPELGANGER:-false}
+      - IPV6=${IPV6:-false}
+      - CL_P2P_PORT=${CL_P2P_PORT:-9000}
+      - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}
+      - CL_REST_PORT=${CL_REST_PORT:-5052}
+      - CL_MAX_PEER_COUNT=${CL_MAX_PEER_COUNT:-}
+      - FEE_RECIPIENT=${FEE_RECIPIENT:-}
+      - KEY_API_PORT=${KEY_API_PORT:-}
+      - EMBEDDED_VC=false
+      - RUST_LOG=${LOG_LEVEL:-info}
+    volumes:
+      - grandineconsensus-data:/var/lib/grandine
+# No metrics scrape at present via labels.
+# Create an extra scrape target for execution:8008 in prometheus/conf.d
+
+  wipe-db:
+    profiles: ["tools"]
+    restart: "no"
+    image: alpine:3
+    user: "10002"
+    volumes:
+      - grandineconsensus-data:/var/lib/grandine
+      - /etc/localtime:/etc/localtime:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rm -rf /var/lib/grandine/${NETWORK}/beacon/*
+
+volumes:
+  grandineconsensus-data:

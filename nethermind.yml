@@ -30,6 +30,8 @@ services:
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - AUTOPRUNE_NM=${AUTOPRUNE_NM:-true}
       - NETWORK=${NETWORK}
+      # For Grandine plugin
+      - COMPOSE_FILE=${COMPOSE_FILE}
     volumes:
       - nethermind-el-data:/var/lib/nethermind
       - nm-eth1-data:/var/lib/nethermind-og

@@ -1,4 +1,4 @@
-# To be used with erigon.yml when its built-in Caplin CL is in use
+# caplin.yml to be used with erigon.yml when its built-in Caplin CL is in use
 services:
   execution:
     ports:

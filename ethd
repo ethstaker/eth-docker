@@ -2298,6 +2298,7 @@ resync-consensus() {
     *nimbus.yml*|*nimbus-cl-only.yml*) cl_volume='nimbus-consensus-data'; cl_client="nimbus";;
     *lodestar.yml*|*lodestar-cl-only.yml*) cl_volume='lsconsensus-data'; cl_client="lodestar";;
     *prysm.yml*|*prysm-cl-only.yml*) cl_volume='prysmconsensus-data'; cl_client="prysm";;
+    *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) cl_volume='wipe-db'; cl_client="grandine-plugin";;
     *grandine-allin1.yml*) cl_volume='wipe-db'; cl_client="grandine";;
     *grandine.yml*|*grandine-cl-only.yml*) cl_volume='grandineconsensus-data'; cl_client="grandine";;
     *erigon.yml*) cl_volume='wipe-db'; cl_client="caplin";;
@@ -2325,7 +2326,7 @@ resync-consensus() {
   esac
 
   echo "Stopping ${cl_client} container"
-  if [[ "${cl_client}" = "caplin" ]]; then
+  if [[ "${cl_client}" =~ (caplin|grandine-plugin) ]]; then
     __docompose stop execution && __docompose rm -f execution
   else
     __docompose stop consensus && __docompose rm -f consensus

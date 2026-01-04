@@ -52,6 +52,26 @@ jobs:
             test_cl: true
             test_el: true
             test_vc: true
+          - label1: test-grandine-plugin
+            label2: na
+            env: |-
+              COMPOSE_FILE=grandine-plugin.yml:lighthouse-vc-only.yml:nethermind.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+              NM_DOCKER_REPO=sifrai/grandine
+              NM_DOCKER_TAG=unstable-nethermind-1.35.8
+            test_cl: false
+            test_el: true
+            test_vc: true
+          - label1: test-grandine-plugin
+            label2: na
+            env: |-
+              COMPOSE_FILE=grandine-plugin-allin1.yml:nethermind.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+              NM_DOCKER_REPO=sifrai/grandine
+              NM_DOCKER_TAG=unstable-nethermind-1.35.8
+            test_cl: false
+            test_el: true
+            test_vc: false
           - label1: test-ethrex
             label2: na
             env: |-
