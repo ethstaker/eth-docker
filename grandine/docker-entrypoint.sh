@@ -73,13 +73,16 @@ fi
 case "${NODE_TYPE}" in
   archive)
     echo "Grandine archive node without pruning"
-    __prune="--back-sync"
+    __prune="--back-sync --archive-storage"
     ;;
   pruned)
+    __prune=""
+    ;;
+  aggressive-pruned)
     __prune="--prune-storage"
     ;;
   full)
-    __prune=""
+    __prune="--back-sync"
     ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Grandine implementation."
