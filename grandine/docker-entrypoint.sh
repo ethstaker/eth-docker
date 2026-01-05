@@ -186,15 +186,26 @@ else
   __w3s_url=""
 fi
 
+# Traces
+if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
+  __trace="--telemetry-metrics-url http://tempo:4317 --telemetry-service-name grandine --telemetry-level ${LOG_LEVEL:-info}"
+# These may become default in future. Here so Grandine doesn't murder itself in the meantime
+  export OTEL_TRACES_SAMPLER=parentbased_traceidratio
+  export OTEL_TRACES_SAMPLER_ARG=0.01
+  export OTEL_EXPORTER_OTLP_INSECURE=true
+else
+  __trace=""
+fi
+
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
 if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} ${CL_EXTRAS} ${VC_EXTRAS}
+  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} ${__trace} ${CL_EXTRAS} ${VC_EXTRAS}
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} --graffiti "${GRAFFITI}" ${CL_EXTRAS} ${VC_EXTRAS}
+  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} --graffiti "${GRAFFITI}" ${__trace} ${CL_EXTRAS} ${VC_EXTRAS}
 fi
