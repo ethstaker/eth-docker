@@ -39,7 +39,7 @@ services:
     profiles: ["tools"]
     restart: "no"
     image: alpine:3
-    user: "10002"
+    user: "10001"
     volumes:
       - grandineconsensus-data:/var/lib/grandine
       - /etc/localtime:/etc/localtime:ro
