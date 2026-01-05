@@ -34,4 +34,4 @@ Eth Docker uses a "semver-ish" scheme.
 large.
 - Second through fourth digit, [semver](https://semver.org/).
 
-This is Eth Docker v2.18.0.4
+This is Eth Docker v2.19.0.0
