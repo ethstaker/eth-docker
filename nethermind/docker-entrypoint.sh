@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 if [[ "$(id -u)" -eq 0 ]]; then
   chown -R nethermind:nethermind /var/lib/nethermind
+  chown -R nethermind:nethermind /var/lib/grandine
   exec gosu nethermind "${BASH_SOURCE[0]}" "$@"
 fi
 
