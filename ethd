@@ -466,7 +466,7 @@ __prep_conffiles() {
     chmod 664 ssv-config/*.yaml
   fi
 # Make sure local user owns the dkg output dir and everything in it
-  if find .eth/dkg_output \! -user "${__owner}" -o \! -group "${__owner_group}" | grep -q .; then
+if find .eth/dkg_output \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q .; then
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
       echo "Fixing ownership of .eth/dkg_output"
       ${__auto_sudo} chown -R "${__owner}:${__owner_group}" .eth/dkg_output
@@ -496,7 +496,7 @@ __prep_conffiles() {
     ${__as_owner} cp tempo/overrides.yaml.sample tempo/overrides.yaml
   fi
 # Make sure local user owns .env
-  if find . -name .env \! -user "${__owner}" -o \! -group "${__owner_group}" | grep -q ./.env; then
+if find . -name .env \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q ./.env; then
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
       echo "Fixing ownership of .env"
       ${__auto_sudo} chown -R "${__owner}:${__owner_group}" .env
@@ -2311,6 +2311,10 @@ resync-consensus() {
     return 0
   fi
 
+  if [[ "${cl_client}" =~ grandine ]]; then
+    __adjust_grandine_permissions
+  fi
+
   # Can we checkpoint sync?
   var="CHECKPOINT_SYNC_URL"
   __get_value_from_env "${var}" "${__env_file}" "__value"
@@ -3577,12 +3581,47 @@ keys() {
 }
 
 
+__adjust_grandine_permissions() {
+  local datadir_owner
+  local datadir_volume
+
+  var="COMPOSE_FILE"
+  __get_value_from_env "${var}" "${__env_file}" "__value"
+  if [[ ! "${__value}" =~ grandine ]]; then
+    return 0
+  fi
+
+  if [[ "${__value}" =~ grandine-plugin ]]; then
+    datadir_owner=10001
+  else
+    datadir_owner=10002
+  fi
+
+  datadir_volume="$(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_grandineconsensus-data$")"
+  if [[ -z "${datadir_volume}" ]]; then
+    return 0
+  fi
+
+  __dodocker run --rm \
+    --user root \
+    -v "${datadir_volume}:/var/lib/grandine" \
+    alpine:3 \
+    sh -c "
+      if find /var/lib/grandine \( \! -user ${datadir_owner} -o \! -group ${datadir_owner} \) -print -quit | grep -q .; then
+        echo 'Fixing ownership of Grandine volume'
+        chown -R ${datadir_owner}:${datadir_owner} /var/lib/grandine
+      fi
+    "
+}
+
+
 upgrade() {
   update
 }
 
 
 start() {
+  __adjust_grandine_permissions
   __docompose up -d --remove-orphans "$@"
 }
 
