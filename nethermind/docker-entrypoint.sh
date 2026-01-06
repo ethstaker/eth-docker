@@ -290,7 +290,7 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
 
 # Web3signer URL
   if [[ "${EMBEDDED_VC}" = "true" && "${WEB3SIGNER}" = "true" ]]; then
-    __grandine+=" --web3signer-urls ${W3S_NODE}"
+    __grandine+=" --grandine-web3signerurls ${W3S_NODE}"
   fi
 
   if [[ ! "${DEFAULT_GRAFFITI}" = "true" ]]; then
