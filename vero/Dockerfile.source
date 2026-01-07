@@ -61,10 +61,6 @@ RUN groupadd -g ${UID} ${USER} && \
 RUN mkdir -p /vero && chown -R ${USER}:${USER} /vero
 WORKDIR /vero
 
-# Create directory for prometheus in multiprocess mode
-RUN mkdir /tmp/multiprocessing && chown -R ${USER}:${USER} /tmp/multiprocessing
-ENV PROMETHEUS_MULTIPROC_DIR=/tmp/multiprocessing
-
 COPY --chown=${USER}:${USER} --from=builder /build/vero/src .
 
 # Create data mount point with permissions

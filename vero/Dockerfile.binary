@@ -23,7 +23,6 @@ RUN set -eux; \
 
 # Create data mount point with permissions
 RUN mkdir -p /var/lib/vero && chown -R ${USER}:${USER} /var/lib/vero && chmod -R 700 /var/lib/vero
-RUN chown -R ${USER}:${USER} /tmp/multiprocessing
 
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
