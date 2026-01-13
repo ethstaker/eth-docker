@@ -30,7 +30,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       - name: Set up Docker on macOS
         if: ${{ startsWith(matrix.os, 'macos-') }}
-        uses: douglascamata/setup-docker-macos-action@5643cfd7e434881308f89f2f3ae8852da11df909
+        uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
       - name: Install Expect
         if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         run: sudo apt-get install -y expect whiptail
