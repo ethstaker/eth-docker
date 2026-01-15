@@ -1,0 +1,9 @@
+# hadolint global ignore=DL3007,DL3008,DL3059
+ARG DOCKER_TAG=latest
+ARG DOCKER_REPO=consensys/web3signer
+
+FROM ${DOCKER_REPO}:${DOCKER_TAG} AS web3signer
+
+FROM flyway/flyway:latest
+
+COPY --from=web3signer /opt/web3signer/migrations/postgresql /tmp/web3signer

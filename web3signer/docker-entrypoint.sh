@@ -36,8 +36,6 @@ if [[ -f /var/lib/web3signer/.migration_fatal_error ]]; then
     exit 1
 fi
 
-/flyway/flyway migrate -url="jdbc:postgresql://${PG_ALIAS}/web3signer" -user=postgres -password=postgres -locations=filesystem:/opt/web3signer/migrations/postgresql
-
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
 exec "$@" ${__network}
