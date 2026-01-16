@@ -111,7 +111,7 @@ services:
 
   cadvisor:
     restart: "unless-stopped"
-    image: ghcr.io/google/cadvisor:0.55.1
+    image: ghcr.io/google/cadvisor:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro,rslave
