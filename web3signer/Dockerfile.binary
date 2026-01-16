@@ -2,8 +2,6 @@
 ARG DOCKER_TAG=latest
 ARG DOCKER_REPO=consensys/web3signer
 
-FROM flyway/flyway:latest AS flyway
-
 FROM ${DOCKER_REPO}:${DOCKER_TAG}
 
 ARG USER=web3signer
@@ -26,10 +24,6 @@ RUN mkdir -p /var/lib/web3signer/keys && chown -R ${USER}:${USER} /var/lib/web3s
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
-
-# Flyway for initial migrations
-
-COPY --from=flyway --chown=${USER}:${USER} /flyway /flyway
 
 USER ${USER}
 

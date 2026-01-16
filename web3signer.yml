@@ -7,6 +7,28 @@ x-logging: &logging
       tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
 
 services:
+  w3s-init:
+    restart: "no"
+    build:
+      context: ./web3signer
+      args:
+        - DOCKER_TAG=${W3S_DOCKER_TAG:-latest}
+        - DOCKER_REPO=${W3S_DOCKER_REPO:-consensys/web3signer}
+      dockerfile: Dockerfile.init
+    image: w3s-init:local
+    pull_policy: never
+    depends_on:
+      postgres:
+        condition: service_healthy
+    <<: *logging
+    entrypoint:
+      - /flyway/flyway
+      - migrate
+      - -url=jdbc:postgresql://${PG_ALIAS}/web3signer
+      - -user=postgres
+      - -password=postgres
+      - -locations=filesystem:/tmp/web3signer
+
   web3signer:
     restart: "unless-stopped"
     build:
@@ -31,8 +53,8 @@ services:
           # This allows multiple Eth Docker stacks all connected to the same bridge network
           - ${W3S_ALIAS:-${NETWORK}-web3signer}
     depends_on:
-      postgres:
-        condition: service_healthy
+      w3s-init:
+        condition: service_completed_successfully
     <<: *logging
     entrypoint:
       - docker-entrypoint.sh
