@@ -32,6 +32,7 @@ services:
       - NETWORK=${NETWORK}
       # For Grandine plugin
       - COMPOSE_FILE=${COMPOSE_FILE}
+      - LOG_LEVEL=${LOG_LEVEL}
     volumes:
       - nethermind-el-data:/var/lib/nethermind
       - nm-eth1-data:/var/lib/nethermind-og
