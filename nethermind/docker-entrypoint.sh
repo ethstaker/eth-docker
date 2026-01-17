@@ -243,20 +243,16 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
           echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
           ;;
         [1-9]|[1-9][0-9])
-          #__mev_factor="--default-builder-boost-factor ${build_factor}"
-          #echo "Enabled MEV Build Factor of ${build_factor}"
-          __mev_factor=""
-          echo "WARNING: Embedded Grandine does not support --builder-boost-factor. MEV build factor ${build_factor} not applied."
+          __mev_factor=" --grandine-defaultbuilderboostfactor ${build_factor}"
+          echo "Enabled MEV Build Factor of ${build_factor}"
           ;;
         100)
-          #__mev_factor="--default-builder-boost-factor 18446744073709551615"
-          #echo "Always prefer MEV builder blocks, MEV_BUILD_FACTOR 100"
-          __mev_factor=""
-          echo "WARNING: Embedded Grandine does not support --builder-boost-factor. MEV build factor ${build_factor} not applied."
+          __mev_factor=" --grandine-defaultbuilderboostfactor 18446744073709551615"
+          echo "Always prefer MEV builder blocks, MEV_BUILD_FACTOR 100"
           ;;
         "")
           __mev_factor=""
-          #echo "Use default --grandine-defaultbuilderboostfactor"
+          echo "Use default --grandine-defaultbuilderboostfactor"
           ;;
         *)
           __mev_factor=""
