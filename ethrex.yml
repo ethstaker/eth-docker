@@ -50,7 +50,7 @@ services:
       - ${EL_P2P_PORT:-30303}
       - --discovery.port
       - ${EL_P2P_PORT:-30303}
-      - ${EL_MAX_PEER_COUNT:+--target.peers}
+      - ${EL_MAX_PEER_COUNT:+--p2p.target-peers}
       - ${EL_MAX_PEER_COUNT:+${EL_MAX_PEER_COUNT}}
       - --http.addr
       - 0.0.0.0
