@@ -117,6 +117,33 @@ case "${NODE_TYPE}" in
     esac
     echo "Pruning parameters: ${__prune}"
     ;;
+  pre-cancun-expiry)
+    __prune="--block-interval 5 --prune.senderrecovery.full --prune.accounthistory.distance 10064 --prune.storagehistory.distance 10064 --prune.transactionlookup.distance 10064"
+    case "${NETWORK}" in
+      mainnet)
+        echo "Reth minimal node with pre-Cancun history expiry"
+        __prune+=" --prune.bodies.before 19426587 --prune.receipts.before 19426587"
+        ;;
+      sepolia)
+        echo "Reth minimal node with pre-Cancun history expiry"
+        __prune+=" --prune.bodies.before 5187023 --prune.receipts.before 5187023"
+        ;;
+      *)
+        echo "There is no pre-Cancun history for ${NETWORK} network, \"pre-cancun-expiry\" has no effect."
+        __prune+=" --prune.receipts.before 0"
+        ;;
+    esac
+    ;;
+  rolling-expiry)
+    echo "Reth minimal node with rolling history expiry, keeps 1 year."
+    # 365 days = 82125 epochs = 2628000 slots / blocks
+    __prune+=" --prune.bodies.distance 2628000 --prune.receipts.distance 2628000"
+    ;;
+  aggressive-expiry)
+    echo "Reth minimal node with aggressive expiry"
+    __prune="--minimal"
+    echo "Pruning parameters: ${__prune}"
+    ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Reth implementation."
     sleep 30
