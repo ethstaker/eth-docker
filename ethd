@@ -3817,28 +3817,28 @@ __query_deployment() {
 
 __query_validator_client() {
   if [[ "${NETWORK}" = "gnosis" ]]; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
+    VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
     "Which validator client do you want to run?" 12 65 4 \
     "lighthouse-vc-only.yml" "Lighthouse validator client" \
     "teku-vc-only.yml" "Teku validator client" \
     "lodestar-vc-only.yml" "Lodestar validator client" \
     "nimbus-vc-only.yml" "Nimbus validator client" 3>&1 1>&2 2>&3)
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
+    VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
     "Which validator client do you want to run?" 9 65 2 \
     "teku-vc-only.yml" "Teku validator client" \
     "lodestar-vc-only.yml" "Lodestar validator client" \
     3>&1 1>&2 2>&3)
   elif [[ "${__deployment}" = "rocket" ]]; then
     if uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
-      CONSENSUS_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
+      VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
       "Which validator client do you want to run?" 12 65 4 \
       "lighthouse-vc-only.yml" "Lighthouse validator client" \
       "teku-vc-only.yml" "Teku validator client" \
       "lodestar-vc-only.yml" "Lodestar validator client" \
       "nimbus-vc-only.yml" "Nimbus validator client" 3>&1 1>&2 2>&3)
     else
-      CONSENSUS_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
+      VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
       "Which validator client do you want to run?" 12 65 4 \
       "teku-vc-only.yml" "Teku validator client" \
       "lighthouse-vc-only.yml" "Lighthouse validator client" \
@@ -3846,7 +3846,7 @@ __query_validator_client() {
       "nimbus-vc-only.yml" "Nimbus validator client" 3>&1 1>&2 2>&3)
     fi
   elif uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
+    VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
     "Which validator client do you want to run?" 13 65 5 \
     "lighthouse-vc-only.yml" "Lighthouse validator client" \
     "teku-vc-only.yml" "Teku validator client" \
@@ -3854,7 +3854,7 @@ __query_validator_client() {
     "nimbus-vc-only.yml" "Nimbus validator client" \
     "prysm-vc-only.yml" "Prysm validator client" 3>&1 1>&2 2>&3)
   else
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
+    VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
     "Which validator client do you want to run?" 13 65 5 \
     "teku-vc-only.yml" "Teku validator client" \
     "lighthouse-vc-only.yml" "Lighthouse validator client" \
@@ -3863,7 +3863,7 @@ __query_validator_client() {
     "prysm-vc-only.yml" "Prysm validator client" 3>&1 1>&2 2>&3)
   fi
 
-  echo "Your validator client file is:" "${CONSENSUS_CLIENT}"
+  echo "Your validator client file is:" "${VALIDATOR_CLIENT}"
 }
 
 
@@ -3912,7 +3912,8 @@ __query_consensus_client() {
   fi
 
   if [[ "${__deployment}" = "lido_obol" && "${CONSENSUS_CLIENT}" = "lodestar.yml" ]]; then
-    CONSENSUS_CLIENT="lodestar-cl-only.yml:lodestar-vc-only.yml"  # Charon does not handle SSZ
+    CONSENSUS_CLIENT="lodestar-cl-only.yml"  # Charon does not handle SSZ
+    VALIDATOR_CLIENT="lodestar-vc-only.yml"
   fi
 
   echo "Your consensus client file is:" "${CONSENSUS_CLIENT}"
@@ -4306,7 +4307,7 @@ https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1e
   __get_value_from_env "${var}" "${__env_file}" "__value"
   # I do mean to match literally
   # shellcheck disable=SC2076
-  if [[ "${CONSENSUS_CLIENT}" =~ "-vc-only.yml" && ! "${__deployment}" =~ "lido_obol" ]]; then
+  if [[ "${__deployment}" =~ (validator|rocket) ]]; then
     if (whiptail --title "MEV Boost" --yesno "Is MEV Boost configured on your remote consensus client and do you \
 want to use MEV Boost?" 10 65); then
         MEV_BOOST="true"
@@ -4769,12 +4770,12 @@ __check_legacy() {
 
 # Literal match intended
 # shellcheck disable=SC2076
-  if [[ "${__value}" =~ "-allin1.yml" && ! "${__value}" =~ "grandine-allin1.yml" ]]; then # Warn re Grandine once VC
+if [[ "${__value}" =~ "-allin1.yml" && ! "${__value}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then # Warn re Grandine once VC
     if [[ "${__value}" =~ "teku-allin1.yml" ]]; then
       client="Teku"
     elif [[ "${__value}" =~ "nimbus-allin1.yml" ]]; then
       client="Nimbus"
-    elif [[ "${__value}" =~ "grandine-allin1.yml" ]]; then
+    elif [[ "${__value}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then
       client="Grandine"
     else
       client="Mystery"
@@ -4872,11 +4873,11 @@ config() {
 # I do mean to match literally
 # shellcheck disable=SC2076
   if [[ ! "${__deployment}" =~ ^(validator|rocket)$  ]]; then
-    if [[ "${CONSENSUS_CLIENT}" = "caplin" ]]; then
+    if [[ "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
       CL_NODE=http://execution:5052
       __query_execution_client
       if [[ ! "${__deployment}" =~ ^(ssv|lido_ssv|rpc)$  ]]; then
-        __query_validator_client  # This sets CONSENSUS_CLIENT
+        __query_validator_client
       fi
     else
       CL_NODE="http://consensus:5052"
@@ -5049,7 +5050,17 @@ config() {
     fi
   fi
 
-  COMPOSE_FILE="${CONSENSUS_CLIENT}"
+  if [[ -n "${CONSENSUS_CLIENT+x}" ]]; then
+    COMPOSE_FILE="${CONSENSUS_CLIENT}"
+    if [[ -n "${VALIDATOR_CLIENT+x}" ]]; then
+      COMPOSE_FILE="${COMPOSE_FILE}:${VALIDATOR_CLIENT}"
+    fi
+  elif [[ -n "${VALIDATOR_CLIENT+x}" ]]; then
+    COMPOSE_FILE="${VALIDATOR_CLIENT}"
+  else
+    echo "No consensus client or validator client selected. This is a bug. Aborting"
+    exit 70
+  fi
   if [[ -n "${EXECUTION_CLIENT+x}" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:${EXECUTION_CLIENT}"
   fi
