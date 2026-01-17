@@ -230,7 +230,8 @@ __upgrade_docker() {
               echo
               echo "Docker ${__docker_version} with runc ${runc_version} detected"
               echo "This version of runc is vulnerable"
-              echo "It is recommended that you update runc"
+              echo "If an updated version of runc is available, please install it"
+              echo "Alternatively, consider uninstalling runc and replacing it with crun"
 # Commented out until fixed versions have actually been released
 #              if [ "${__non_interactive}" -eq 0 ]; then
 #                while true; do
