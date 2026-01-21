@@ -5209,7 +5209,7 @@ version() {
       echo
       ;;
     *lodestar.yml*|*lodestar-cl-only*)
-      __docompose exec consensus node /usr/app/node_modules/.bin/lodestar --version
+      __docompose exec consensus node /usr/app/packages/cli/bin/lodestar --version
       echo
       ;;
     *prysm.yml*)
@@ -5276,7 +5276,7 @@ version() {
       echo
       ;;
     *lodestar-vc-only*)
-      __docompose exec validator node /usr/app/node_modules/.bin/lodestar --version
+      __docompose exec validator node /usr/app/packages/cli/bin/lodestar --version
       echo
       ;;
     *prysm-vc-only*)

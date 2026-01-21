@@ -4,7 +4,7 @@ x-logging: &logging
     options:
       max-size: 100m
       max-file: "3"
-      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+      tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
 
 x-build: &ls-build
   context: ./lodestar
@@ -54,7 +54,7 @@ services:
     entrypoint:
       - docker-entrypoint.sh
       - node
-      - /usr/app/node_modules/.bin/lodestar
+      - /usr/app/packages/cli/bin/lodestar
       - beacon
       - --dataDir
       - /var/lib/lodestar/consensus
