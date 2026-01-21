@@ -28,6 +28,7 @@ RUN bash -eo pipefail <<'EOF'
   else
     git checkout "$TARGET"
   fi
+  corepack enable && corepack prepare --activate
   pnpm install --frozen-lockfile
   pnpm build
 EOF
