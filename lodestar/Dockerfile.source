@@ -28,8 +28,8 @@ RUN bash -eo pipefail <<'EOF'
   else
     git checkout "$TARGET"
   fi
-  yarn install --non-interactive --frozen-lockfile
-  yarn build
+  pnpm install --frozen-lockfile
+  pnpm build
 EOF
 
 
