@@ -86,4 +86,4 @@ USER lsconsensus
 
 ENV NODE_OPTIONS=--max-old-space-size=8192
 
-ENTRYPOINT ["node", "./packages/cli/bin/lodestar"]
+ENTRYPOINT ["node", "/usr/app/packages/cli/bin/lodestar"]
