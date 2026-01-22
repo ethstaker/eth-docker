@@ -129,7 +129,7 @@ fi
 
 if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Erigon for discv5 for IPv6 advertisements"
-  __ipv6="--v5disc"
+  __ipv6="--discv5"
 else
   __ipv6=""
 fi
