@@ -30,6 +30,7 @@ jobs:
             label2: na
             env: |-
               COMPOSE_FILE=caplin.yml:erigon.yml:lodestar-vc-only.yml:mev-boost.yml
+              ERIGON_DOCKER_TAG=v3.3.3
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
               CL_NODE=http://execution:5052
               EL_EXTRAS=--torrent.download.rate 1mb
@@ -100,6 +101,7 @@ jobs:
             label2: test-erigon
             env: |-
               COMPOSE_FILE=lodestar.yml:erigon.yml:mev-boost.yml
+              ERIGON_DOCKER_TAG=v3.3.3
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -108,6 +110,7 @@ jobs:
             label2: na
             env: |-
               COMPOSE_FILE=lodestar-cl-only.yml:lodestar-vc-only.yml:erigon.yml:mev-boost.yml
+              ERIGON_DOCKER_TAG=v3.3.3
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
