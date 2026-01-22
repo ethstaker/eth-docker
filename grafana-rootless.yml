@@ -65,7 +65,7 @@ services:
       - /config/json.yml
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.9.1
     command:
       - '-config.file=/etc/tempo.yaml'
     volumes:
