@@ -4,13 +4,13 @@
 #
 #    pip-compile --generate-hashes --output-file=requirements.txt requirements.in
 #
-boto3==1.42.30 \
-    --hash=sha256:ba9cd2f7819637d15bfbeb63af4c567fcc8a7dcd7b93dd12734ec58601169538 \
-    --hash=sha256:d7e548bea65e0ae2c465c77de937bc686b591aee6a352d5a19a16bc751e591c1
+boto3==1.42.35 \
+    --hash=sha256:4251bbac90e4a190680439973d9e9ed851e50292c10cd063c8bf0c365410ffe1 \
+    --hash=sha256:edbfbfbadd419e65888166dd044786d4b731cf60abeb2301b73e775e154d7c5e
     # via -r app/requirements.in
-botocore==1.42.30 \
-    --hash=sha256:97070a438cac92430bb7b65f8ebd7075224f4a289719da4ee293d22d1e98db02 \
-    --hash=sha256:9bf1662b8273d5cc3828a49f71ca85abf4e021011c1f0a71f41a2ea5769a5116
+botocore==1.42.35 \
+    --hash=sha256:40a6e0f16afe9e5d42e956f0b6d909869793fadb21780e409063601fc3d094b8 \
+    --hash=sha256:b89f527987691abbd1374c4116cc2711471ce48e6da502db17e92b17b2af8d47
     # via
     #   boto3
     #   s3transfer
