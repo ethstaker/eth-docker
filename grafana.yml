@@ -172,7 +172,7 @@ services:
       - metrics.network=${NETWORK}
 
   tempo:
-    image: grafana/tempo:2.9.1
+    image: grafana/tempo:2.10.0
     command:
       - '-config.file=/etc/tempo.yaml'
     volumes:
