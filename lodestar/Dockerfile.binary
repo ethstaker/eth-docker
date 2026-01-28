@@ -54,4 +54,4 @@ COPY --chown=${USER}:${USER} ./docker-entrypoint-vc.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 
-ENTRYPOINT ["node", "/usr/app/node_modules/.bin/lodestar"]
+ENTRYPOINT ["node", "/usr/app/packages/cli/bin/lodestar"]

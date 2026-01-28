@@ -93,6 +93,7 @@ if [[ -n "${STATIC_DIR}" && ! "${STATIC_DIR}" = ".nada" ]]; then
   __static="--datadir.static-files /var/lib/static"
 fi
 
+__prune="--block-interval 5 --prune.senderrecovery.full --prune.accounthistory.distance 10064 --prune.storagehistory.distance 10064"
 case "${NODE_TYPE}" in
   archive)
     echo "Reth archive node without pruning"
@@ -100,11 +101,10 @@ case "${NODE_TYPE}" in
     ;;
   full)
     echo "Reth full node without history expiry"
-    __prune="--block-interval 5 --prune.receipts.before 0 --prune.senderrecovery.full --prune.accounthistory.distance 10064 --prune.storagehistory.distance 10064"
-    echo "Pruning parameters: ${__prune}"
+    prune+=" --prune.receipts.before 0"
     ;;
   pre-merge-expiry)
-    __prune="--block-interval 5 --prune.senderrecovery.full --prune.accounthistory.distance 10064 --prune.storagehistory.distance 10064 --prune.transactionlookup.distance 10064"
+    prune+=" --prune.transactionlookup.distance 10064"
     case ${NETWORK} in
       mainnet|sepolia)
         echo "Reth minimal node with pre-merge history expiry"
@@ -115,7 +115,32 @@ case "${NODE_TYPE}" in
         __prune+=" --prune.receipts.before 0"
         ;;
     esac
-    echo "Pruning parameters: ${__prune}"
+    ;;
+  pre-cancun-expiry)
+    prune+=" --prune.transactionlookup.distance 10064"
+    case "${NETWORK}" in
+      mainnet)
+        echo "Reth minimal node with pre-Cancun history expiry"
+        __prune+=" --prune.bodies.before 19426587 --prune.receipts.before 19426587"
+        ;;
+      sepolia)
+        echo "Reth minimal node with pre-Cancun history expiry"
+        __prune+=" --prune.bodies.before 5187023 --prune.receipts.before 5187023"
+        ;;
+      *)
+        echo "There is no pre-Cancun history for ${NETWORK} network, \"pre-cancun-expiry\" has no effect."
+        __prune+=" --prune.receipts.before 0"
+        ;;
+    esac
+    ;;
+  rolling-expiry)
+    echo "Reth minimal node with rolling history expiry, keeps 1 year."
+    # 365 days = 82125 epochs = 2628000 slots / blocks
+    __prune+=" --prune.transactionlookup.distance 10064 --prune.bodies.distance 2628000 --prune.receipts.distance 2628000"
+    ;;
+  aggressive-expiry)
+    echo "Reth minimal node with aggressive expiry"
+    __prune="--minimal"
     ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Reth implementation."
@@ -123,6 +148,10 @@ case "${NODE_TYPE}" in
     exit 1
     ;;
 esac
+
+if [[ -n "${__prune}" ]]; then
+  echo "Pruning parameters: ${__prune}"
+fi
 
 if [[ -f /var/lib/reth/repair-trie ]]; then
   if [[ "${NETWORK}" =~ ^https?:// ]]; then

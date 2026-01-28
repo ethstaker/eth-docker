@@ -54,7 +54,7 @@ services:
     entrypoint:
       - docker-entrypoint.sh
       - node
-      - /usr/app/node_modules/.bin/lodestar
+      - /usr/app/packages/cli/bin/lodestar
       - beacon
       - --dataDir
       - /var/lib/lodestar/consensus

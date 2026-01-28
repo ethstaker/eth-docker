@@ -56,7 +56,6 @@ RUN mkdir -p /var/lib/lodestar/consensus/ee-secret && chown -R ${USER}:${USER} /
 
 WORKDIR /usr/app
 COPY --from=builder --chown=${USER}:${USER} /usr/app .
-RUN ln -s ../../packages/cli/lib/index.js node_modules/.bin/lodestar
 
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
@@ -88,4 +87,4 @@ USER lsconsensus
 
 ENV NODE_OPTIONS=--max-old-space-size=8192
 
-ENTRYPOINT ["node", "/usr/app/node_modules/.bin/lodestar"]
+ENTRYPOINT ["node", "/usr/app/packages/cli/bin/lodestar"]
