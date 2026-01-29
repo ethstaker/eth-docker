@@ -121,13 +121,15 @@ else
   __datadir="--data-path /var/lib/besu"
 fi
 
+# Track at https://github.com/orgs/hyperledger/projects/111?query=sort%3Aupdated-desc+is%3Aopen
+# and issues #4089 and #9686. Discv5 / IPv6 currently not implemented in Besu as of Jan 2026
 # DiscV5 for IPV6
-if [[ "${IPV6:-false}" = "true" ]]; then
-  echo "Configuring Besu for discv5 for IPv6 advertisements"
-  __ipv6="--Xv5-discovery-enabled"
-else
-  __ipv6=""
-fi
+#if [[ "${IPV6:-false}" = "true" ]]; then
+#  echo "Configuring Besu for discv5 for IPv6 advertisements"
+#  __ipv6="--Xv5-discovery-enabled"
+#else
+#  __ipv6=""
+#fi
 
 __strip_empty_args "$@"
 set -- "${__args[@]}"
@@ -164,5 +166,6 @@ elif [[ -f /var/lib/besu/prune-marker ]]; then
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__datadir} ${__network} ${__ipv6} ${__prune} ${EL_EXTRAS}
+#  exec "$@" ${__datadir} ${__network} ${__ipv6} ${__prune} ${EL_EXTRAS}
+  exec "$@" ${__datadir} ${__network} ${__prune} ${EL_EXTRAS}
 fi
