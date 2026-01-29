@@ -149,14 +149,6 @@ if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Grandine to listen on IPv6 ports"
   __ipv6="--listen-address-ipv6 :: --libp2p-port-ipv6 ${CL_P2P_PORT:-9000} --discovery-port-ipv6 ${CL_P2P_PORT:-9000} \
 --quic-port-ipv6 ${CL_QUIC_PORT:-9001}"
-# ENR discovery on v6 is not yet working, likely too few peers. Manual for now
-  ipv6_pattern="^[0-9A-Fa-f]{1,4}:"  # Sufficient to check the start
-  set +e
-  public_v6=$(curl -s -6 ifconfig.me)
-  set -e
-  if [[ "${public_v6}" =~ ${ipv6_pattern} ]]; then
-    __ipv6+=" --enr-address-ipv6 ${public_v6} --enr-tcp-port-ipv6 ${CL_P2P_PORT:-9000} --enr-udp-port-ipv6 ${CL_P2P_PORT:-9000}"
-  fi
 else
   __ipv6=""
 fi

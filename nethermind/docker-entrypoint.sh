@@ -268,14 +268,6 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
     echo "Configuring Grandine to listen on IPv6 ports"
     __grandine+=" --grandine-listenaddressipv6 :: --grandine-libp2pportipv6 ${CL_P2P_PORT:-9000} --grandine-discoveryportipv6 ${CL_P2P_PORT:-9000} \
   --grandine-quicportipv6 ${CL_QUIC_PORT:-9001}"
-  # ENR discovery on v6 is not yet working, likely too few peers. Manual for now
-    ipv6_pattern="^[0-9A-Fa-f]{1,4}:"  # Sufficient to check the start
-    set +e
-    public_v6=$(curl -s -6 ifconfig.me)
-    set -e
-    if [[ "${public_v6}" =~ ${ipv6_pattern} ]]; then
-      __grandine+=" --grandine-enraddressipv6 ${public_v6} --grandine-enrtcpportipv6 ${CL_P2P_PORT:-9000} --grandine-enrudpportipv6 ${CL_P2P_PORT:-9000}"
-    fi
   fi
 
 # Check whether we should enable doppelganger protection
