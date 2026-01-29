@@ -99,8 +99,6 @@ services:
 
   validator:
     restart: "unless-stopped"
-    build:
-      <<: *ls-build
     image: lodestar:local
     pull_policy: never
     user: lsvalidator
