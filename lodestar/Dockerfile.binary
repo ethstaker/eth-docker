@@ -8,7 +8,7 @@ FROM ${DOCKER_REPO}:${DOCKER_TAG}
 ARG BUILD_TARGET
 ARG SRC_REPO
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata bash gosu git git-lfs wget \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata bash gosu git git-lfs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ARG USER=lsconsensus
