@@ -103,5 +103,5 @@ if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} "--graffiti" "${GRAFFITI}" ${__mev_boost} ${__mev_factor} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
+  exec "$@" ${__network} "--graffiti-append --graffiti" "${GRAFFITI}" ${__mev_boost} ${__mev_factor} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
 fi
