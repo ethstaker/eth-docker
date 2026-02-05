@@ -2825,9 +2825,9 @@ prune-history() {
       ;;
     *besu.yml*)
       client="Besu"
-      min_ver="25.6.0"
-      extra_msg="This may require up to 200GiB of additional storage before pruning finishes.\nIn 3 days, run \"${__me} restart execution\" to remove the Besu pruner, see Besu release notes.\nA resync saves more space than a prune: You can set \"EL_NODE_TYPE=pre-merge-expiry\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
-      prune_marker="/var/lib/besu/prune-history-marker"
+      min_ver="25.11.0"
+      extra_msg="To prune pre-merge history, a full resync is required, which should take 16-24 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
+      prune_marker=""
       ;;
     *reth.yml*)
       client="Reth"
