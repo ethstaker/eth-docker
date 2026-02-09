@@ -23,7 +23,10 @@ services:
       default:
         aliases:
           - ${MEV_ALIAS:-default-mev}  # This allows multiple Eth Docker stacks all connected to the same bridge network
+    environment:
+      - MEV_EXTRAS=${MEV_EXTRAS:-}
     entrypoint:
+      - docker-entrypoint.sh
       - /app/mev-boost
       - -addr
       - 0.0.0.0:18550

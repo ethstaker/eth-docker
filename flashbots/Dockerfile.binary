@@ -17,4 +17,11 @@ RUN adduser \
     --uid "${UID}" \
     "${USER}"
 
+# Cannot assume buildkit, hence no chmod
+COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
 USER ${USER}
+
+ENTRYPOINT ["/app/mev-boost"]

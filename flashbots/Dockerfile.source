@@ -48,8 +48,9 @@ RUN mkdir -p /app && chown -R ${USER}:${USER} /app
 
 # Cannot assume buildkit, hence no chmod
 COPY --from=builder --chown=${USER}:${USER} /src/mev-boost/mev-boost /app/
+COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
 # Belt and suspenders
-RUN chmod -R 755 /app/*
+RUN chmod -R 755 /app/* /usr/local/bin/*
 
 USER ${USER}
 
