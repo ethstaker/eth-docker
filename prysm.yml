@@ -64,18 +64,11 @@ services:
       - beacon-chain
       - --datadir
       - /var/lib/prysm/
-      - --rpc-host
-      - 0.0.0.0
       - --http-host
       - 0.0.0.0
       - --http-port
       - ${CL_REST_PORT:-5052}
       - --http-cors-domain=*
-      # Allow larger messages so credential change messages can be sent
-      - --rpc-max-page-size
-      - "200000"
-      - --grpc-max-msg-size
-      - "268435456"
       - --execution-endpoint
       - ${EL_NODE}
       - --jwt-secret
@@ -141,8 +134,6 @@ services:
       - /var/lib/prysm/
       - --keymanager-token-file
       - /var/lib/prysm/auth-token
-      - --beacon-rpc-provider
-      - consensus:4000
       - --verbosity
       - ${LOG_LEVEL}
       - --accept-terms-of-use
@@ -156,8 +147,9 @@ services:
       - --http-port
       - ${KEY_API_PORT:-7500}
       - --http-cors-domain=*
+      - --enable-beacon-rest-api
       - --beacon-rest-api-provider
-      - consensus:5052
+      - ${CL_NODE:-http://consensus:5052}
       - --suggested-fee-recipient
       - ${FEE_RECIPIENT}
       - --wallet-password-file
