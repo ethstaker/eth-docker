@@ -1861,6 +1861,26 @@ __pull_and_build() {
 }
 
 
+# Run optional post-update hook script for custom actions after update/config.
+# Users can create post-ethd-update.sh to run additional setup steps.
+__run_post_update_script() {
+  local POST_UPDATE_SCRIPT="$(dirname "$0")/post-ethd-update.sh"
+
+  if [[ -f "$POST_UPDATE_SCRIPT" ]]; then
+    if [[ -x "$POST_UPDATE_SCRIPT" ]]; then
+      echo "[ethd] Running post-ethd-update.sh..."
+      "$POST_UPDATE_SCRIPT"
+      local EXIT_CODE=$?
+      if [[ $EXIT_CODE -ne 0 ]]; then
+        echo "[ethd] post-ethd-update.sh exited with code $EXIT_CODE"
+      fi
+    else
+      echo "[ethd] post-ethd-update.sh exists but is not executable. Skipping."
+    fi
+  fi
+}
+
+
 # Arguments are passed, but shellcheck doesn't recognize that
 # shellcheck disable=SC2120
 update() {
@@ -2135,6 +2155,8 @@ reset to defaults."
   fi
 
   __during_update=0
+
+  __run_post_update_script
 }
 
 
@@ -5203,6 +5225,8 @@ config() {
   echo "Your configuration file is: $(dirname "$(realpath "${BASH_SOURCE[0]}")")/${__env_file}"
   echo "You can change advanced config items with \"nano .env\" when in the $(dirname "$(realpath "${BASH_SOURCE[0]}")") directory."
   echo
+
+  __run_post_update_script
 }
 
 
