@@ -28,7 +28,7 @@ if [[ -O /var/lib/lighthouse/beacon/ee-secret ]]; then
   # In case someone specifies JWT_SECRET but it's not a distributed setup
   chmod 777 /var/lib/lighthouse/beacon/ee-secret
 fi
-if [[ -O /var/lib/lighthouse/ee-secret/jwtsecret ]]; then
+if [[ -O /var/lib/lighthouse/beacon/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/lighthouse/beacon/ee-secret/jwtsecret
 fi
 
