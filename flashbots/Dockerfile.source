@@ -36,6 +36,7 @@ FROM alpine:3
 ARG USER=mev
 ARG UID=10666
 
+# Always included in alpine:3
 # See https://stackoverflow.com/a/55757473/12429735RUN
 RUN adduser \
     --disabled-password \

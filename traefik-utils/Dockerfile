@@ -5,6 +5,7 @@ WORKDIR /app
 ARG USER=dns
 ARG UID=11000
 
+# Always included in alpine:3
 # See https://stackoverflow.com/a/55757473/12429735RUN
 RUN adduser \
     --disabled-password \

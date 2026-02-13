@@ -8,8 +8,18 @@ FROM ${DOCKER_REPO}:${DOCKER_TAG}
 ARG BUILD_TARGET
 ARG SRC_REPO
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata bash gosu git git-lfs curl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  curl \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG USER=lsconsensus
 ARG UID=10002

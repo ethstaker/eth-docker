@@ -8,7 +8,14 @@ ARG DOCKER_VC_TAG
 ARG DOCKER_REPO
 ARG DOCKER_VC_REPO
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates bash git-lfs cmake
+RUN apt-get update &&  DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  build-essential \
+  ca-certificates \
+  bash \
+  git-lfs \
+  cmake \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG BUILD_TARGET
 ARG SRC_REPO
@@ -38,9 +45,18 @@ EOF
 # Pull all binaries into a second stage deploy debian container
 FROM debian:trixie-slim AS consensus
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  ca-certificates bash tzdata git git-lfs curl gosu adduser \
-  && gosu nobody true && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  curl \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG USER=user
 ARG UID=10002
@@ -70,9 +86,16 @@ ENTRYPOINT ["nimbus_beacon_node"]
 
 FROM debian:trixie-slim AS validator
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  ca-certificates bash tzdata curl gosu adduser \
-  && gosu nobody true && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  curl \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG USER=user
 ARG UID=10000

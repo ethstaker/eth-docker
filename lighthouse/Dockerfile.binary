@@ -11,6 +11,20 @@ ARG SRC_REPO
 ARG USER=lhconsensus
 ARG UID=10002
 
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  wget \
+  curl \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
 # See https://stackoverflow.com/a/55757473/12429735RUN
 RUN adduser \
     --disabled-password \
@@ -43,15 +57,6 @@ RUN adduser \
 
 # Create data mount point with permissions
 RUN mkdir -p /var/lib/lighthouse/validators && chown ${USER}:${USER} /var/lib/lighthouse/validators && chmod 700 /var/lib/lighthouse/validators
-
-RUN set -eux; \
-        apt-get update; \
-        DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends gosu ca-certificates tzdata git git-lfs wget curl adduser; \
-        rm -rf /var/lib/apt/lists/*; \
-# verify that the binary works
-        gosu nobody true
-# rsync for migration
-RUN apt-get update && apt-get install -y --no-install-recommends rsync && rm -rf /var/lib/apt/lists/*
 
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./validator-exit.sh /usr/local/bin/

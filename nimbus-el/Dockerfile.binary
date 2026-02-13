@@ -14,7 +14,15 @@ ARG UID=10001
 #RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
 # Work around docker image being trixie-testing and current Debian being forky-testing. https://github.com/status-im/nimbus-eth1/issues/3635
 RUN apt-get update -y && apt-get full-upgrade -y && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
-  ca-certificates bash tzdata librocksdb-dev adduser curl aria2 \
+  librocksdb-dev \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  curl \
+  aria2 \
+  && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
