@@ -1944,7 +1944,9 @@ update() {
 
   __during_update=1
 
-  __run_pre_update_script
+  if [[ -z "${ETHDSECUNDO:-}" ]]; then
+    __run_pre_update_script
+  fi
 
   if [[ $(${__as_owner} git status --porcelain) ]]; then
     dirty=1
