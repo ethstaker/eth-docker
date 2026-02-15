@@ -1860,6 +1860,29 @@ __pull_and_build() {
   __docompose --profile tools build --pull
 }
 
+# Run optional pre-update hook script for custom actions before update/config.
+# Users can create pre-ethd-update.sh to run validation or preparation steps.
+__run_pre_update_script() {
+  local PRE_UPDATE_SCRIPT="$(dirname "$0")/pre-ethd-update.sh"
+  if [[ -f "$PRE_UPDATE_SCRIPT" ]]; then
+    if [[ -x "$PRE_UPDATE_SCRIPT" ]]; then
+      echo "[ethd] Running pre-ethd-update.sh..."
+      "$PRE_UPDATE_SCRIPT"
+      local EXIT_CODE=$?
+      if [[ $EXIT_CODE -ne 0 ]]; then
+        echo "[ethd] pre-ethd-update.sh exited with code $EXIT_CODE"
+        echo "[ethd] Aborting due to pre-update script failure."
+        exit $EXIT_CODE
+      fi
+    else
+      echo "[ethd] ERROR: pre-ethd-update.sh exists but is not executable."
+      echo "[ethd] Please make it executable with: chmod +x pre-ethd-update.sh"
+      echo "[ethd] Or remove it if it's not needed."
+      exit 1
+    fi
+  fi
+}
+
 
 # Run optional post-update hook script for custom actions after update/config.
 # Users can create post-ethd-update.sh to run additional setup steps.
@@ -1875,7 +1898,9 @@ __run_post_update_script() {
         echo "[ethd] post-ethd-update.sh exited with code $EXIT_CODE"
       fi
     else
-      echo "[ethd] post-ethd-update.sh exists but is not executable. Skipping."
+      echo "[ethd] ERROR: post-ethd-update.sh exists but is not executable."
+      echo "[ethd] Please make it executable with: chmod +x post-ethd-update.sh"
+      echo "[ethd] Or remove it if it's not needed."
     fi
   fi
 }
@@ -1918,6 +1943,8 @@ update() {
   fi
 
   __during_update=1
+
+  __run_pre_update_script
 
   if [[ $(${__as_owner} git status --porcelain) ]]; then
     dirty=1
@@ -4825,6 +4852,8 @@ config() {
 
   __during_config=1
   __final_msg=""
+
+  __run_pre_update_script
 
   __check_legacy
   __query_network
