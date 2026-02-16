@@ -1,6 +1,6 @@
 # hadolint global ignore=DL3007,DL3008,DL3016,DL3059,DL4006
 # Build Prysm in a stock Go build container
-FROM golang:1.25-trixie AS builder
+FROM golang:1.26-trixie AS builder
 
 # Here only to avoid build-time errors
 ARG DOCKER_TAG
