@@ -145,6 +145,12 @@ if [[ -n "${ERA_URL}" && ! -d /var/lib/geth/geth/chaindata && ! -d /var/lib/goet
   geth --datadir /var/lib/geth "--${NETWORK}" --era.format erae --remotedb "${ERA_URL}"
 fi
 
+if [[ -n "${MAX_BLOBS}" ]]; then
+  __blobs="--miner.maxblobs ${MAX_BLOBS}"
+else
+  __blobs=""
+fi
+
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
@@ -160,5 +166,5 @@ if [[ -f /var/lib/geth/prune-marker ]]; then
 # shellcheck disable=SC2086
   exec "$@" ${__datadir} ${__ancient} ${__network} ${EL_EXTRAS} prune-history
 else
-  exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${__verbosity} ${EL_EXTRAS}
+  exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${__blobs} ${__verbosity} ${EL_EXTRAS}
 fi

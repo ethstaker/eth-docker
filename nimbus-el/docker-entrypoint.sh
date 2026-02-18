@@ -185,22 +185,24 @@ fi
 
 # EraE import
 # Not supported in Nimbus EL yet. Adjust parameters to ACTUAL behavior once it is
-#if [[ ! -d /var/lib/nimbus/nimbus && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
-#  if [[ -n "${ERA_URL}" ]]; then
-#    __download_era_files "${ERA_URL}" /var/lib/nimbus/era
-#  fi
+#if [[ -n "${ERA_URL}" && ! -d /var/lib/nimbus/nimbus && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+#  __download_era_files "${ERA_URL}" /var/lib/nimbus/era
 
-#  if [[ -n "${ERA_URL}" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-#    nimbus_execution_client import --network=${NETWORK} --data-dir=/var/lib/nimbus --era-dir=/var/lib/nimbus/era
-#    rm -rf /var/lib/nimbus/era
-#  fi
+#  nimbus_execution_client import --network=${NETWORK} --data-dir=/var/lib/nimbus --era-dir=/var/lib/nimbus/era
+#  rm -rf /var/lib/nimbus/era
 #fi
+
+if [[ -n "${MAX_BLOBS}" ]]; then
+  __blobs="--max-blobs=${MAX_BLOBS}"
+else
+  __blobs=""
+fi
 
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__prune} ${__network} ${EL_EXTRAS}
+exec "$@" ${__prune} ${__network} ${__blobs} ${EL_EXTRAS}
