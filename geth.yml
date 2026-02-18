@@ -29,6 +29,7 @@ services:
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
       - ANCIENT_DIR=${ANCIENT_DIR:-}
+      - ERA_URL=${ERA_URL:-}
     volumes:
       - geth-eth1-data:/var/lib/goethereum
       - geth-el-data:/var/lib/geth

@@ -140,6 +140,11 @@ case "${NODE_TYPE}" in
     ;;
 esac
 
+if [[ -n "${ERA_URL}" && ! -d /var/lib/geth/geth/chaindata && ! -d /var/lib/goethereum/geth/chaindata && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+  echo "Starting EraE history import from ${ERA_URL}"
+  geth --datadir /var/lib/geth "--${NETWORK}" --era.format erae --remotedb "${ERA_URL}"
+fi
+
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 

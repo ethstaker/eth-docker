@@ -183,32 +183,20 @@ else
   __network="--network=${NETWORK}"
 fi
 
-# Era1 and/or Era import
-if [[ ! -d /var/lib/nimbus/nimbus && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
-  __era=""
-  if [[ -n "${ERA1_URL}" ]]; then
-    __download_era_files "${ERA1_URL}" /var/lib/nimbus/era1
-    __era+="--era1-dir=/var/lib/nimbus/era1 "
-  fi
-  if [[ -n "${ERA_URL}" ]]; then
-    if [[ -z "${ERA1_URL}" && "${NETWORK}" =~ (mainnet|sepolia) ]]; then
-      echo "The ${NETWORK} network has pre-merge history. You cannot import era files without era1."
-      echo "Please set an ERA1_URL and try again"
-      sleep 30
-      exit 1
-    fi
-    __download_era_files "${ERA_URL}" /var/lib/nimbus/era
-    __era+="--era-dir=/var/lib/nimbus/era"
-  fi
+# EraE import
+# Not supported in Nimbus EL yet. Adjust parameters to ACTUAL behavior once it is
+#if [[ ! -d /var/lib/nimbus/nimbus && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+#  if [[ -n "${ERA_URL}" ]]; then
+#    __download_era_files "${ERA_URL}" /var/lib/nimbus/era
+#  fi
 
-  if [[ -n "${ERA1_URL}" || -n "${ERA_URL}" ]]; then
+#  if [[ -n "${ERA_URL}" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-    nimbus_execution_client import --network=${NETWORK} --data-dir=/var/lib/nimbus ${__era}
-    rm -rf /var/lib/nimbus/era
-    rm -rf /var/lib/nimbus/era1
-  fi
-fi
+#    nimbus_execution_client import --network=${NETWORK} --data-dir=/var/lib/nimbus --era-dir=/var/lib/nimbus/era
+#    rm -rf /var/lib/nimbus/era
+#  fi
+#fi
 
 __strip_empty_args "$@"
 set -- "${__args[@]}"
