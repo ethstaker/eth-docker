@@ -151,6 +151,14 @@ else
   __blobs=""
 fi
 
+# Traces
+if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
+  __trace="--rpc.telemetry true --rpc.telemetry.endpoint http://tempo:4317 --rpc.telemetry.instance-id geth --rpc.telemetry.sample-ratio 0.1"
+  export OTEL_EXPORTER_OTLP_INSECURE=true
+else
+  __trace=""
+fi
+
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
@@ -166,5 +174,5 @@ if [[ -f /var/lib/geth/prune-marker ]]; then
 # shellcheck disable=SC2086
   exec "$@" ${__datadir} ${__ancient} ${__network} ${EL_EXTRAS} prune-history
 else
-  exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${__blobs} ${__verbosity} ${EL_EXTRAS}
+  exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${__blobs} ${__trace} ${__verbosity} ${EL_EXTRAS}
 fi
