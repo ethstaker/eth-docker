@@ -2973,6 +2973,9 @@ prune-history() {
         choices+=("rolling" "Rolling expiry")
         choices+=("aggressive" "Aggressive expiry")
         ;;
+      *geth.yml*)
+        choices+=("pre-prague" "Pre-Prague expiry")
+        ;;
     esac
 
     num_items=$(( ${#choices[@]} / 2 ))
@@ -3035,7 +3038,7 @@ prune-history() {
   case "${COMPOSE_FILE}" in
     *geth.yml*)
       client="Geth"
-      if [[ "${target}" =~ ^(pre-prague|rolling|aggressive)$ ]]; then
+      if [[ "${target}" =~ ^(rolling|aggressive)$ ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
