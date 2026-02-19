@@ -6,7 +6,11 @@ ARG DOCKER_REPO
 
 RUN mkdir -p /src
 
-RUN apt-get update && apt-get install -y --no-install-recommends bash git
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  bash \
+  git \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG BUILD_TARGET
 ARG SRC_REPO
@@ -32,10 +36,13 @@ EOF
 
 FROM python:3.13-trixie
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential bash gosu \
-    && gosu nobody true \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  gosu \
+  adduser \
+  build-essential \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG USER=depcli
 ARG UID=1000

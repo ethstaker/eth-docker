@@ -1,6 +1,6 @@
 # hadolint global ignore=DL3007,DL3008,DL3016,DL3059,DL4006
 # Build Prysm in a stock Go build container
-FROM golang:1.25-trixie AS builder
+FROM golang:1.26-trixie AS builder
 
 # Here only to avoid build-time errors
 ARG DOCKER_TAG
@@ -8,7 +8,14 @@ ARG DOCKER_VC_TAG
 ARG DOCKER_REPO
 ARG DOCKER_VC_REPO
 
-RUN apt-get update && apt-get install -y --no-install-recommends cmake libgmp-dev npm && npm install -g @bazel/bazelisk && bazel version && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  cmake \
+  libgmp-dev \
+  npm \
+  && npm install -g @bazel/bazelisk \
+  && bazel version \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG BUILD_TARGET
 ARG SRC_REPO
@@ -40,12 +47,17 @@ EOF
 FROM debian:trixie-slim AS consensus
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
-  ca-certificates curl bash tzdata git git-lfs adduser gosu \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  curl \
   && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
-# rsync for migration
-RUN apt-get update && apt-get install -y --no-install-recommends rsync && rm -rf /var/lib/apt/lists/*
 
 ARG USER=prysmconsensus
 ARG UID=10002

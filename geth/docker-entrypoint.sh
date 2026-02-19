@@ -140,6 +140,25 @@ case "${NODE_TYPE}" in
     ;;
 esac
 
+if [[ -n "${ERA_URL}" && ! -d /var/lib/geth/geth/chaindata && ! -d /var/lib/goethereum/geth/chaindata && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+  echo "Starting EraE history import from ${ERA_URL}"
+  geth --datadir /var/lib/geth "--${NETWORK}" --era.format erae --remotedb "${ERA_URL}"
+fi
+
+if [[ -n "${MAX_BLOBS}" ]]; then
+  __blobs="--miner.maxblobs ${MAX_BLOBS}"
+else
+  __blobs=""
+fi
+
+# Traces
+if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
+  __trace="--rpc.telemetry=true --rpc.telemetry.endpoint http://tempo:4317 --rpc.telemetry.instance-id geth --rpc.telemetry.sample-ratio 0.1"
+  export OTEL_EXPORTER_OTLP_INSECURE=true
+else
+  __trace=""
+fi
+
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
@@ -155,5 +174,5 @@ if [[ -f /var/lib/geth/prune-marker ]]; then
 # shellcheck disable=SC2086
   exec "$@" ${__datadir} ${__ancient} ${__network} ${EL_EXTRAS} prune-history
 else
-  exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${__verbosity} ${EL_EXTRAS}
+  exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${__blobs} ${__trace} ${__verbosity} ${EL_EXTRAS}
 fi

@@ -101,10 +101,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   ca-certificates \
   tzdata \
   gosu \
+  adduser \
+  bash \
   git \
   git-lfs \
   wget \
-  adduser \
   jq \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*

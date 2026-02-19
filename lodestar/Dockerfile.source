@@ -5,7 +5,16 @@ FROM node:24-slim AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git g++ make python3 python3-setuptools bash && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  git \
+  g++ \
+  make \
+  python3 \
+  python3-setuptools \
+  bash \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG BUILD_TARGET
 ARG SRC_REPO
@@ -36,8 +45,18 @@ EOF
 
 FROM node:24-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata bash gosu git git-lfs curl \
-    && gosu nobody true && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  curl \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG USER=lsconsensus
 ARG UID=10002

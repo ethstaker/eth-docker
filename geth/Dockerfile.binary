@@ -19,6 +19,7 @@ RUN addgroup \
     --gid "${GID}" \
     "${USER}"
 
+# Always included in alpine:3
 # See https://stackoverflow.com/a/55757473/12429735RUN
 RUN adduser \
     --disabled-password \

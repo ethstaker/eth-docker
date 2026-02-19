@@ -4520,6 +4520,7 @@ __query_mev_factor() {
   local speed_json
   local down_speed
   local up_speed
+  local max_blobs
 
   var="MEV_BUILD_FACTOR"
   __get_value_from_env "${var}" "${__env_file}" "MEV_BUILD_FACTOR"
@@ -4529,7 +4530,7 @@ __query_mev_factor() {
   fi
 
   if ! [[ "${__distro}" =~ (ubuntu|debian) ]]; then
-    __final_msg+="\nCannot measure network speed on ${__distro}. Please ensure you have 200 Mbit/s up or set MEV_BUILD_FACTOR=100."
+    __final_msg+="\nCannot measure network speed on ${__distro}. Please ensure you have 112 Mbit/s up or set MEV_BUILD_FACTOR=100 or set MAX_BLOBS."
     return
   fi
 
@@ -4551,11 +4552,23 @@ __query_mev_factor() {
   echo "Measured download speed is ${down_speed} Mbit/s."
   echo
   __final_msg+="\nYour measured upload speed is ${up_speed} Mbit/s.\nYour measured download speed is ${down_speed} Mbit/s."
-  if [[ "${up_speed}" -lt 200 ]]; then  # A bit of a guess at BPO5. Change before Glamsterdam
-    echo "Your upload speed is less than 200 Mbit/s, it is ${up_speed} Mbit/s"
-    echo "Disabling local block building by setting MEV_BUILD_FACTOR to 100"
-    MEV_BUILD_FACTOR="100"
-    __final_msg+="\nLocal block building was disabled, because your upload speed is low."
+  if [[ "${up_speed}" -lt 112 ]]; then  # This should be adjusted as BPOs come in
+    echo "Your upload speed is less than 112 Mbit/s, it is ${up_speed} Mbit/s"
+    max_blobs=$(echo "${up_speed}" | awk '{print int($1 / 5.33)}')
+    if [[ "${max_blobs}" -eq 0 ]]; then
+      echo "Your upload speed is too low to upload any blobs"
+      echo "Disabling local block building by setting MEV_BUILD_FACTOR to 100"
+      MEV_BUILD_FACTOR="100"
+      MAX_BLOBS="0"
+      __final_msg+="\nLocal block building was disabled, because your upload speed is low."
+    else
+      echo "You can upload up to ${max_blobs} with your upload speed"
+      echo "Setting default MEV_BUILD_FACTOR and MAX_BLOBS=${max_blobs}"
+      MEV_BUILD_FACTOR=""
+# shellcheck disable=SC2034
+      MAX_BLOBS="${max_blobs}"
+      __final_msg+="\nBlobs were restricted to ${max_blobs} max, because your upload speed is low."
+    fi
   else
     message="Your upload speed is ${up_speed} Mbit/s. Do you want to build local blocks, when the relay pays less than 10% more?"
     if (whiptail --title "MEV Build Factor" --yesno "${message}" 10 65) then
@@ -5199,6 +5212,8 @@ config() {
   var=MEV_BOOST
   __update_value_in_env "${var}" "${!var-}" "${__env_file}"
   var=MEV_BUILD_FACTOR
+  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
+  var=MAX_BLOBS
   __update_value_in_env "${var}" "${!var-}" "${__env_file}"
   var=MEV_RELAYS
   __update_value_in_env "${var}" "${!var-}" "${__env_file}"

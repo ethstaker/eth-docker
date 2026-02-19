@@ -5,9 +5,10 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
-
-
-RUN apt-get update -y && apt-get install -y --no-install-recommends git
+RUN apt-get update -y && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  git \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG BUILD_TARGET
 ARG SRC_REPO
@@ -35,7 +36,16 @@ EOF
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y --no-install-recommends install ca-certificates gosu tzdata wget git git-lfs adduser \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  wget \
+  curl \
   && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*

@@ -13,12 +13,19 @@ ARG UID=10001
 # GID 10002 is deliberate so it can exchange secret with CL
 ARG GID=10002
 
-RUN set -eux; \
-	apt-get update; \
-	DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends ca-certificates gosu tzdata wget git git-lfs adduser curl; \
-	rm -rf /var/lib/apt/lists/*; \
-# verify that the binary works
-        gosu nobody true
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  wget \
+  curl \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup \
     --gid "${GID}" \

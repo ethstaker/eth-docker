@@ -6,7 +6,11 @@ FROM eclipse-temurin:21-jdk-noble AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  git \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG BUILD_TARGET
 ARG SRC_REPO
@@ -35,16 +39,16 @@ EOF
 # Pull all binaries into a second stage deploy Ubuntu container
 FROM eclipse-temurin:25-jre-noble
 
-
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  libjemalloc-dev \
   ca-certificates \
   tzdata \
+  gosu \
+  adduser \
+  bash \
   git \
   git-lfs \
-  adduser \
-  libjemalloc-dev \
   curl \
-  gosu \
   && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*

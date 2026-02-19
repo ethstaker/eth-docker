@@ -168,6 +168,7 @@ jobs:
           - "MEV_BOOST=true MEV_BUILD_FACTOR=90"
           - "MEV_BOOST=true MEV_BUILD_FACTOR=100"
           - "MEV_BOOST=true MEV_BUILD_FACTOR=0"
+          - MAX_BLOBS=6
           - "CL_MAX_PEER_COUNT=100 CL_MIN_PEER_COUNT=20 EL_MAX_PEER_COUNT=10"
           - IPV6=true
           - IPV6=false
