@@ -1863,16 +1863,19 @@ __pull_and_build() {
 # Run optional pre-update hook script for custom actions before update/config.
 # Users can create pre-ethd-update.sh to run validation or preparation steps.
 __run_pre_update_script() {
+  local exitstatus
   local pre_update_script="$(dirname "$0")/pre-ethd-update.sh"
   if [[ -f "${pre_update_script}" ]]; then
     if [[ -x "${pre_update_script}" ]]; then
       echo "[ethd] Running pre-ethd-update.sh..."
+      set +e
       "${pre_update_script}"
-      local exit_code=$?
-      if [[ ${exit_code} -ne 0 ]]; then
-        echo "[ethd] pre-ethd-update.sh exited with code ${exit_code}"
+      exitstatus=$?
+      set -e
+      if [[ ${exitstatus} -ne 0 ]]; then
+        echo "[ethd] pre-ethd-update.sh exited with code ${exitstatus}"
         echo "[ethd] Aborting due to pre-update script failure."
-        exit ${exit_code}
+        exit ${exitstatus}
       fi
     else
       echo "[ethd] ERROR: pre-ethd-update.sh exists but is not executable."
@@ -1887,15 +1890,18 @@ __run_pre_update_script() {
 # Run optional post-update hook script for custom actions after update/config.
 # Users can create post-ethd-update.sh to run additional setup steps.
 __run_post_update_script() {
+  local exitstatus
   local post_update_script="$(dirname "$0")/post-ethd-update.sh"
 
   if [[ -f "${post_update_script}" ]]; then
     if [[ -x "${post_update_script}" ]]; then
       echo "[ethd] Running post-ethd-update.sh..."
+      set +e
       "${post_update_script}"
-      local exit_code=$?
-      if [[ ${exit_code} -ne 0 ]]; then
-        echo "[ethd] post-ethd-update.sh exited with code ${exit_code}"
+      exitstatus=$?
+      set -e
+      if [[ ${exitstatus} -ne 0 ]]; then
+        echo "[ethd] post-ethd-update.sh exited with code ${exitstatus}"
       fi
     else
       echo "[ethd] ERROR: post-ethd-update.sh exists but is not executable."
