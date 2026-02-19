@@ -1,0 +1,15 @@
+# To be used in conjunction with nimbus-vp.yml
+services:
+  rpc-proxy:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${PROXY_RPC_HOST:-rpc}.service=${PROXY_RPC_HOST:-rpc}
+      - traefik.http.routers.${PROXY_RPC_HOST:-rpc}.entrypoints=websecure
+      - traefik.http.routers.${PROXY_RPC_HOST:-rpc}.rule=Host(`${PROXY_RPC_HOST:-rpc}.${DOMAIN}`)
+      - traefik.http.routers.${PROXY_RPC_HOST:-rpc}.tls.certresolver=letsencrypt
+      - traefik.http.services.${PROXY_RPC_HOST:-rpc}.loadbalancer.server.port=${PROXY_RPC_PORT:-48545}
+      - traefik.http.routers.${PROXY_WS_HOST:-ws}.service=${PROXY_WS_HOST:-ws}
+      - traefik.http.routers.${PROXY_WS_HOST:-ws}.entrypoints=websecure
+      - traefik.http.routers.${PROXY_WS_HOST:-ws}.rule=Host(`${PROXY_WS_HOST:-ws}.${DOMAIN}`)
+      - traefik.http.routers.${PROXY_WS_HOST:-ws}.tls.certresolver=letsencrypt
+      - traefik.http.services.${PROXY_WS_HOST:-ws}.loadbalancer.server.port=${PROXY_WS_PORT:-48546}

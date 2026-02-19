@@ -5437,6 +5437,14 @@ version() {
       ;;
   esac
 
+  # RPC proxy version
+  case "${__value}" in
+    *nimbus-vp.yml*)
+      __docompose exec rpc-proxy nimbus_verified_proxy --version
+      echo
+      ;;
+  esac
+
   # Grafana version
   case "${__value}" in
     *grafana.yml*)

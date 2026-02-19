@@ -1,0 +1,47 @@
+name: Test Nimbus Verified Proxy
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+jobs:
+  test-nimbus-proxy:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'test-nimbus-proxy') ||
+      contains(github.event.pull_request.labels.*.name, 'test-all') ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Create .env file
+        run: cp default.env .env
+      - name: Set Nimbus Verified Proxy
+        run: |
+          source ./.github/helper.sh
+          NETWORK=mainnet
+          var=NETWORK
+          set_value_in_env
+          COMPOSE_FILE=nimbus-vp.yml
+          var=COMPOSE_FILE
+          set_value_in_env
+          RPC_URL=wss://ethereum-rpc.publicnode.com
+          var=RPC_URL
+          set_value_in_env
+          CL_NODE=https://ethereum.operationsolarstorm.org/
+          var=CL_NODE
+          set_value_in_env
+      - name: Start Nimbus Verified Proxy
+        run: ./ethd up
+      - name: Pause for 30 seconds
+        run: sleep 30
+      - name: Test Nimbus Verified Proxy
+        run: ./.github/check-service.sh rpc-proxy
