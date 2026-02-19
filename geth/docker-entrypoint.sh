@@ -153,7 +153,7 @@ fi
 
 # Traces
 if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
-  __trace="--rpc.telemetry true --rpc.telemetry.endpoint http://tempo:4317 --rpc.telemetry.instance-id geth --rpc.telemetry.sample-ratio 0.1"
+  __trace="--rpc.telemetry=true --rpc.telemetry.endpoint http://tempo:4317 --rpc.telemetry.instance-id geth --rpc.telemetry.sample-ratio 0.1"
   export OTEL_EXPORTER_OTLP_INSECURE=true
 else
   __trace=""
