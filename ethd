@@ -1864,7 +1864,9 @@ __pull_and_build() {
 # Users can create pre-ethd-update.sh to run validation or preparation steps.
 __run_pre_update_script() {
   local exitstatus
-  local pre_update_script="$(dirname "$0")/pre-ethd-update.sh"
+  local pre_update_script
+
+  pre_update_script="$(dirname "$(realpath "${BASH_SOURCE[0]}")")/pre-ethd-update.sh"
   if [[ -f "${pre_update_script}" ]]; then
     if [[ -x "${pre_update_script}" ]]; then
       echo "[ethd] Running pre-ethd-update.sh..."
@@ -1891,8 +1893,9 @@ __run_pre_update_script() {
 # Users can create post-ethd-update.sh to run additional setup steps.
 __run_post_update_script() {
   local exitstatus
-  local post_update_script="$(dirname "$0")/post-ethd-update.sh"
+  local post_update_script
 
+  post_update_script="$(dirname "$(realpath "${BASH_SOURCE[0]}")")/post-ethd-update.sh"
   if [[ -f "${post_update_script}" ]]; then
     if [[ -x "${post_update_script}" ]]; then
       echo "[ethd] Running post-ethd-update.sh..."
