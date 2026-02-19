@@ -133,6 +133,18 @@ case "${NODE_TYPE}" in
         ;;
     esac
     ;;
+  pre-cancun-expiry)
+    case "${NETWORK}" in
+      mainnet|sepolia)
+         echo "Geth minimal node with pre-cancun history expiry"
+        __prune="--history.chain postcancun"
+        ;;
+      *)
+        echo "There is no pre-Cancun history for ${NETWORK} network, \"pre-cancun-expiry\" has no effect."
+        __prune=""
+        ;;
+    esac
+    ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Geth implementation."
     sleep 30
@@ -172,7 +184,7 @@ if [[ -f /var/lib/geth/prune-marker ]]; then
   fi
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__datadir} ${__ancient} ${__network} ${EL_EXTRAS} prune-history
+  exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${EL_EXTRAS} prune-history
 else
   exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${__blobs} ${__trace} ${__verbosity} ${EL_EXTRAS}
 fi
