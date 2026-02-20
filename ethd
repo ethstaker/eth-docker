@@ -794,7 +794,7 @@ install() {
   echo "Installing packages that ${__project_name} requires or considers helpful"
   echo
   ${__auto_sudo} apt-get update
-  ${__auto_sudo} apt-get install -y ca-certificates curl gnupg whiptail chrony pkg-config screen ncdu gzip speedtest-cli jq
+  ${__auto_sudo} apt-get install -y ca-certificates curl gnupg whiptail chrony pkg-config screen ncdu gzip speedtest-cli jq iputils-ping
 
   echo
   read -rp "Do you want to install Docker and make your user part of the docker group? (no/yes) " yn
@@ -1336,6 +1336,13 @@ __enable_v6() {
   __get_value_from_env "${var}" "${__env_file}" "IPV6"
   if [[ "${IPV6}" = "true" ]]; then
     return
+  fi
+
+  if [[ "${__distro}" =~ (ubuntu|debian) ]]; then
+    if ! dpkg-query -W -f='${Status}' iputils-ping 2>/dev/null | grep -q "ok installed"; then
+      echo "Installing ping utility"
+      ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get -y install iputils-ping
+    fi
   fi
 
   echo "Testing IPv6 host connectivity"
