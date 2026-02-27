@@ -76,7 +76,6 @@ services:
       - --metrics-port=8008
       - --metrics-address=0.0.0.0
       - --suggested-fee-recipient=${FEE_RECIPIENT}
-      - --in-process-validators=false
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics
