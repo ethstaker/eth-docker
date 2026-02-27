@@ -12,7 +12,6 @@ ARG USER=user
 ARG UID=10001
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
-  librocksdb-dev \
   ca-certificates \
   tzdata \
   gosu \

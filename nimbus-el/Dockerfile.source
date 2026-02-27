@@ -9,7 +9,6 @@ ARG DOCKER_REPO
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   build-essential \
-  librocksdb-dev \
   ca-certificates \
   git \
   curl
@@ -42,7 +41,6 @@ EOF
 FROM debian:trixie-slim
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
-  librocksdb-dev \
   ca-certificates \
   tzdata \
   gosu \
