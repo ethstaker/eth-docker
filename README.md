@@ -29,9 +29,7 @@ please read the [contribution guidelines](CONTRIBUTING.md) so you can run lint c
 
 ## Version
 
-Eth Docker uses a "semver-ish" scheme.
-- First digit, major shifts in how things work. The last one was the Ethereum merge. I do not expect another shift that
-large.
-- Second through fourth digit, [semver](https://semver.org/).
+Eth Docker uses calendar versioning, to make it easy to align with known hardfork dates.
+Eth Docker will release a new version for breaking changes, so you can pin that along your pinned client versions.
 
-This is Eth Docker v2.19.1.0
+This is Eth Docker v26.3.0
