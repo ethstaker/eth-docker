@@ -1,0 +1,51 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  rpc-proxy:
+    restart: "unless-stopped"
+    build:
+      context: ./nimbus-vp
+      dockerfile: ${NIMVP_DOCKERFILE}
+      args:
+        - BUILD_TARGET=${NIMVP_SRC_BUILD_TARGET:-master}
+        - SRC_REPO=${NIMVP_SRC_REPO:-https://github.com/status-im/nimbus-eth1}
+        - DOCKER_TAG=${NIMVP_DOCKER_TAG:-latest}
+        - DOCKER_REPO=${NIMVP_DOCKER_REPO:-statusim/nimbus-verified-proxy}
+    stop_grace_period: 30s
+    image: nimbus-vp:local
+    pull_policy: never
+    user: user
+    environment:
+      - CL_NODE=${CL_NODE}
+    volumes:
+      - nimbus-vp-data:/var/lib/nimbus
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      default:
+        aliases:
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${RPC_PROXY_ALIAS:-default-rpc-proxy}
+    <<: *logging
+    entrypoint:
+      - docker-entrypoint.sh
+      - nimbus_verified_proxy
+      - --data-dir=/var/lib/nimbus
+      - --network=${NETWORK}
+      - --execution-api-url=${RPC_URL}
+      - --listen-url=http://0.0.0.0:${PROXY_RPC_PORT:-48545}
+      - --listen-url=ws://0.0.0.0:${PROXY_WS_PORT:-48546}
+      - --beacon-api-url=${CL_NODE}
+      - --log-level=${LOG_LEVEL}
+
+volumes:
+  nimbus-vp-data:
+
+networks:
+  default:
+    enable_ipv6: ${IPV6:-false}

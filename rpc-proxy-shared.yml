@@ -1,0 +1,6 @@
+# To be used in conjunction with nimbus-vp.yml
+services:
+  rpc-proxy:
+    ports:
+      - ${SHARE_IP:-}:${PROXY_RPC_PORT}:${PROXY_RPC_PORT:-48545}/tcp
+      - ${SHARE_IP:-}:${PROXY_WS_PORT}:${PROXY_WS_PORT:-48546}/tcp

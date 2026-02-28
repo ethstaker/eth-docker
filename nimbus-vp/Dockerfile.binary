@@ -1,0 +1,46 @@
+# hadolint global ignore=DL3007,DL3008,DL3059
+ARG DOCKER_TAG=latest
+ARG DOCKER_REPO=statusim/nimbus-verified-proxy
+
+FROM ${DOCKER_REPO}:${DOCKER_TAG}
+
+# Included here to avoid build-time complaints
+ARG BUILD_TARGET
+ARG SRC_REPO
+
+ARG USER=user
+ARG UID=11001
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  curl \
+  jq \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# See https://stackoverflow.com/a/55757473/12429735RUN
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/usr/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    "${USER}"
+
+RUN mkdir -p /var/lib/nimbus && chown -R ${USER}:${USER} /var/lib/nimbus && chmod 700 /var/lib/nimbus
+
+RUN cp /home/user/nimbus-eth1/build/nimbus_verified_proxy /usr/local/bin/ && chown ${USER}:${USER} /usr/local/bin/nimbus_verified_proxy
+# Cannot assume buildkit, hence no chmod
+COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
+USER ${USER}
+
+ENTRYPOINT ["nimbus_verified_proxy"]

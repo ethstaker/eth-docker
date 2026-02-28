@@ -23,6 +23,12 @@ jobs:
             test_el: false
             test_vc: false
           - env: |-
+              COMPOSE_FILE=nimbus-vp.yml
+              NIMVP_DOCKERFILE=Dockerfile.source
+            test_cl: false
+            test_el: false
+            test_vc: false
+          - env: |-
               COMPOSE_FILE=prysm.yml:geth.yml:mev-boost.yml
               MEV_DOCKERFILE=Dockerfile.source
               CL_NODE=consensus:4000

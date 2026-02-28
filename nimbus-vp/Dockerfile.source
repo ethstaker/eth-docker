@@ -1,0 +1,76 @@
+# hadolint global ignore=DL3007,DL3008,DL3059,DL4006
+# Build Nimbus verified proxy in a stock debian container
+FROM debian:trixie-slim AS builder
+
+# Included here to avoid build-time complaints
+ARG DOCKER_TAG
+ARG DOCKER_REPO
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  build-essential \
+  ca-certificates \
+  git
+
+ARG BUILD_TARGET
+ARG SRC_REPO
+
+WORKDIR /usr/src
+
+ARG SRC_DIR=nimbus-eth1
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ pr-.+ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  make -j$(nproc) update
+  make -j$(nproc) nimbus_verified_proxy
+EOF
+
+
+# Pull all binaries into a second stage deploy debian container
+FROM debian:trixie-slim
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  curl \
+  jq \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG USER=user
+ARG UID=11001
+
+# See https://stackoverflow.com/a/55757473/12429735RUN
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/usr/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    "${USER}"
+
+RUN mkdir -p /var/lib/nimbus && chown -R ${USER}:${USER} /var/lib/nimbus && chmod 700 /var/lib/nimbus
+
+# Cannot assume buildkit, hence no chmod
+COPY --from=builder --chown=${USER}:${USER} /usr/src/nimbus-eth1/build/nimbus_verified_proxy /usr/local/bin/
+COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
+USER ${USER}
+
+ENTRYPOINT ["nimbus_verified_proxy"]
