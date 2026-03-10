@@ -87,11 +87,11 @@ case "${NODE_TYPE}" in
   rolling-expiry)
     echo "Besu minimal node with rolling history expiry, keeps 1 year."
     # 365 days = 82125 epochs = 2628000 slots / blocks
-    __prune="--snapsync-server-enabled --Xchain-pruning-enabled --Xchain-pruning-blocks-retained 2628000"
+    __prune="--snapsync-server-enabled --Xchain-pruning-enabled=ALL --Xchain-pruning-blocks-retained=2628000"
     ;;
   aggressive-expiry)
     echo "Besu minimal node with aggressive expiry"
-    __prune="--snapsync-server-enabled --Xchain-pruning-enabled --Xchain-pruning-blocks-retained 7200"
+    __prune="--snapsync-server-enabled --Xchain-pruning-enabled=ALL --Xchain-pruning-blocks-retained=113056"
     ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Besu implementation."
