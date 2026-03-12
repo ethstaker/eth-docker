@@ -17,17 +17,43 @@ services:
       dockerfile: Dockerfile.init
     image: w3s-init:local
     pull_policy: never
+    volumes:
+      - web3signer-slashing-data:/var/lib/postgres-data:ro
+    environment:
+      - PG_DOCKER_TAG=${PG_DOCKER_TAG}
     depends_on:
       postgres:
         condition: service_healthy
     <<: *logging
-    entrypoint:
-      - /flyway/flyway
-      - migrate
-      - -url=jdbc:postgresql://${PG_ALIAS}/web3signer
-      - -user=postgres
-      - -password=postgres
-      - -locations=filesystem:/tmp/web3signer
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -Eeu
+        data_dir=/var/lib/postgres-data
+        upgrade_marker="$${data_dir}/upgrade_in_progress.lock"
+        echo "Checking database state at $${data_dir} ..."
+        # A failed PostgreSQL version upgrade should fail postgres, so this never runs. Belt and suspenders.
+        if [[ -f "$${upgrade_marker}" ]]; then
+          echo "ERROR: Upgrade marker found! A previous PostgreSQL upgrade attempt failed or was interrupted."
+          echo "Manual intervention required to prevent slashing."
+          sleep 30
+          exit 1
+        fi
+        if [[ -f "$${data_dir}/PG_VERSION" ]]; then
+          version=$$(cat "$${data_dir}/PG_VERSION")
+          # A mismatch should fail postgres, so this never runs. Belt and suspenders.
+          if [[ "$${version}" != "$${PG_DOCKER_TAG%%[^0-9]*}" ]]; then
+            echo "ERROR: The slashing protection database is version $${version}, but the image is $${PG_DOCKER_TAG}."
+            echo "Aborting, PostgreSQL may have created a blank database."
+            echo "Manual intervention required to prevent slashing."
+            sleep 30
+            exit 1
+          fi
+        fi
+        exec /flyway/flyway migrate \
+        -url=jdbc:postgresql://${PG_ALIAS}/web3signer \
+        -user=postgres -password=postgres \
+        -locations=filesystem:/tmp/web3signer
 
   web3signer:
     restart: "unless-stopped"
@@ -84,13 +110,14 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=web3signer
+      - PGDATA=/var/lib/postgres-data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       start_period: 5s
       interval: 10s
       timeout: 5s
     volumes:
-      - web3signer-slashing-data:/var/lib/postgresql/data/
+      - web3signer-slashing-data:/var/lib/postgres-data
     networks:
       default:
         aliases:
