@@ -16,7 +16,7 @@ __compose_upgraded=0
 __distro=""
 __os_major_version=""
 __os_minor_version=""
-__target_pg=17
+__target_pg=18
 __min_ubuntu=22
 __suggest_ubuntu="24.04 or 22.04."
 __upgrade_ubuntu="24.04: https://gist.github.com/yorickdowne/94f1e5538007f4c9d3da7b22b0dc28a4"
@@ -31,8 +31,10 @@ __env_file=.env
 __during_config=0
 __during_update=0
 __during_postgres=0
-__during_migrate=0
-__migrated=0
+__during_env_migrate=0
+__during_pg_migrate=0
+__env_migrated=0
+__pg_migrated=0
 __keep_targets=1
 __target_ver=1
 __source_ver=1
@@ -1205,8 +1207,8 @@ __upgrade_postgres() {
 
   __during_postgres=1
 
-  source_pg="$(__dodocker run --rm -v "${source_vol}":"/var/lib/postgresql/data" \
-    alpine:3 cat /var/lib/postgresql/data/PG_VERSION)"
+  source_pg="$(__dodocker run --rm -v "${source_vol}":"/var/lib/postgres-data" \
+    alpine:3 cat /var/lib/postgres-data/PG_VERSION)"
 
   if [[ "${source_pg}" -lt "${__target_pg}" ]]; then
     echo "Web3signer is using PostgreSQL ${source_pg}. The current version is PostgreSQL ${__target_pg}."
@@ -1215,17 +1217,18 @@ __upgrade_postgres() {
       while true; do
         read -rp "Would you like to migrate to PostgreSQL ${__target_pg}? (Y/n) " yn
         case "${yn}" in
-          [Nn]o|[Nn]) echo "Keeping PostgreSQL at version ${source_pg}"; return 0;;
+          [Nn]o|[Nn]) echo "Keeping PostgreSQL at version ${source_pg}"; __during_postgres=0; return 0;;
           *) break;;
         esac
       done
     fi
   else
+    __during_postgres=0
     return 0
   fi
 
-  source_size="$(__dodocker run --rm -v "${source_vol}":"/var/lib/postgresql/data" \
-    alpine:3 du -s /var/lib/postgresql/data/ | awk '{print $1}')"
+  source_size="$(__dodocker run --rm -v "${source_vol}":"/var/lib/postgres-data" \
+    alpine:3 du -s /var/lib/postgres-data/ | awk '{print $1}')"
 
   regex='^[0-9]+$'
   if ! [[ "${source_size}" =~ ${regex} ]] ; then
@@ -1238,15 +1241,22 @@ __upgrade_postgres() {
 
   if [[ "${__free_space}" -lt $(( (source_size * 2) + 10485760 )) ]]; then
     echo
-    echo "You don't have enough free space to migrate the database."
+    echo "You don't have enough free space to migrate the slashing protection database."
     echo "It is $(( source_size / 1024 / 1024 )) GiB in size and you need twice as much free again."
     echo
     __display_docker_dir
     echo
-    return
+    return 1
   fi
 
   backup_vol="$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]')_web3signer-slashing-data-pg${source_pg}-backup"
+  if [[ -n "$(__dodocker volume ls -q -f "name=${backup_vol}")" ]]; then
+    echo "PostgreSQL upgrade was aborted. A backup volume ${backup_vol} already exists,"
+    echo "and you are on PostgreSQL ${source_pg}. This suggests a failed upgrade previously."
+    echo "Upgrading PostgreSQL isn't safe."
+    echo "This should not have happened. Please come to Ethstaker Discord to troubleshoot this."
+    return 70
+  fi
 
   echo "Stopping Web3signer"
   __docompose stop web3signer && __docompose rm -f web3signer
@@ -1255,9 +1265,9 @@ __upgrade_postgres() {
 
   echo "Copying data in web3signer-slashing-data volume to backup"
   __dodocker volume create "${backup_vol}"
-  __dodocker run --rm -v "${source_vol}":"/var/lib/postgresql/data" \
-    -v "${backup_vol}":"/var/lib/postgresql/${source_pg}/data" \
-    alpine:3 cp -a /var/lib/postgresql/data/. "/var/lib/postgresql/${source_pg}/data/"
+  __dodocker run --rm -v "${source_vol}":"/var/lib/postgres-data" \
+    -v "${backup_vol}":"/var/lib/pg-backup" \
+    alpine:3 cp -a /var/lib/postgres-data/. /var/lib/pg-backup
 
   echo
   echo "Migrating database from PostgreSQL ${source_pg} to PostgreSQL ${__target_pg}"
@@ -1266,12 +1276,12 @@ __upgrade_postgres() {
   echo
 
   __dodocker pull "pgautoupgrade/pgautoupgrade:${__target_pg}-trixie"
-  __during_migrate=1
-  __dodocker run --rm -v "${source_vol}":"/var/lib/postgresql/data" \
-   -e PGAUTO_ONESHOT=yes -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres \
+  __during_pg_migrate=1
+  __dodocker run --rm -v "${source_vol}":"/var/lib/postgres-data" \
+   -e PGAUTO_ONESHOT=yes -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e PGDATA=/var/lib/postgres-data \
    "pgautoupgrade/pgautoupgrade:${__target_pg}-trixie"
 
-  __migrated=1
+  __pg_migrated=1
 
   echo
   echo "Adjusting PostgreSQL Docker tag"
@@ -1283,10 +1293,11 @@ __upgrade_postgres() {
 # shellcheck disable=SC2034
   PG_DOCKER_TAG=${__target_pg}-trixie  # Match pgautoupgrade Debian version to avoid collation errors
   __update_value_in_env "${var}" "${!var}" "${__env_file}"
-  echo "Web3signer has been stopped. You'll need to run \"${__me} update\" and \"${__me} up\" to start it again."
-  echo
-  echo "A copy of your old slashing protection database is in the Docker volume ${backup_vol}."
-  echo "Confirm that everything works, and then delete it with \"docker volume rm ${backup_vol}\"."
+  __final_msg+="\nWeb3signer has been stopped. You'll need to run \"${__me} up\" to start it again.\n"
+  __final_msg+="Before you do, double-check that the upgrade was successful, by scrolling through the\n"
+  __final_msg+="upgrade messages above.\n"
+  __final_msg+="\nA copy of your old slashing protection database is in the Docker volume ${backup_vol}.\n"
+  __final_msg+="Confirm that everything works, and then delete it with \"docker volume rm ${backup_vol}\".\n"
   __during_postgres=0
 }
 
@@ -1639,8 +1650,8 @@ __env_migrate() {
   fi
 
   ${__as_owner} cp "${__env_file}" "${__env_file}".source
-  __during_migrate=1
-  __migrated=1
+  __during_env_migrate=1
+  __env_migrated=1
   ${__as_owner} cp default.env "${__env_file}"
 
   # Migrate over user settings
@@ -1746,7 +1757,7 @@ __env_migrate() {
     fi
   fi
 
-  __during_migrate=0
+  __during_env_migrate=0
   echo "${__env_file} updated successfully"
 }
 
@@ -1959,6 +1970,7 @@ update() {
   fi
 
   __during_update=1
+  __final_msg=""
 
   if [[ -z "${ETHDSECUNDO:-}" ]]; then
     __run_pre_update_script
@@ -2003,6 +2015,11 @@ update() {
         no_screen_cmd=1
       fi
     fi
+    if [[ -z "${SSH_CONNECTION:-}" ]]; then
+      no_screen_cmd=1
+      echo "You are in a local terminal session, not starting screen"
+    fi
+
     if [[ "${no_screen_cmd}" -eq 0 ]]; then
       local screen_session="${uniq_id}"
 # Find old lingering screen sessions and close them
@@ -2019,6 +2036,7 @@ update() {
         done <<< "${old_sessions}"
         echo
       fi
+
 # Screen should run with login shell so that .profile gets loaded and aliases work
       if [[ ! -f "${HOME}/.screenrc" ]] || ! grep -q 'shell' "${HOME}/.screenrc"; then
 # Intentional, I want this verbatim
@@ -2125,7 +2143,7 @@ update() {
   fi
 
   __env_migrate
-  if [[ "${__migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
+  if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
     ${__as_owner} cp "${__env_file}".source "${__env_file}".bak
   fi
   __pull_and_build
@@ -2133,7 +2151,7 @@ update() {
   __upgrade_postgres
 
   echo
-  if [[ "${__migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then
+  if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then
     ${__as_owner} rm "${__env_file}".source  # .bak was created earlier
     echo "Your ${__env_file} configuration settings have been migrated to a fresh copy. You can \
 find the original contents in ${__env_file}.bak."
@@ -2194,10 +2212,18 @@ reset to defaults."
   if [[ -n "${STY:-}" || -n "${TMUX:-}" ]]; then
     echo
     echo "You are in a screen or tmux session. This is good!"
-    echo "\"${__me} update\" may have started it for you to ensure the update finishes."
+    echo "\"${__me} update\" may have started screen for you to ensure the update finishes."
+    if [[ -n "${STY:-}" ]]; then
+      echo "You can scroll through the update messages with arrow keys. Get into scrollback mode first, with \"Ctrl-a ESC\"."
+    else
+      echo "You can scroll through the update messages with arrow keys. Get into scrollback mode first, with \"Ctrl-b [\"."
+    fi
+    echo
     echo "When you are done, remember to \"exit\" the session."
     echo
   fi
+
+  echo -e "${__final_msg-}"
 
   __during_update=0
 
@@ -4984,7 +5010,7 @@ __handle_error() {
   __handler_ran=1
 
   echo
-  if [[ "${exitstatus}" -eq 130 ]]; then
+  if [[ "${exitstatus}" -eq 130 && "${__during_update}" -ne 1 ]]; then
     echo "${__me} terminated by user"
   elif [[ "${__during_config}" -eq 1 && "${exitstatus}" -eq 1 ]]; then
     echo "Canceled config wizard."
@@ -4994,7 +5020,7 @@ __handle_error() {
       echo "This happened during ${__me} ${__command} ${__params}"
     fi
   fi
-  if [[ "${__during_update}" -eq 1 && "${__during_migrate}" -eq 1 ]]; then
+  if [[ "${__during_update}" -eq 1 && "${__during_env_migrate}" -eq 1 ]]; then
     cp "${__env_file}" "${__env_file}".partial
     cp "${__env_file}".source "${__env_file}"
     echo
@@ -5003,7 +5029,7 @@ __handle_error() {
   fi
   if [[ "${__during_postgres}" -eq 1 ]]; then
     echo
-    if [[ "${__during_migrate}" -eq 1 && "${__migrated}" -eq 0 ]]; then
+    if [[ "${__during_pg_migrate}" -eq 1 && "${__pg_migrated}" -eq 0 ]]; then
       echo "Web3signer slashing protection database migration failed, while switching to the migrated data."
       echo
       echo "WARNING: You are no longer protected by the slashing protection database."
@@ -5012,10 +5038,10 @@ __handle_error() {
       echo "Marking Web3signer as unsafe to start."
       __dodocker run --rm -v "$(__dodocker volume ls -q -f "name=web3signer-keys")":/var/lib/web3signer \
         alpine:3 touch /var/lib/web3signer/.migration_fatal_error
-    elif [[ "${__migrated}" -eq 1 ]]; then
+    elif [[ "${__pg_migrated}" -eq 1 ]]; then
       echo "Web3signer slashing protection database migration failed, after switching to the migrated data."
       echo
-      echo "The slashing protection database itself is likely fine, but somewhere in the switch to PostgreSQL 16"
+      echo "The slashing protection database itself is likely fine, but somewhere in the switch to PostgreSQL ${__target_pg}"
       echo "an error occurred, which is likely to keep your node from functioning correctly."
     else
       echo "Web3signer slashing protection database migration failed, but before removing the original data."
