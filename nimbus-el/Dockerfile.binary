@@ -35,7 +35,7 @@ RUN adduser \
 
 RUN mkdir -p /var/lib/nimbus/ee-secret && chown -R ${USER}:${USER} /var/lib/nimbus && chmod 700 /var/lib/nimbus && chmod 777 /var/lib/nimbus/ee-secret
 
-RUN cp /home/user/nimbus-eth1/build/nimbus_execution_client /usr/local/bin/ && chown ${USER}:${USER} /usr/local/bin/nimbus_execution_client
+RUN cp /home/user/nimbus-eth1/build/nimbus /usr/local/bin/ && chown ${USER}:${USER} /usr/local/bin/nimbus
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
 # Belt and suspenders
@@ -43,4 +43,4 @@ RUN chmod -R 755 /usr/local/bin/*
 
 USER ${USER}
 
-ENTRYPOINT ["nimbus_execution_client"]
+ENTRYPOINT ["nimbus", "executionClient"]

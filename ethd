@@ -5603,7 +5603,7 @@ version() {
       echo
       ;;
     *nimbus-el.yml*)
-      __docompose exec execution nimbus_execution_client --version
+      __docompose exec execution nimbus --version
       echo
       ;;
     *ethrex.yml*)

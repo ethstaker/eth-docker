@@ -190,7 +190,7 @@ fi
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-#  nimbus_execution_client import --network=${NETWORK} --data-dir=/var/lib/nimbus --era-dir=/var/lib/nimbus/era
+#  nimbus executionClient import --network=${NETWORK} --data-dir=/var/lib/nimbus --era-dir=/var/lib/nimbus/era
 #  rm -rf /var/lib/nimbus/era
 #fi
 
