@@ -45,7 +45,8 @@ services:
     <<: *logging
     entrypoint:
       - docker-entrypoint.sh
-      - nimbus_execution_client
+      - nimbus
+      - executionClient
       - --rpc
       - --http-address=0.0.0.0
       - --http-port=${EL_RPC_PORT:-8545}

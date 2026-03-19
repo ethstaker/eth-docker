@@ -33,7 +33,7 @@ RUN bash -eo pipefail <<'EOF'
     git checkout "$TARGET"
   fi
   make -j$(nproc) update
-  make -j$(nproc) nimbus_execution_client
+  make -j$(nproc) nimbus
 EOF
 
 
@@ -68,11 +68,11 @@ RUN adduser \
 RUN mkdir -p /var/lib/nimbus/ee-secret && chown -R ${USER}:${USER} /var/lib/nimbus && chmod 700 /var/lib/nimbus && chmod 777 /var/lib/nimbus/ee-secret
 
 # Cannot assume buildkit, hence no chmod
-COPY --from=builder --chown=${USER}:${USER} /usr/src/nimbus-eth1/build/nimbus_execution_client /usr/local/bin/
+COPY --from=builder --chown=${USER}:${USER} /usr/src/nimbus-eth1/build/nimbus /usr/local/bin/
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 
 USER ${USER}
 
-ENTRYPOINT ["nimbus_execution_client"]
+ENTRYPOINT ["nimbus", "executionClient"]
