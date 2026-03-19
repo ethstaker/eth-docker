@@ -28,6 +28,7 @@ services:
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
+      - EL_P2P_PORT_2=${EL_P2P_PORT_2:-30304}
       - COMPOSE_FILE=${COMPOSE_FILE}
     volumes:
       - besu-el-data:/var/lib/besu
@@ -37,6 +38,8 @@ services:
     ports:
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/tcp
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/udp
+      - ${HOST_IP:-}:${EL_P2P_PORT_2:-30304}:${EL_P2P_PORT_2:-30304}/tcp
+      - ${HOST_IP:-}:${EL_P2P_PORT_2:-30304}:${EL_P2P_PORT_2:-30304}/udp
     networks:
       default:
         aliases:
