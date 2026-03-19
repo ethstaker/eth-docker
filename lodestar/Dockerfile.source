@@ -53,7 +53,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   bash \
   git \
   git-lfs \
-  curl \
   && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
