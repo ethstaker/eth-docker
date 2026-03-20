@@ -177,6 +177,14 @@ else
   __trace=""
 fi
 
+# IPV6
+if [[ "${IPV6:-false}" = "true" ]]; then
+  echo "Configuring Reth's discv5 for IPv6 advertisements"
+  __ipv6="--addr :: --discovery.v5.addr 0.0.0.0 --discovery.v5.port.ipv6 ${EL_P2P_PORT_2}"
+else
+  __ipv6=""
+fi
+
 if [[ -f /var/lib/reth/prune-marker ]]; then
   rm -f /var/lib/reth/prune-marker
   if [[ "${NODE_TYPE}" = "archive" ]]; then
@@ -189,5 +197,5 @@ if [[ -f /var/lib/reth/prune-marker ]]; then
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__verbosity} ${__static} ${__prune} ${__trace} ${EL_EXTRAS}
+  exec "$@" ${__network} ${__verbosity} ${__static} ${__prune} ${__trace} ${__ipv6} ${EL_EXTRAS}
 fi
