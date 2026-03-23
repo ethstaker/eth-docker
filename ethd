@@ -1291,7 +1291,7 @@ __upgrade_postgres() {
   var="PG_DOCKER_TAG"
 # This gets used, but shellcheck doesn't recognize that
 # shellcheck disable=SC2034
-  PG_DOCKER_TAG=${__target_pg}-trixie  # Match pgautoupgrade Debian version to avoid collation errors
+  PG_DOCKER_TAG=${__target_pg}-trixie
   __update_value_in_env "${var}" "${!var}" "${__env_file}"
   __final_msg+="\nWeb3signer has been stopped. You'll need to run \"${__me} up\" to start it again.\n"
   __final_msg+="Before you do, double-check that the upgrade was successful, by scrolling through the\n"

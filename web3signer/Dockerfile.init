@@ -8,7 +8,15 @@ FROM flyway/flyway:latest
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   bash \
+  postgresql-common \
+  && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends postgresql-client-18 \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=web3signer /opt/web3signer/migrations/postgresql /tmp/web3signer
+# Cannot assume buildkit, hence no chmod
+COPY ./docker-entrypoint-flyway.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
