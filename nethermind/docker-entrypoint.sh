@@ -120,18 +120,22 @@ case "${NODE_TYPE}" in
         ;;
     esac
     ;;
-  pre-cancun-expiry)
+  pre-prague-expiry)
     case "${NETWORK}" in
       mainnet)
-        echo "Nethermind minimal node with pre-Cancun history expiry"
-        __prune+=" --Sync.AncientBodiesBarrier=19426587 --Sync.AncientReceiptsBarrier=19426587 --History.Pruning=UseAncientBarriers"
+        echo "Nethermind minimal node with pre-Prague history expiry"
+        __prune+=" --Sync.AncientBodiesBarrier=22431084 --Sync.AncientReceiptsBarrier=22431084 --History.Pruning=UseAncientBarriers"
         ;;
       sepolia)
-        echo "Nethermind minimal node with pre-Cancun history expiry"
-        __prune+=" --Sync.AncientBodiesBarrier=5187023 --Sync.AncientReceiptsBarrier=5187023 --History.Pruning=UseAncientBarriers"
+        echo "Nethermind minimal node with pre-Prague history expiry"
+        __prune+=" --Sync.AncientBodiesBarrier=7836331 --Sync.AncientReceiptsBarrier=7836331 --History.Pruning=UseAncientBarriers"
+        ;;
+      hoodi)
+        echo "Nethermind minimal node with pre-Prague history expiry"
+        __prune+=" --Sync.AncientBodiesBarrier=60412 --Sync.AncientReceiptsBarrier=60412 --History.Pruning=UseAncientBarriers"
         ;;
       *)
-        echo "There is no pre-Cancun history for ${NETWORK} network, \"pre-cancun-expiry\" has no effect."
+        echo "There is no pre-Prague history for ${NETWORK} network, \"pre-prague-expiry\" has no effect."
         ;;
     esac
     ;;

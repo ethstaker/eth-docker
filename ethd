@@ -2875,13 +2875,13 @@ prune-history() {
         target=pre-merge
         shift
         ;;
-      --pre-cancun)
+      --pre-prague)
         if [[ -n "${target}" ]]; then
           echo "Only one history expiry mode can be specified, and you already have ${target}."
           echo "Aborting."
           exit 1
         fi
-        target=pre-cancun
+        target=pre-prague
         shift
         ;;
       --rolling)
@@ -2918,10 +2918,10 @@ prune-history() {
     exit 1
   fi
 
-# pre-cancun and pre-merge are only meaningful on mainnet or sepolia
+# pre-merge is only meaningful on mainnet or sepolia
   var=NETWORK
   __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${target}" =~ ^(pre-merge|pre-cancun)$ && ! "${__value}" =~ ^(mainnet|sepolia)$ ]]; then
+  if [[ "${target}" = "pre-merge" && ! "${__value}" =~ ^(mainnet|sepolia)$ ]]; then
     echo "There is no ${target} history for ${__value} network."
     echo "Nothing to do. Aborting."
     exit 0
@@ -2965,11 +2965,11 @@ prune-history() {
         choices+=("aggressive" "Aggressive expiry")
         ;;
       *nethermind.yml*)
-        choices+=("pre-cancun" "Pre-Cancun expiry")
+        choices+=("pre-prague" "Pre-Prague expiry")
         choices+=("rolling" "Rolling expiry (experimental)")
         ;;
       *reth.yml*)
-        choices+=("pre-cancun" "Pre-Cancun expiry")
+        choices+=("pre-prague" "Pre-Prague expiry")
         choices+=("rolling" "Rolling expiry")
         choices+=("aggressive" "Aggressive expiry")
         ;;
@@ -2987,7 +2987,7 @@ prune-history() {
     pre-merge)
       target_level=1
       ;;
-    pre-cancun)
+    pre-prague)
       target_level=2
       ;;
     rolling)
@@ -3009,7 +3009,7 @@ prune-history() {
     pre-merge-expiry)
       current_level=1
       ;;
-    pre-cancun-expiry)
+    pre-prague-expiry)
       current_level=2
       ;;
     rolling-expiry)
@@ -3035,7 +3035,7 @@ prune-history() {
   case "${COMPOSE_FILE}" in
     *geth.yml*)
       client="Geth"
-      if [[ "${target}" =~ ^(pre-cancun|rolling|aggressive)$ ]]; then
+      if [[ "${target}" =~ ^(pre-prague|rolling|aggressive)$ ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
@@ -3051,7 +3051,7 @@ prune-history() {
       ;;
     *nimbus-el.yml*)
       client="Nimbus"
-      if [[ "${target}" =~ ^(pre-cancun|rolling|aggressive)$ ]]; then
+      if [[ "${target}" =~ ^(pre-prague|rolling|aggressive)$ ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
@@ -3078,7 +3078,7 @@ prune-history() {
       ;;
     *besu.yml*)
       client="Besu"
-      if [[ "${target}" =~ ^(pre-cancun)$ ]]; then
+      if [[ "${target}" =~ ^(pre-prague)$ ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
@@ -3100,7 +3100,7 @@ prune-history() {
       ;;
     *erigon.yml*)
       client="Erigon"
-      if [[ "${target}" =~ ^(pre-cancun)$ ]]; then
+      if [[ "${target}" =~ ^(pre-prague)$ ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
@@ -3111,7 +3111,7 @@ prune-history() {
       ;;
     *ethrex.yml*)
       client="Ethrex"
-      if [[ "${target}" =~ ^(pre-cancun|rolling|aggressive)$ ]]; then
+      if [[ "${target}" =~ ^(pre-prague|rolling|aggressive)$ ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
@@ -5772,7 +5772,7 @@ __full_help() {
   echo "    stops the Besu execution client and prunes trie-logs."
   echo "  prune-reth [--non-interactive]"
   echo "    stops the Reth execution client and prunes its DB."
-  echo "  prune-history [--non-interactive] [--pre-merge|--pre-cancun|--rolling|--aggressive]"
+  echo "  prune-history [--non-interactive] [--pre-merge|--pre-prague|--rolling|--aggressive]"
   echo "    stops the execution client and configures history expiry."
   echo "  prune-lighthouse [--non-interactive]"
   echo "    stops the Lighthouse consensus client and prunes state."
