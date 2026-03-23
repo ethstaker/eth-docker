@@ -23,6 +23,7 @@ services:
     user: user
     environment:
       - CL_NODE=${CL_NODE}
+      - PROXY_EXTRAS=${PROXY_EXTRAS:-}
     volumes:
       - nimbus-vp-data:/var/lib/nimbus
       - /etc/localtime:/etc/localtime:ro
