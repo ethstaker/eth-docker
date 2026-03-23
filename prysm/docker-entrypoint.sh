@@ -98,6 +98,23 @@ esac
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
+i=0
+while true; do
+  if [ -f /var/lib/prysm/ee-secret/jwtsecret ]; then
+    break
+  else
+    if [[ "$i" -eq 5 ]]; then
+      echo "Did not see the JWT secret file six times in a row. This is either a bug or a very slow execution layer client startup."
+      echo "Starting consensus layer client anyway: It may fail."
+      break
+    else
+      echo "Waiting for JWT secret file to be created by execution layer client"
+      sleep 5
+      ((++i))
+    fi
+  fi
+done
+
 if [[ "${NETWORK}" = "sepolia" ]]; then
   __genesis_file="/var/lib/prysm/genesis.ssz"
   if [[ ! -f "${__genesis_file}" ]]; then

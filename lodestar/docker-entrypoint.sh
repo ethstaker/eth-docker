@@ -119,6 +119,23 @@ fi
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
+i=0
+while true; do
+  if [ -f /var/lib/lodestar/consensus/ee-secret/jwtsecret ]; then
+    break
+  else
+    if [[ "$i" -eq 5 ]]; then
+      echo "Did not see the JWT secret file six times in a row. This is either a bug or a very slow execution layer client startup."
+      echo "Starting consensus layer client anyway: It may fail."
+      break
+    else
+      echo "Waiting for JWT secret file to be created by execution layer client"
+      sleep 5
+      ((++i))
+    fi
+  fi
+done
+
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
 exec "$@" ${__ipv6} ${__network} ${__mev_boost} ${__beacon_stats} ${__checkpoint_sync} ${__prune} ${CL_EXTRAS}
