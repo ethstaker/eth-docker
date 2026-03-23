@@ -52,6 +52,8 @@ services:
       - ${EL_P2P_PORT:-30303}
       - ${EL_MAX_PEER_COUNT:+--p2p.target-peers}
       - ${EL_MAX_PEER_COUNT:+${EL_MAX_PEER_COUNT}}
+      - ${MAX_BLOBS:+--builder.max-blobs}
+      - ${MAX_BLOBS:+${MAX_BLOBS}}
       - --http.addr
       - 0.0.0.0
       - --http.port
