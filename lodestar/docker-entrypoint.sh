@@ -112,6 +112,9 @@ fi
 if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Lodestar to listen on IPv6 ports"
   __ipv6="--listenAddress 0.0.0.0 --listenAddress6 :: --port6 ${CL_P2P_PORT:-9000} --quicPort6 ${CL_QUIC_PORT:-9001}"
+# BUGBUG
+# Remove with Lodestar 1.42.0; here because library is buggy
+  __ipv6+=" --quicPort ${CL_QUIC_PORT:-9001} --quic"
 else
   __ipv6="--listenAddress 0.0.0.0"
 fi
