@@ -147,6 +147,7 @@ fi
 
 if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Grandine to listen on IPv6 ports"
+  echo "IPv6 ENR will be auto-discovered. Please make sure the v6 P2P ports are reachable \"from Internet\""
   __ipv6="--listen-address-ipv6 :: --libp2p-port-ipv6 ${CL_P2P_PORT:-9000} --discovery-port-ipv6 ${CL_P2P_PORT:-9000} \
 --quic-port-ipv6 ${CL_QUIC_PORT:-9001}"
 else
