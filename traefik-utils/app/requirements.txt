@@ -4,15 +4,15 @@
 #
 #    pip-compile --generate-hashes --output-file=requirements.txt requirements.in
 #
-boto3==1.42.74 \
-    --hash=sha256:4bf89c044d618fe4435af854ab820f09dd43569c0df15d7beb0398f50b9aa970 \
-    --hash=sha256:4bf89c044d618fe4435af854ab820f09dd43569c0df15d7beb0398f50b9aa970 \
-    --hash=sha256:dbacd808cf2a3dadbf35f3dbd8de97b94dc9f78b1ebd439f38f552e0f9753577 \
-    --hash=sha256:dbacd808cf2a3dadbf35f3dbd8de97b94dc9f78b1ebd439f38f552e0f9753577
+boto3==1.42.79 \
+    --hash=sha256:2336d744dfe9017d6b96b8e40fdd445295ca6a67f02f1c8c488edeb92c4b7918 \
+    --hash=sha256:2336d744dfe9017d6b96b8e40fdd445295ca6a67f02f1c8c488edeb92c4b7918 \
+    --hash=sha256:286c4220785e4fbe46aaea04d005b0dcdd8aaf5b885d92b2609c934d794ec5d9 \
+    --hash=sha256:286c4220785e4fbe46aaea04d005b0dcdd8aaf5b885d92b2609c934d794ec5d9
     # via -r app/requirements.in
-botocore==1.42.74 \
-    --hash=sha256:3a76a8af08b5de82e51a0ae132394e226e15dbf21c8146ac3f7c1f881517a7a7 \
-    --hash=sha256:9cf5cdffc6c90ed87b0fe184676806182588be0d0df9b363e9fe3e2923ac8e80
+botocore==1.42.79 \
+    --hash=sha256:1ea98f505a1a65c4b6eed4a6b7452f27613c9aa24532aa71650ec3f3e05fa32c \
+    --hash=sha256:edea07bb255e812908e783a9da6ee63ba97baa0cc6612adabbad54466281e330
     # via
     #   boto3
     #   s3transfer
@@ -115,9 +115,9 @@ python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
     # via botocore
-requests==2.32.5 \
-    --hash=sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6 \
-    --hash=sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf
+requests==2.33.1 \
+    --hash=sha256:18817f8c57c6263968bc123d237e3b8b08ac046f5456bd1e307ee8f4250d3517 \
+    --hash=sha256:4e6d1ef462f3626a1f0a0a9c42dd93c63bad33f9f1c1937509b8c5c8718ab56a
     # via -r app/requirements.in
 s3transfer==0.16.0 \
     --hash=sha256:18e25d66fed509e3868dc1572b3f427ff947dd2c56f844a5bf09481ad3f3b2fe \
