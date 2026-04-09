@@ -283,6 +283,15 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
 # Web3signer URL
   if [[ "${EMBEDDED_VC}" = "true" && "${WEB3SIGNER}" = "true" ]]; then
     __grandine+=" --grandine-web3signerurls ${W3S_NODE}"
+    while true; do
+      if curl -s -m 5 "${W3S_NODE}" &> /dev/null; then
+          echo "web3signer is up, starting Grandine"
+          break
+      else
+          echo "Waiting for web3signer to be reachable..."
+          sleep 5
+      fi
+    done
   fi
 
   if [[ ! "${DEFAULT_GRAFFITI}" = "true" ]]; then
