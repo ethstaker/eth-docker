@@ -103,15 +103,11 @@ case "${NODE_TYPE}" in
   full)
     echo "Reth full node without history expiry"
     __prune+=" --prune.receipts.before 0"
-    __snap=""
-    # Reth 2.1.0
-    # __snap="--full --receipts-all --with-txs"
+    __snap="--full --receipts-all --with-txs"
     ;;
   pre-merge-expiry)
     __prune+=" --prune.transactionlookup.distance 10064"
-    __snap="--full"
-    # Reth 2.1.0
-    # __snap="--full --receipts-pre-merge"
+    __snap="--full --receipts-pre-merge"
     case ${NETWORK} in
       mainnet|sepolia)
         echo "Reth minimal node with pre-merge history expiry"
@@ -125,9 +121,7 @@ case "${NODE_TYPE}" in
     ;;
   pre-prague-expiry)
     __prune+=" --prune.transactionlookup.distance 10064"
-    __snap="--full"
-    # Reth 2.1.0
-    # __snap="--full --receipts-pre-merge"
+    __snap="--full --receipts-pre-merge"
     case "${NETWORK}" in
       mainnet)
         echo "Reth minimal node with pre-Prague history expiry"
@@ -151,9 +145,7 @@ case "${NODE_TYPE}" in
     echo "Reth minimal node with rolling history expiry, keeps 1 year."
     # 365 days = 82125 epochs = 2628000 slots / blocks
     __prune+=" --prune.transactionlookup.distance 10064 --prune.bodies.distance 2628000 --prune.receipts.distance 2628000"
-    __snap="--full"
-    # Reth 2.1.0
-    # __snap="--full --receipts-pre-merge"
+    __snap="--full --receipts-pre-merge"
     ;;
   aggressive-expiry)
     echo "Reth minimal node with aggressive expiry"
@@ -201,24 +193,14 @@ else
 fi
 
 # Snapshot
-# Reth 2.1.0
-# if [[ ! -d /var/lib/reth/db && "${NETWORK}" = "mainnet" && -n "${RETH_SNAPSHOT}" && ! "${RETH_SNAPSHOT}" = "false" ]]; then
-if [[ ! -d /var/lib/reth/db && ! "${NODE_TYPE}" = "full" && "${NETWORK}" = "mainnet" && -n "${RETH_SNAPSHOT}" \
-      && ! "${RETH_SNAPSHOT}" = "false" ]]; then
+if [[ ! -d /var/lib/reth/db && "${NETWORK}" = "mainnet" && -n "${RETH_SNAPSHOT}" && ! "${RETH_SNAPSHOT}" = "false" ]]; then
   if [[ ! "${RETH_SNAPSHOT}" = "true" ]]; then
     __snap="${RETH_SNAPSHOT}"
   fi
   echo "Downloading Reth snapshot with parameters: ${__snap}"
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  reth download --chain "${NETWORK}" --datadir /var/lib/reth ${__static} ${__snap} --resumable
-# Reth 2.1.0
-#  reth download --chain "${NETWORK}" --datadir /var/lib/reth ${__static} ${__snap}
-# Reth 2.0.0 does not take into account --datadir.static, resolve manually
-# Remove with Reth 2.1.0
-  if [[ -n "${__static}" && -d /var/lib/reth/static_files ]]; then
-    mv -v -t /var/lib/static /var/lib/reth/static_files/*
-  fi
+  reth download --chain "${NETWORK}" --datadir /var/lib/reth ${__static} ${__snap}
 fi
 
 __strip_empty_args "$@"
