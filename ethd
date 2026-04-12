@@ -4398,6 +4398,16 @@ __query_reth_snapshot() {
 }
 
 
+__query_web3signer() {
+  if [[ "${__minty_fresh}" -eq 0 ]]; then  # Do not force a key migration, only query on fresh install
+    return
+  fi
+  if (whiptail --title "Web3signer" --yesno "Do you want to keep validator keys in Web3signer?" 10 65) then
+    WEB3SIGNER=true
+  fi
+}
+
+
 __query_grafana() {
   if (whiptail --title "Grafana" --yesno "Do you want to use Grafana dashboards?" 10 65) then
       if [[ "$OSTYPE" = "darwin"* ]]; then
@@ -5149,18 +5159,28 @@ config() {
 
   __run_pre_update_script
 
+  if [[ "${__minty_fresh}" -eq 1 ]]; then
+    WEB3SIGNER=false
+  else
+    var="WEB3SIGNER"
+    __get_value_from_env "${var}" "${__env_file}" "WEB3SIGNER"
+  fi
   __check_legacy
   __query_network
   __query_deployment
   case "${__deployment}" in
     node|lido_csm)
       __query_consensus_client
+      if [[ ! "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
+        __query_web3signer
+      fi
       ;;
     lido_obol)
       __query_consensus_client
       ;;
     validator|rocket)
       __query_validator_client
+      __query_web3signer
       ;;
     ssv|lido_ssv)
       if [[ "${NETWORK}" = "hoodi" ]]; then
@@ -5224,6 +5244,9 @@ config() {
       __query_execution_client
       if [[ ! "${__deployment}" =~ ^(ssv|lido_ssv|rpc)$  ]]; then
         __query_validator_client
+      fi
+      if [[ ! "${__deployment}" = "lido_obol" ]]; then
+        __query_web3signer
       fi
     else
       CL_NODE="http://consensus:5052"
@@ -5412,6 +5435,9 @@ config() {
     echo "No consensus client or validator client selected. This is a bug. Aborting"
     exit 70
   fi
+  if [[ "${WEB3SIGNER}" = "true" ]]; then
+    COMPOSE_FILE="${COMPOSE_FILE}:web3signer.yml"
+  fi
   if [[ -n "${EXECUTION_CLIENT+x}" ]]; then
     COMPOSE_FILE="${COMPOSE_FILE}:${EXECUTION_CLIENT}"
   fi
@@ -5465,6 +5491,8 @@ config() {
   var=CHECKPOINT_SYNC_URL
   __update_value_in_env "${var}" "${!var-}" "${__env_file}"
   var=COMPOSE_FILE
+  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
+  var=WEB3SIGNER
   __update_value_in_env "${var}" "${!var-}" "${__env_file}"
   var=EL_NODE
   __update_value_in_env "${var}" "${!var:-"http://execution:8551"}" "${__env_file}"
