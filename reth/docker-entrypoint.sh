@@ -103,15 +103,11 @@ case "${NODE_TYPE}" in
   full)
     echo "Reth full node without history expiry"
     __prune+=" --prune.receipts.before 0"
-    __snap=""
-    # Reth 2.1.0
-    # __snap="--full --receipts-all --with-txs"
+    __snap="--with-txs-since 0 --with-receipts-since 0 --with-state-history-distance 10064"
     ;;
   pre-merge-expiry)
     __prune+=" --prune.transactionlookup.distance 10064"
-    __snap="--full"
-    # Reth 2.1.0
-    # __snap="--full --receipts-pre-merge"
+    __snap="--with-txs-since 15537394 --with-receipts-since 15537394 --with-state-history-distance 10064"
     case ${NETWORK} in
       mainnet|sepolia)
         echo "Reth minimal node with pre-merge history expiry"
@@ -125,9 +121,7 @@ case "${NODE_TYPE}" in
     ;;
   pre-prague-expiry)
     __prune+=" --prune.transactionlookup.distance 10064"
-    __snap="--full"
-    # Reth 2.1.0
-    # __snap="--full --receipts-pre-merge"
+    __snap="--with-txs-since 22431084 --with-receipts-since 22431084 --with-state-history-distance 10064"
     case "${NETWORK}" in
       mainnet)
         echo "Reth minimal node with pre-Prague history expiry"
@@ -151,9 +145,7 @@ case "${NODE_TYPE}" in
     echo "Reth minimal node with rolling history expiry, keeps 1 year."
     # 365 days = 82125 epochs = 2628000 slots / blocks
     __prune+=" --prune.transactionlookup.distance 10064 --prune.bodies.distance 2628000 --prune.receipts.distance 2628000"
-    __snap="--full"
-    # Reth 2.1.0
-    # __snap="--full --receipts-pre-merge"
+    __snap="--with-txs-distance 2628000 --with-receipts-distance 2628000 --with-state-history-distance 10064"
     ;;
   aggressive-expiry)
     echo "Reth minimal node with aggressive expiry"
@@ -214,14 +206,7 @@ if [[ -n "${__snap}" && ! -d /var/lib/reth/db ]]; then
   echo "Downloading Reth snapshot with parameters: ${__snap}"
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  reth download --chain "${NETWORK}" --datadir /var/lib/reth ${__static} ${__snap} --resumable
-# Reth 2.1.0
-#  reth download --chain "${NETWORK}" --datadir /var/lib/reth ${__static} ${__snap}
-# Reth 2.0.0 does not take into account --datadir.static, resolve manually
-# Remove with Reth 2.1.0
-  if [[ -n "${__static}" && -d /var/lib/reth/static_files ]]; then
-    mv -v -t /var/lib/static /var/lib/reth/static_files/*
-  fi
+  exec reth download --chain "${NETWORK}" --datadir /var/lib/reth ${__static} ${__snap}
 fi
 
 __strip_empty_args "$@"

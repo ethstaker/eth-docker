@@ -4466,14 +4466,13 @@ __query_4444() {  # Call with with --defaultno for RPC
 
 
 __query_reth_snapshot() {
-  # Reth 2.1.0, remove the test for full
-  if [[ "${EXECUTION_CLIENT}" != "reth.yml" || "${NETWORK}" != "mainnet" || "${EL_NODE_TYPE}" = "full" ]]; then
+  if [[ "${EXECUTION_CLIENT}" != "reth.yml" || "${NETWORK}" != "mainnet" ]]; then
     return
   fi
 
   __write_vars+=("RETH_SNAPSHOT")
 
-  if whiptail --title "Reth snapshot" --yesno "Do you want to speed up Reth sync by using a database snapshot? This breaks eth_getLogs RPC calls, do not use with RocketPool, SSV or NodeSet" 10 65; then
+  if whiptail --title "Reth snapshot" --yesno "Do you want to speed up Reth sync by using a database snapshot?" 10 65; then
     RETH_SNAPSHOT=true
   else
     RETH_SNAPSHOT=""
