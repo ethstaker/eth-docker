@@ -25,13 +25,13 @@ proc default-deployment {} {
     expect "Select Network"
     accept_default
 
-    expect "Select deployment"
+    expect "Select deployment type"
     accept_default
 
-    expect "Select consensus"
+    expect "Select consensus client"
     accept_default
 
-    expect "Select execution"
+    expect "Select execution client"
     accept_default
 }
 
@@ -39,51 +39,26 @@ proc all-defaults {} {
     global spawn_id
     default-deployment
 
-    expect "Checkpoint Sync"
-    yes
-
-    expect "Configure checkpoint"
+    expect "Configure CL checkpoint sync URL"
     accept_default
 
     expect "MEV Boost"
     yes
 
-    expect "Configure MEV"
+    expect "Relays list"
     accept_default
 
     expect "Grafana"
     yes
 
-    expect "Configure rewards"
+    expect "Configure rewards address"
     address
 
     expect "Configure Graffiti"
     accept_default
 
-    expect EOF
-}
-
-proc no-checkpoint {} {
-    global spawn_id
-    default-deployment
-
-    expect "Checkpoint Sync"
-    no
-
-    expect "MEV Boost"
+    expect "Default Graffiti"
     yes
-
-    expect "Configure MEV"
-    accept_default
-
-    expect "Grafana"
-    yes
-
-    expect "Configure rewards"
-    accept_default
-
-    expect "Configure Graffiti"
-    accept_default
 
     expect EOF
 }
@@ -92,10 +67,7 @@ proc no-mev {} {
     global spawn_id
     default-deployment
 
-    expect "Checkpoint Sync"
-    yes
-
-    expect "Configure checkpoint"
+    expect "Configure CL checkpoint sync URL"
     accept_default
 
     expect "MEV Boost"
@@ -104,11 +76,14 @@ proc no-mev {} {
     expect "Grafana"
     yes
 
-    expect "Configure rewards"
-    accept_default
+    expect "Configure rewards address"
+    address
 
     expect "Configure Graffiti"
     accept_default
+
+    expect "Default Graffiti"
+    yes
 
     expect EOF
 }
@@ -117,26 +92,26 @@ proc no-grafana {} {
     global spawn_id
     default-deployment
 
-    expect "Checkpoint Sync"
-    yes
-
-    expect "Configure checkpoint"
+    expect "Configure CL checkpoint sync URL"
     accept_default
 
     expect "MEV Boost"
     yes
 
-    expect "Configure MEV"
+    expect "Relays list"
     accept_default
 
     expect "Grafana"
     no
 
-    expect "Configure rewards"
-    accept_default
+    expect "Configure rewards address"
+    address
 
     expect "Configure Graffiti"
     accept_default
+
+    expect "Default Graffiti"
+    yes
 
     expect EOF
 }

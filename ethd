@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
 set -Eeuo pipefail
 
 __project_name="Eth Docker"
@@ -42,6 +43,7 @@ __minty_fresh=0
 __network_change=0
 __handler_ran=0
 __deployment=""
+__write_vars=()
 __command=""
 __params=""
 __me=./ethd
@@ -55,7 +57,6 @@ __free_space=0
 __docker_dir="/var/lib/docker"
 __keys_args=""
 __final_msg=""
-__ssv_operator_id=-1
 
 
 __dodocker() {
@@ -148,6 +149,9 @@ __handle_docker() {
   __docker_patch_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[3]; }')
 
   if [[ "${__docker_major_version}" -lt 23 ]]; then
+  # Debian 11 and Debian 12 have docker.io 20.10. From Debian 13, it's >= 26
+  # Ubuntu has docker.io>= 27 from 22.04
+  # The code to detect old docker.io can be removed when Debian 12 goes EOL in 2028
     __old_docker=1
   else
     __old_docker=0
@@ -162,8 +166,6 @@ __handle_docker() {
     __docker_sudo="sudo"
   fi
   if [[ -f "${__env_file}" && "${__distro}" =~ (debian|ubuntu) ]] && ! grep -qi microsoft /proc/version; then
-# This gets used, but shellcheck doesn't recognize that
-# shellcheck disable=SC2034
     DOCKER_ROOT=$(__dodocker system info --format '{{.DockerRootDir}}')
     var=DOCKER_ROOT
     __update_value_in_env "${var}" "${!var}" "${__env_file}"
@@ -174,8 +176,6 @@ __handle_docker() {
 # Match literal `'^/(dev|proc|sys|run|some/path/.+)($|/)'` or `'^/(dev|proc|sys|run|var/snap/.+|some/path/.+)($|/)'
     regex="^'\^\/\(dev\|proc\|sys\|run\|(var\/snap\/\.\+\|)?[a-zA-Z/]+\/\.\+\)\(\\$\|\/\)'$"
     if [[ "${__value}" =~ ${regex} ]]; then
-# This gets used, but shellcheck doesn't recognize that
-# shellcheck disable=SC2034
       NODE_EXPORTER_IGNORE_MOUNT_REGEX="'^/(dev|proc|sys|run|var/snap/.+|${DOCKER_ROOT#/}/.+)($|/)'"
       __update_value_in_env "${var}" "${!var}" "${__env_file}"
     fi
@@ -205,6 +205,9 @@ __upgrade_docker() {
   local runc_fixed_version
   local yn
 
+# A vulnerable runc may be found in Debian <= 13 or Ubuntu <= 24.04
+# The Debian code can be removed when Debian 13 goes EOL in 2030.
+# The Ubuntu code can be removed when Ubuntu 24.04 goes EOL in 2029.
   if [[ -n "${ETHDSECUNDO-}" || ! "${__command}" = "update" ]]; then  # Don't run this twice
     if (( __docker_major_version < 28 )) ||
        (( __docker_major_version == 28 && __docker_minor_version < 5 )) ||
@@ -373,6 +376,9 @@ EOF
 
 __check_compose_version() {
   local yn
+
+# Compose V1 is in Debian 11 and Debian 12. The Debian-specific code can be removed when Debian 12 goes EOL in 2028.
+# Compose V1 is in Ubuntu 22.04 and 24.04. The Compose version check can be removed when Ubuntu 24.04 goes EOL in 2029.
 
 # Check for Compose V2 (docker compose) vs Compose V1 (docker-compose)
   if docker compose version >/dev/null 2>&1; then
@@ -785,7 +791,7 @@ EOF
 install() {
   local yn
 
-  if ! [[ "${__distro}" =~ (ubuntu|debian) ]]; then
+  if [[ ! "${__distro}" =~ (ubuntu|debian) ]]; then
     echo "${__project_name} does not know how to install Docker on ${__distro}"
     return 0
   fi
@@ -859,7 +865,7 @@ __get_docker_free_space() {
   fi
 
   regex='^[0-9]+$'
-  if ! [[ "${__free_space}" =~ ${regex} ]] ; then
+  if [[ ! "${__free_space}" =~ ${regex} ]] ; then
     echo "Unable to determine free disk space. This is likely to be a bug."
     if [[ "$OSTYPE" = "darwin"* ]]; then
       echo "df reports $(__dodocker run --rm -v macos-space-check:/dummy busybox df -P /dummy) and __free_space is ${__free_space}"
@@ -945,14 +951,24 @@ __check_disk_space() {
 
   __get_docker_free_space
 
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  if [[ ! -f "${__env_file}" ]]; then
+    if [[ "${__free_space}" -lt 52428800 ]]; then
+      echo
+      echo "You have less than 50 GiB of free disk space:"
+      echo
+      __display_docker_dir
+      __display_docker_volumes
+    fi
+    return 0
+  fi
+
+  __value="${COMPOSE_FILE}"
   var="AUTOPRUNE_NM"
-  __get_value_from_env "${var}" "${__env_file}" "AUTOPRUNE_NM"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
   var="NETWORK"
-  __get_value_from_env "${var}" "${__env_file}" "NETWORK"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
   var="EL_NODE_TYPE"
-  __get_value_from_env "${var}" "${__env_file}" "EL_NODE_TYPE"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
 
   if [[ "${NETWORK}" =~ ^(mainnet|gnosis)$ ]]; then
     min_free=314572800
@@ -964,9 +980,7 @@ __check_disk_space() {
     safe_prune=25
   fi
 
-# Literal match intended
-# shellcheck disable=SC2076
-  if [[ "${__value}" =~ "nethermind.yml" && "${__free_space}" -lt "${min_free}" ]]; then
+  if [[ "${__value}" =~ nethermind\.yml && "${__free_space}" -lt "${min_free}" ]]; then
     low=1
     echo
     echo "You are running Nethermind and have less than ${min_gib} GiB of free disk space."
@@ -980,7 +994,7 @@ Full\". Free space:"
     echo
     __display_docker_dir
     __display_docker_volumes
-  elif [[ "${__value}" =~ "geth.yml" && "${__free_space}" -lt 104857600 ]]; then
+  elif [[ "${__value}" =~ geth\.yml && "${__free_space}" -lt 104857600 ]]; then
     low=1
     echo
     echo "You are running Geth and have less than 100 GiB of free disk space."
@@ -988,7 +1002,7 @@ Full\". Free space:"
     echo
     __display_docker_dir
     __display_docker_volumes
-  elif [[ "${__value}" =~ "besu.yml" && "${__free_space}" -lt 52428800 ]]; then
+  elif [[ "${__value}" =~ besu\.yml && "${__free_space}" -lt 52428800 ]]; then
     low=1
     echo
     echo "You are running Besu and have less than 50 GiB of free disk space."
@@ -1021,9 +1035,6 @@ Full\". Free space:"
 # Check whether there's a source-built client and if so, force it with --no-cache
 # This is called after writing to .env; it is safe to assign to uppercase variables
 __source_build() {
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "COMPOSE_FILE"
-
   case "${COMPOSE_FILE}" in
     *deposit-cli.yml*)
       var="DEPCLI_DOCKERFILE"
@@ -1150,9 +1161,9 @@ __source_build() {
 }
 
 
-# When this gets called $var is COMPOSE_FILE and $__value is what is set in .env for it
-# This function rebuilds __value
-__migrate_compose_file() {
+# When this gets called $var is CORE_FILES or CUSTOM_FILES and $__value is what is set in .env for it
+# This function rebuilds __value, applying any file name changes
+__migrate_compose_files() {
   local ymlarray
   local ymlfile
   local n
@@ -1200,11 +1211,8 @@ __upgrade_postgres() {
   local yn
 
 # Check for web3signer
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-# I do mean to match literally
-# shellcheck disable=SC2076
-  if [[ ! "${__value}" =~ "web3signer.yml" ]]; then
+  __value="${COMPOSE_FILE}"
+  if [[ ! "${__value}" =~ web3signer\.yml ]]; then
     return 0
   fi
 
@@ -1239,7 +1247,7 @@ __upgrade_postgres() {
     alpine:3 du -s /var/lib/postgres-data/ | awk '{print $1}')"
 
   regex='^[0-9]+$'
-  if ! [[ "${source_size}" =~ ${regex} ]] ; then
+  if [[ ! "${source_size}" =~ ${regex} ]] ; then
     echo "Unable to determine database size. This is likely a bug."
     echo "source_size is ${source_size}"
     return 70
@@ -1297,8 +1305,6 @@ __upgrade_postgres() {
     cp "${__env_file}" "${__env_file}.source"
   fi
   var="PG_DOCKER_TAG"
-# This gets used, but shellcheck doesn't recognize that
-# shellcheck disable=SC2034
   PG_DOCKER_TAG=${__target_pg}-trixie
   __update_value_in_env "${var}" "${!var}" "${__env_file}"
   __final_msg+="\nWeb3signer has been stopped. You'll need to run \"${__me} up\" to start it again.\n"
@@ -1311,16 +1317,11 @@ __upgrade_postgres() {
 
 
 repair-reth() {
-  local exitstatus
-  local var
   local yn
 
 # Check for Reth
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-# I do mean to match literally
-# shellcheck disable=SC2076
-  if [[ ! "${__value}" =~ "reth.yml" ]]; then
+  __value="${COMPOSE_FILE}"
+  if [[ ! "${__value}" =~ reth\.yml ]]; then
     echo "You do not appear to be using Reth. Aborting"
     return 0
   fi
@@ -1343,35 +1344,38 @@ repair-reth() {
 }
 
 
-__enable_v6() {
-  local var
+__detect_v6() {
   local v6_works
 
-  if [[ "${__docker_major_version}" -lt 27 ]]; then
-    return
-  fi
-
-  var="IPV6"
-  __get_value_from_env "${var}" "${__env_file}" "IPV6"
-  if [[ "${IPV6}" = "true" ]]; then
+  if [[ "${__docker_major_version}" -lt 27 ]]; then  # Docker-CE v27 is when IPv6 support became usable.
     return
   fi
 
   if [[ "${__distro}" =~ (ubuntu|debian) ]]; then
     if ! dpkg-query -W -f='${Status}' iputils-ping 2>/dev/null | grep -q "ok installed"; then
+      if [[ "${__cannot_sudo}" -eq 1 ]]; then
+        echo "IPv6 connectivity test requires the ping utility, which is not installed."
+        echo "Please install iputils-ping and run \"${__me} ${__command}\" again."
+        return
+      fi
       echo "Installing ping utility"
       ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get -y install iputils-ping
     fi
   fi
 
+  __write_vars+=("IPV6")
+
   echo "Testing IPv6 host connectivity"
   if ! ping -c1 2001:4860:4860::8888 >/dev/null; then
     echo "No IPv6 detected; continuing with IPv4"
+    IPV6="false"
     return
   fi
 
   echo "Testing IPv6 Docker connectivity"
-  __dodocker network create --ipv6 ip6net_ethd_test
+  if ! __dodocker network ls --filter "name=^ip6net_ethd_test$" -q | grep -q .; then
+    __dodocker network create --ipv6 ip6net_ethd_test
+  fi
   v6_works=$(__dodocker run --rm --network ip6net_ethd_test busybox sh -c \
     "if ping -c1 -6 2001:4860:4860::8888 >/dev/null; then echo true; else echo false; fi" < /dev/null)
   __dodocker network rm ip6net_ethd_test
@@ -1379,9 +1383,9 @@ __enable_v6() {
   if [[ "${v6_works}" = "true" ]]; then
     echo "Enabling IPv4/6 dual-stack for your ${__project_name} setup"
     IPV6="true"
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
   else
     echo "Docker cannot use IPv6; continuing with IPv4"
+    IPV6="false"
   fi
 }
 
@@ -1595,10 +1599,6 @@ __update_value_in_env() {
 
 
 __env_migrate() {
-  if [[ ! -f "${__env_file}" ]]; then
-    return 0
-  fi
-
   local old_vars=( )
   local new_vars=( )
   local error
@@ -1606,6 +1606,10 @@ __env_migrate() {
   local index
   local var
   local varname
+
+  if [[ ! -f "${__env_file}" ]]; then
+    return 0
+  fi
 
   if [[ "${__debug}" -eq 1 ]]; then  # Find any values in default.env that contain dashes
     error=0
@@ -1678,8 +1682,14 @@ __env_migrate() {
 
     __get_value_from_env "${var}" "${__env_file}.source" "__value"
     if [[ "${__found}" -eq 1 ]]; then  # Only if variable isn't new in default.env
-      if [[ "${var}" = "COMPOSE_FILE" ]]; then
-        __migrate_compose_file
+      if [[ "${var}" = "CORE_FILES" || "${var}" = "CUSTOM_FILES" ]]; then
+        __migrate_compose_files
+      fi
+      # Remove after Glamsterdam
+      if [[ "${__source_ver}" -lt "54" && "${var}" = "COMPOSE_FILE" ]]; then
+        __update_value_in_env "CORE_FILES" "${__value}" "${__env_file}"
+# shellcheck disable=SC2016
+        __value='${CORE_FILES}${CUSTOM_FILES:+:${CUSTOM_FILES}}'
       fi
       if [[ "${var}" = "CL_QUIC_PORT" ]]; then
         __get_value_from_env "CL_P2P_PORT" "${__env_file}.source" "CL_P2P_PORT"
@@ -1707,10 +1717,10 @@ __env_migrate() {
         else
           __get_value_from_env "EL_MINIMAL_NODE" "${__env_file}.source" "EL_MINIMAL_NODE"
           case "${EL_MINIMAL_NODE}" in
-            true ) __value=pre-merge-expiry;;
-            aggressive ) __value=aggressive-expiry;;
-            rolling ) __value=rolling-expiry;;
-            * ) __value=full;;
+            true) __value=pre-merge-expiry;;
+            aggressive) __value=aggressive-expiry;;
+            rolling) __value=rolling-expiry;;
+            *) __value=full;;
           esac
         fi
         __update_value_in_env "${var}" "${__value}" "${__env_file}"
@@ -1723,8 +1733,8 @@ __env_migrate() {
         else
           __get_value_from_env "CL_MINIMAL_NODE" "${__env_file}.source" "CL_MINIMAL_NODE"
           case "${CL_MINIMAL_NODE}" in
-            true ) __value=pruned;;
-            * ) __value=full;;
+            true) __value=pruned;;
+            *) __value=full;;
           esac
         fi
         __update_value_in_env "${var}" "${__value}" "${__env_file}"
@@ -1740,12 +1750,9 @@ __env_migrate() {
       __update_value_in_env "${new_vars[index]}" "${__value}" "${__env_file}"
     fi
   done
-  # Check whether we run a CL or VC, if so nag about FEE_RECIPIENT
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  # It's CL&VC, CL-only, or VC-only
-# I do mean to match literally
-# shellcheck disable=SC2076
+# Check whether we run a CL or VC, if so nag about FEE_RECIPIENT
+  __value="${COMPOSE_FILE}"
+# It's CL&VC, CL-only, or VC-only
   if [[ "${__value}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-cl-only\.yml|-allin1\.yml|-vc-only\.yml) ]]; then
     # Check for rewards
     var="FEE_RECIPIENT"
@@ -1993,7 +2000,7 @@ update() {
   __free_space=$(df -P "$(pwd)" | awk '/[0-9]%/{print $(NF-2)}')
 
   __regex='^[0-9]+$'
-  if ! [[ "${__free_space}" =~ ${__regex} ]] ; then
+  if [[ ! "${__free_space}" =~ ${__regex} ]] ; then
     echo "Unable to determine free disk space. This is likely a bug."
     echo "df reports $(df -P "$(pwd)") and __free_space is ${__free_space}"
     exit 70
@@ -2290,8 +2297,7 @@ resync-execution() {
   local legacy_volume
 
 # Check for EL client
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __value="${COMPOSE_FILE}"
 
   case "${__value}" in
     *erigon.yml*)
@@ -2307,12 +2313,12 @@ resync-execution() {
     *reth.yml*)
       el_volume='reth-el-data'
       el_client="Reth"
-      extra_msg="A full resync should take 4 days.\nYou can use https://rescuenode.com to keep attesting during resync."
+      extra_msg="A full resync should take 1 to 3 weeks, or 2-4 hours with \"RETH_SNAPSHOT\".\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
     *besu.yml*)
       el_volume='besu-el-data'
       el_client="Besu"
-      extra_msg="A full resync should take 30 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
+      extra_msg="A full resync should take 14 to 30 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
     *nethermind.yml*)
       el_volume='nethermind-el-data'
@@ -2389,8 +2395,7 @@ resync-consensus() {
   local yn
 
   # Check for CL client
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __value="${COMPOSE_FILE}"
 
   case "${__value}" in
     *lighthouse.yml*|*lighthouse-cl-only.yml*) cl_volume='lhconsensus-data'; cl_client="lighthouse";;
@@ -2465,12 +2470,7 @@ resync-consensus() {
 attach-geth() {
   local legacy_datadir
 
-  if [[ ! -f "${__env_file}" ]]; then
-    echo "${__env_file} configuration file not found, aborting."
-    exit 1
-  fi
-
-  if ! grep -q '^COMPOSE_FILE=.*geth\.yml' "${__env_file}" 2>/dev/null ; then
+  if [[ ! "${COMPOSE_FILE}" =~ geth\.yml ]] ; then
     echo "You do not appear to be using Geth, aborting."
     exit 1
   fi
@@ -2515,12 +2515,7 @@ prune-besu() {
     __non_interactive=1
   fi
 
-  if [[ ! -f "${__env_file}" ]]; then
-    echo "${__env_file} configuration file not found, aborting."
-    exit 1
-  fi
-
-  if ! grep -q '^COMPOSE_FILE=.*besu\.yml' "${__env_file}" 2>/dev/null ; then
+  if [[ ! "${COMPOSE_FILE}" =~ besu\.yml ]] ; then
     echo "You do not appear to be using Besu, aborting."
     exit 1
   fi
@@ -2615,12 +2610,7 @@ prune-reth() {
     __non_interactive=1
   fi
 
-  if [ ! -f "${__env_file}" ]; then
-    echo "${__env_file} configuration file not found, aborting."
-    exit 1
-  fi
-
-  if ! grep -q '^COMPOSE_FILE=.*reth\.yml' "${__env_file}" 2>/dev/null ; then
+  if [[ ! "${COMPOSE_FILE}" =~ reth\.yml ]] ; then
     echo "You do not appear to be using Reth, aborting."
     exit 1
   fi
@@ -2720,12 +2710,7 @@ prune-nethermind() {
     __non_interactive=1
   fi
 
-  if [[ ! -f "${__env_file}" ]]; then
-    echo "${__env_file} configuration file not found, aborting."
-    exit 1
-  fi
-
-  if ! grep -q '^COMPOSE_FILE=.*nethermind\.yml' "${__env_file}" 2>/dev/null ; then
+  if [[ ! "${COMPOSE_FILE}" =~ nethermind\.yml ]] ; then
     echo "You do not appear to be using Nethermind, aborting."
     exit 1
   fi
@@ -2854,7 +2839,7 @@ prune-history() {
   local prune_marker
   local warning
   local yn
-  local choices
+  local -a choices=()
   local num_items
   local menu_height
   local target
@@ -2921,11 +2906,6 @@ prune-history() {
     __non_interactive=1
   fi
 
-  if [[ ! -f "${__env_file}" ]]; then
-    echo "${__env_file} configuration file not found, aborting."
-    exit 1
-  fi
-
 # pre-merge is only meaningful on mainnet or sepolia
   var=NETWORK
   __get_value_from_env "${var}" "${__env_file}" "__value"
@@ -2949,17 +2929,12 @@ prune-history() {
     exit 0
   fi
 
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "COMPOSE_FILE"
-
   if [[ -z "${target}" ]]; then
     if [[ "${__non_interactive}" -eq 1 ]]; then
       echo "You need to specify a pruning mode when running in non-interactive mode."
       echo "Aborting."
       exit 1
     fi
-
-    choices=()
 
     choices+=("pre-merge" "Pre-merge expiry")
 
@@ -3253,13 +3228,7 @@ prune-lighthouse() {
     __non_interactive=1
   fi
 
-  if [[ ! -f "${__env_file}" ]]; then
-    echo "${__env_file} configuration file not found, aborting."
-    exit 1
-  fi
-
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __value="${COMPOSE_FILE}"
   if [[ ! "${__value}" =~ (lighthouse.\yml|lighthouse-cl-only\.yml) ]]; then
     echo "You do not appear to be using Lighthouse, aborting."
     exit 1
@@ -3329,13 +3298,7 @@ __prep-keyimport() {
   local var
   local files
 
-  if [[ ! -f "${__env_file}" ]]; then
-    echo "${__env_file} configuration file not found, aborting."
-    exit 1
-  fi
-
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __value="${COMPOSE_FILE}"
   if [[ ! "${__value}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-allin1\.yml|vc-only\.yml) ]]; then
     echo "You do not appear to be running a validator client. Aborting."
     exit 1
@@ -3414,16 +3377,9 @@ __prep-keyimport() {
 __i_haz_deposit_cli() {
   local var
 
-  if [[ ! -f "${__env_file}" ]]; then
-    echo "${__project_name} has not been configured. Please run \"${__me} config\" first."
-    exit 0
-  fi
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-# Literal match intended
-# shellcheck disable=SC2076
-  if [[ ! "${__value}" =~ "deposit-cli.yml" ]]; then
-    echo "Please edit the ${__env_file} file and make sure \":deposit-cli.yml\" is added to the \"COMPOSE_FILE\" line"
+  __value="${COMPOSE_FILE}"
+  if [[ ! "${__value}" =~ deposit-cli\.yml ]]; then
+    echo "Please edit the ${__env_file} file and make sure \":deposit-cli.yml\" is added to the \"CORE_FILES\" line"
     echo "For example, \"nano ${__env_file}\" will open the nano text editor with the \"${__env_file}\" file loaded."
     echo "Without it, this step cannot be run"
     echo
@@ -3443,16 +3399,9 @@ __i_haz_ethdo() {
   local var
   local yn
 
-  if [[ ! -f "${__env_file}" ]]; then
-    echo "${__project_name} has not been configured. Please run \"${__me} config\" first."
-    exit 0
-  fi
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-# Literal match intended
-# shellcheck disable=SC2076
-  if [[ ! "${__value}" =~ "ethdo.yml" ]]; then
-    echo "Please edit the ${__env_file} file and make sure \":ethdo.yml\" is added to the \"COMPOSE_FILE\" line"
+  __value="${COMPOSE_FILE}"
+  if [[ ! "${__value}" =~ ethdo\.yml ]]; then
+    echo "Please edit the ${__env_file} file and make sure \"ethdo.yml\" is added to the \"CUSTOM_FILES\" line"
     echo "For example, \"nano ${__env_file}\" will open the nano text editor with the \"${__env_file}\" file loaded."
     echo "Without it, this step cannot be run"
     echo
@@ -3461,14 +3410,14 @@ __i_haz_ethdo() {
       [Yy]);;
       *) exit 130;;
     esac
-    if [[ -n "${__value}" ]]; then
-      COMPOSE_FILE="${__value}:ethdo.yml"
+    if [[ -n "${CUSTOM_FILES}" ]]; then
+      CUSTOM_FILES+=":ethdo.yml"
     else
-      COMPOSE_FILE="ethdo.yml"
-      echo "You do not have a CL in ${__project_name}. Please make sure CL_NODE in ${__env_file} points at an available one"
+      CUSTOM_FILES="ethdo.yml"
     fi
+    var="CUSTOM_FILES"
     __update_value_in_env "${var}" "${!var}" "${__env_file}"
-    echo "Your COMPOSE_FILE now reads ${COMPOSE_FILE}"
+    echo "Your CUSTOM_FILES now reads ${CUSTOM_FILES}"
   fi
 }
 
@@ -3477,24 +3426,16 @@ __i_haz_web3signer() {
   local var
   local yn
 
-  if [[ ! -f "${__env_file}" ]]; then
-    echo "${__project_name} has not been configured. Please run \"${__me} config\" first."
-    exit 0
-  fi
-
   var="WEB3SIGNER"
   __get_value_from_env "${var}" "${__env_file}" "__value"
   if [[ ! "${__value}" = "true" ]]; then
     return 0
   fi
 
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-# Literal match intended
-# shellcheck disable=SC2076
-  if [[ ! "${__value}" =~ "web3signer.yml" ]]; then
+  __value="${COMPOSE_FILE}"
+  if [[ ! "${__value}" =~ web3signer\.yml ]]; then
     echo "WEB3SIGNER=true in ${__env_file}, but web3signer.yml is not in use"
-    echo "Please edit the ${__env_file} file and make sure \":web3signer.yml\" is added to the \"COMPOSE_FILE\" line"
+    echo "Please edit the ${__env_file} file and make sure \":web3signer.yml\" is added to the \"CORE_FILES\" line"
     echo "For example, \"nano ${__env_file}\" will open the nano text editor with the \"${__env_file}\" file loaded."
     echo "Without it, \"${__me} keys\" cannot be run"
     echo
@@ -3503,14 +3444,15 @@ __i_haz_web3signer() {
       [Yy]);;
       *) exit 130;;
     esac
-    if [[ -n "${__value}" ]]; then
-      COMPOSE_FILE="${__value}:web3signer.yml"
+    if [[ -n "${CORE_FILES}" ]]; then
+      CORE_FILES+=":web3signer.yml"
     else
-      echo "You do not have a validator client in ${__project_name}. web3signer cannot be used without one."
+      echo "You do not appear to have a validator client in ${__project_name}. Web3signer cannot be used without one."
       exit 1
     fi
+    var="CORE_FILES"
     __update_value_in_env "${var}" "${!var}" "${__env_file}"
-    echo "Your COMPOSE_FILE now reads ${COMPOSE_FILE}"
+    echo "Your CORE_FILES now reads ${CORE_FILES}"
   fi
 }
 
@@ -3659,10 +3601,7 @@ keys() {
     __prep-keyimport "$@"
     __docompose run --rm -e OWNER_UID="${owner_uid}" validator-keys import "${__keys_args}"
   elif [ "${1:-}" = "create-prysm-wallet" ]; then
-    var="COMPOSE_FILE"
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-# Literal match intended
-# shellcheck disable=SC2076
+    __value="${COMPOSE_FILE}"
     if [[ ! "${__value}" =~ (prysm\.yml|prysm-vc-only\.yml) ]]; then
       echo "You do not appear to be using a Prysm validator. Aborting."
       exit 1
@@ -3870,8 +3809,7 @@ __adjust_grandine_permissions() {
   local datadir_owner
   local datadir_volume
 
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __value="${COMPOSE_FILE}"
   if [[ ! "${__value}" =~ grandine ]]; then
     return 0
   fi
@@ -3950,11 +3888,14 @@ cmd() {
 
 terminate() {
   local yn
+  local message
 
   # Assume project name and volume are delimited by _ and there is no _ in the volume name. Done to avoid catching project-2 while looking at project
   if [[ -z "$(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_[^_]+$")" ]]; then
     echo "There are no data stores - Docker volumes - left to remove for this Ethereum node."
-    stop
+    if [[ -f "${__env_file}" ]]; then
+      stop
+    fi
     return 0
   fi
 
@@ -3967,29 +3908,45 @@ terminate() {
     esac
   done
 
-  stop
+  if [[ -f "${__env_file}" ]]; then
+    stop
+    message="All containers stopped and all volumes deleted"
+  else
+    message="All volumes deleted. ${__project_name} is not configured, so no containers could be stopped."
+  fi
+
 # In this case I want the word splitting, so rm can remove all volumes
 # shellcheck disable=SC2046
   __dodocker volume rm $(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_[^_]+$")
   echo
-  echo "All containers stopped and all volumes deleted"
+  echo "${message}"
   echo
 }
 
 
 __query_network() {
   local var
+  local -a choices=()
+  local num_items
+  local menu_height
+
+  __write_vars+=("NETWORK")
+
+  choices+=("hoodi" "Hoodi Testnet")
+  choices+=("ephemery" "Ephemery Testnet")
+  choices+=("mainnet" "Ethereum Mainnet")
+  choices+=("gnosis" "Gnosis Chain")
+  choices+=("sepolia" "Sepolia Testnet (permissioned validators)")
+  choices+=("custom" "Custom Testnet (needs a URL)")
+
+  num_items=$(( ${#choices[@]} / 2 ))
+  menu_height=$(( 8 + num_items ))
 
   var="NETWORK"
   __get_value_from_env "${var}" "${__env_file}" "__value"
   NETWORK=$(whiptail --notags --title "Select Network" --menu \
-  "Which network do you want to run on?" 14 65 6 \
-  "hoodi" "Hoodi Testnet" \
-  "ephemery" "Ephemery Testnet" \
-  "mainnet" "Ethereum Mainnet" \
-  "gnosis" "Gnosis Chain" \
-  "sepolia" "Sepolia Testnet (permissioned validators)" \
-  "custom" "Custom Testnet (needs a URL)" 3>&1 1>&2 2>&3)
+    "Which network do you want to run on?" "${menu_height}" 65 "${num_items}" \
+    "${choices[@]}" 3>&1 1>&2 2>&3)
 
   case "${NETWORK}" in
     mainnet)
@@ -3998,7 +3955,7 @@ __query_network() {
     gnosis)
       echo "You chose to run on Gnosis Chain"
       ;;
-    sepolia|hoodi)
+    sepolia|hoodi|ephemery)
       echo "You chose to run on ${NETWORK} testnet"
       ;;
     custom)
@@ -4021,53 +3978,67 @@ screen.\n\nCustom testnets only work with a URL to fetch their configuration fro
   else
     __network_change=0
   fi
+
+  if [[ ${NETWORK} =~ ^https?:// ]]; then  # The aliases need to not use ${NETWORK}
+    __write_vars+=("W3S_ALIAS" "PG_ALIAS" "CL_ALIAS" "EL_ALIAS" "MEV_ALIAS" "RPC_PROXY_ALIAS")
+
+    W3S_ALIAS=custom-web3signer
+    PG_ALIAS=custom-postgres
+    CL_ALIAS=custom-consensus
+    EL_ALIAS=custom-execution
+    MEV_ALIAS=custom-mev
+    RPC_PROXY_ALIAS=custom-rpc-proxy
+  fi
 }
 
 
+# Has to be called after __query_network
 __query_deployment() {
+  local -a choices=()
+  local arch
+  local num_items
+  local menu_height
+
+  arch=$(uname -m)
+
   if [[ "${NETWORK}" = "gnosis" ]]; then
-    if uname -m | grep -q riscv64; then
+    if [[ "${arch}" =~ riscv64 ]]; then
       echo "Gnosis network has no available client combos on RISC-V. Aborting."
       exit 1
     fi
-    __deployment=$(whiptail --notags --title "Select deployment type" --menu \
-    "What kind of deployment do you want to run?" 11 65 3 \
-    "node" "Ethereum node - consensus, execution and validator client" \
-    "rpc" "Ethereum RPC node - consensus and execution client" \
-    "validator" "Validator client only" 3>&1 1>&2 2>&3)
+    choices+=("node" "Ethereum node - consensus, execution and validator client")
+    choices+=("rpc" "Ethereum RPC node - consensus and execution client")
+    choices+=("validator" "Validator client only")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    if uname -m | grep -q riscv64; then
+    if [[ "${arch}" =~ riscv64 ]]; then
       echo "Ephemery network has no available client combos on RISC-V. Aborting."
       exit 1
     fi
-    __deployment=$(whiptail --notags --title "Select deployment type" --menu \
-    "What kind of deployment do you want to run?" 11 65 3 \
-    "node" "Ethereum node - consensus, execution and validator client" \
-    "rpc" "Ethereum RPC node - consensus and execution client" \
-    "validator" "Validator client only" 3>&1 1>&2 2>&3)
-  elif uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
-    __deployment=$(whiptail --notags --title "Select deployment type" --menu \
-    "What kind of deployment do you want to run?" 12 65 4 \
-    "node" "Ethereum node - consensus, execution and validator client" \
-    "rpc" "Ethereum RPC node - consensus and execution client" \
-    "lido_comp" "Lido-compatible node (Community Staking / Simple DVT)" \
-    "rocket" "Validator client only - integrate with RocketPool" \
-    "ssv" "SSV node - consensus, execution and ssv-node" \
-    3>&1 1>&2 2>&3)
-  elif uname -m | grep -q riscv64; then
-    __deployment=$(whiptail --notags --title "Select deployment type" --menu \
-    "What kind of deployment do you want to run?" 11 65 3 \
-    "node" "Ethereum node - consensus, execution and validator client" \
-    "rpc" "Ethereum RPC node - consensus and execution client" \
-    "rocket" "Validator client only - integrate with RocketPool" 3>&1 1>&2 2>&3)
-  elif uname -m | grep -q x86_64; then
-    __deployment=$(whiptail --notags --title "Select deployment type" --menu \
-    "What kind of deployment do you want to run?" 13 65 5 \
-    "node" "Ethereum node - consensus, execution and validator client" \
-    "rpc" "Ethereum RPC node - consensus and execution client" \
-    "lido_comp" "Lido-compatible node (Community Staking / Simple DVT)" \
-    "rocket" "Validator client only - integrate with RocketPool" \
-    "ssv" "SSV node - consensus, execution and ssv-node" 3>&1 1>&2 2>&3)
+    choices+=("node" "Ethereum node - consensus, execution and validator client")
+    choices+=("rpc" "Ethereum RPC node - consensus and execution client")
+    choices+=("validator" "Validator client only")
+  elif [[ "${NETWORK}" = "sepolia" ]]; then
+    choices+=("rpc" "Ethereum RPC node - consensus and execution client")
+    choices+=("node" "Ethereum node - consensus, execution and validator client")
+    choices+=("validator" "Validator client only")
+  elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
+    choices+=("node" "Ethereum node - consensus, execution and validator client")
+    choices+=("rpc" "Ethereum RPC node - consensus and execution client")
+    choices+=("ssv" "SSV node - consensus, execution and ssv-node")
+    choices+=("lido_comp" "Lido-compatible node (Community Staking / Simple DVT)")
+    choices+=("rocket" "Validator client only - integrate with RocketPool")
+    choices+=("validator" "Validator client only")
+  elif [[ "${arch}" =~ riscv64 ]]; then
+    choices+=("node" "Ethereum node - consensus, execution and validator client")
+    choices+=("rpc" "Ethereum RPC node - consensus and execution client")
+    choices+=("validator" "Validator client only")
+  elif [[ "${arch}" =~ x86_64 ]]; then
+    choices+=("node" "Ethereum node - consensus, execution and validator client")
+    choices+=("rpc" "Ethereum RPC node - consensus and execution client")
+    choices+=("ssv" "SSV node - consensus, execution and ssv-node")
+    choices+=("lido_comp" "Lido-compatible node (Community Staking / Simple DVT)")
+    choices+=("rocket" "Validator client only - integrate with RocketPool")
+    choices+=("validator" "Validator client only")
   else
     echo "${__project_name} does not recognize this CPU architecture. Aborting."
     echo "Output of uname -m"
@@ -4075,25 +4046,36 @@ __query_deployment() {
     exit 1
   fi
 
+  num_items=$(( ${#choices[@]} / 2 ))
+  menu_height=$(( 8 + num_items ))
+
+  __deployment=$(whiptail --notags --title "Select deployment type" --menu \
+    "What kind of deployment do you want to run?" "${menu_height}" 65 "${num_items}" \
+    "${choices[@]}" 3>&1 1>&2 2>&3)
+
   if [[ "${__deployment}" = "lido_comp" ]]; then
-    if uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
-      __deployment=$(whiptail --notags --title "Select deployment type for Lido" --menu \
-      "What kind of deployment to participate in Lido protocol do you want to run?" 11 90 3 \
-      "lido_csm" "[Community Staking] CSM node - Consensus, execution and validator client" \
-      "lido_ssv" "[Simple DVT] SSV node - Consensus, execution and ssv-node" \
-      "lido_obol" "[Simple DVT] Obol node - Nodes, validator client and charon node (obol middleware)" 3>&1 1>&2 2>&3)
-    elif uname -m | grep -q x86_64; then
-      __deployment=$(whiptail --notags --title "Select deployment type for Lido" --menu \
-      "What kind of deployment to participate in Lido protocol do you want to run?" 11 90 3 \
-      "lido_csm" "[Community Staking] CSM node - Consensus, execution and validator client" \
-      "lido_ssv" "[Simple DVT] SSV node - Consensus, execution and ssv-node" \
-      "lido_obol" "[Simple DVT] Obol node - Nodes, validator client and charon node (obol middleware)" 3>&1 1>&2 2>&3)
+    choices=()
+    if [[ "${arch}" =~ (aarch64|arm64) ]]; then
+      choices+=("lido_csm" "[Community Staking] CSM node - Consensus, execution and validator client")
+      choices+=("lido_ssv" "[Simple DVT] SSV node - Consensus, execution and ssv-node")
+      choices+=("lido_obol" "[Simple DVT] Obol node - Nodes, validator client and charon node (obol middleware)")
+    elif [[ "${arch}" =~ x86_64 ]]; then
+      choices+=("lido_csm" "[Community Staking] CSM node - Consensus, execution and validator client")
+      choices+=("lido_ssv" "[Simple DVT] SSV node - Consensus, execution and ssv-node")
+      choices+=("lido_obol" "[Simple DVT] Obol node - Nodes, validator client and charon node (obol middleware)")
     else
       echo "${__project_name} does not support Lido on this CPU architecture. Aborting."
       echo "Output of uname -m"
       uname -m
       exit 1
     fi
+
+    num_items=$(( ${#choices[@]} / 2 ))
+    menu_height=$(( 8 + num_items ))
+
+    __deployment=$(whiptail --notags --title "Select deployment type for Lido" --menu \
+      "What kind of deployment to participate in Lido protocol do you want to run?" "${menu_height}" 90 "${num_items}" \
+      "${choices[@]}" 3>&1 1>&2 2>&3)
   fi
 
   echo "Your deployment choice is: ${__deployment}"
@@ -4101,51 +4083,63 @@ __query_deployment() {
 
 
 __query_validator_client() {
+  local -a choices=()
+  local arch
+  local num_items
+  local menu_height
+
+  arch=$(uname -m)
+
   if [[ "${NETWORK}" = "gnosis" ]]; then
-    VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
-    "Which validator client do you want to run?" 12 65 4 \
-    "lighthouse-vc-only.yml" "Lighthouse validator client" \
-    "teku-vc-only.yml" "Teku validator client" \
-    "lodestar-vc-only.yml" "Lodestar validator client" \
-    "nimbus-vc-only.yml" "Nimbus validator client" 3>&1 1>&2 2>&3)
+    choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
+    choices+=("teku-vc-only.yml" "Teku validator client")
+    choices+=("lodestar-vc-only.yml" "Lodestar validator client")
+    choices+=("nimbus-vc-only.yml" "Nimbus validator client")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
-    "Which validator client do you want to run?" 9 65 2 \
-    "teku-vc-only.yml" "Teku validator client" \
-    "lodestar-vc-only.yml" "Lodestar validator client" \
-    3>&1 1>&2 2>&3)
+    choices+=("teku-vc-only.yml" "Teku validator client")
+    choices+=("lodestar-vc-only.yml" "Lodestar validator client")
   elif [[ "${__deployment}" = "rocket" ]]; then
-    if uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
-      VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
-      "Which validator client do you want to run?" 12 65 4 \
-      "lighthouse-vc-only.yml" "Lighthouse validator client" \
-      "teku-vc-only.yml" "Teku validator client" \
-      "lodestar-vc-only.yml" "Lodestar validator client" \
-      "nimbus-vc-only.yml" "Nimbus validator client" 3>&1 1>&2 2>&3)
+    if [[ "${arch}" =~ (aarch64|arm64) ]]; then
+      choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
+      choices+=("teku-vc-only.yml" "Teku validator client")
+      choices+=("lodestar-vc-only.yml" "Lodestar validator client")
+      choices+=("nimbus-vc-only.yml" "Nimbus validator client")
     else
-      VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
-      "Which validator client do you want to run?" 12 65 4 \
-      "teku-vc-only.yml" "Teku validator client" \
-      "lighthouse-vc-only.yml" "Lighthouse validator client" \
-      "lodestar-vc-only.yml" "Lodestar validator client" \
-      "nimbus-vc-only.yml" "Nimbus validator client" 3>&1 1>&2 2>&3)
+      choices+=("teku-vc-only.yml" "Teku validator client")
+      choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
+      choices+=("lodestar-vc-only.yml" "Lodestar validator client")
+      choices+=("nimbus-vc-only.yml" "Nimbus validator client")
     fi
-  elif uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
-    VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
-    "Which validator client do you want to run?" 13 65 5 \
-    "lighthouse-vc-only.yml" "Lighthouse validator client" \
-    "teku-vc-only.yml" "Teku validator client" \
-    "lodestar-vc-only.yml" "Lodestar validator client" \
-    "nimbus-vc-only.yml" "Nimbus validator client" \
-    "prysm-vc-only.yml" "Prysm validator client" 3>&1 1>&2 2>&3)
+  elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
+    choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
+    choices+=("teku-vc-only.yml" "Teku validator client")
+    choices+=("lodestar-vc-only.yml" "Lodestar validator client")
+    choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+    choices+=("prysm-vc-only.yml" "Prysm validator client")
   else
-    VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
-    "Which validator client do you want to run?" 13 65 5 \
-    "teku-vc-only.yml" "Teku validator client" \
-    "lighthouse-vc-only.yml" "Lighthouse validator client" \
-    "lodestar-vc-only.yml" "Lodestar validator client" \
-    "nimbus-vc-only.yml" "Nimbus validator client" \
-    "prysm-vc-only.yml" "Prysm validator client" 3>&1 1>&2 2>&3)
+    choices+=("teku-vc-only.yml" "Teku validator client")
+    choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
+    choices+=("lodestar-vc-only.yml" "Lodestar validator client")
+    choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+    choices+=("prysm-vc-only.yml" "Prysm validator client")
+  fi
+
+  num_items=$(( ${#choices[@]} / 2 ))
+  menu_height=$(( 8 + num_items ))
+
+  VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
+    "Which validator client do you want to run?" "${menu_height}" 65 "${num_items}" \
+    "${choices[@]}" 3>&1 1>&2 2>&3)
+
+  if [[ "${VALIDATOR_CLIENT}" = "nimbus-vc-only.yml" && "${NETWORK}" = "gnosis" ]]; then
+    __write_vars+=("NIM_DOCKERFILE")
+    NIM_DOCKERFILE=Dockerfile.sourcegnosis
+  fi
+
+  if [[ -n "${CONSENSUS_CLIENT+x}" ]]; then
+    CORE_FILES+=":${VALIDATOR_CLIENT}"
+  else
+    CORE_FILES="${VALIDATOR_CLIENT}"
   fi
 
   echo "Your validator client file is:" "${VALIDATOR_CLIENT}"
@@ -4153,52 +4147,74 @@ __query_validator_client() {
 
 
 __query_consensus_client() {
+  local -a choices=()
+  local arch
+  local num_items
+  local menu_height
+
+  __write_vars+=("CL_NODE")
+
+  arch=$(uname -m)
+
   if [[ "${NETWORK}" = "gnosis" ]]; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 13 65 5 \
-    "teku.yml" "Teku (Java) - consensus and validator client" \
-    "lighthouse.yml" "Lighthouse (Rust) - consensus and validator client" \
-    "lodestar.yml" "Lodestar (TypeScript) - consensus and validator client" \
-    "nimbus.yml" "Nimbus (Nim) - consensus and validator client" \
-    "caplin.yml" "Caplin (Go) - Erigon's built-in CL" \
-    3>&1 1>&2 2>&3)
+    choices+=("teku.yml" "Teku (Java) - consensus and validator client")
+    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
+    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
+    choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+    choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 9 65 2 \
-    "teku.yml" "Teku (Java) - consensus and validator client" \
-    "lodestar.yml" "Lodestar (TypeScript) - consensus and validator client" \
-    3>&1 1>&2 2>&3)
-  elif uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 15 65 7 \
-    "nimbus.yml" "Nimbus (Nim) - consensus and validator client" \
-    "grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client" \
-    "lodestar.yml" "Lodestar (TypeScript) - consensus and validator client" \
-    "teku.yml" "Teku (Java) - consensus and validator client" \
-    "lighthouse.yml" "Lighthouse (Rust) - consensus and validator client" \
-    "prysm.yml" "Prysm (Go) - consensus and validator client" \
-    "caplin.yml" "Caplin (Go) - Erigon's built-in CL" \
-     3>&1 1>&2 2>&3)
-  elif uname -m | grep -q riscv64; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 9 65 1 \
-    "nimbus.yml" "Nimbus (Nim) - consensus and validator client" 3>&1 1>&2 2>&3)
+    choices+=("teku.yml" "Teku (Java) - consensus and validator client")
+    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
+  elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
+    choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+    choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
+    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
+    choices+=("teku.yml" "Teku (Java) - consensus and validator client")
+    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
+    choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
+    choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
+  elif [[ "${arch}" =~ riscv64 ]]; then
+    choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
   else
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 15 65 7 \
-    "teku.yml" "Teku (Java) - consensus and validator client" \
-    "grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client" \
-    "lodestar.yml" "Lodestar (TypeScript) - consensus and validator client" \
-    "nimbus.yml" "Nimbus (Nim) - consensus and validator client" \
-    "lighthouse.yml" "Lighthouse (Rust) - consensus and validator client" \
-    "prysm.yml" "Prysm (Go) - consensus and validator client" \
-    "caplin.yml" "Caplin (Go) - Erigon's built-in CL" \
-    3>&1 1>&2 2>&3)
+    choices+=("teku.yml" "Teku (Java) - consensus and validator client")
+    choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
+    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
+    choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
+    choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
+    choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
+  fi
+
+  num_items=$(( ${#choices[@]} / 2 ))
+  menu_height=$(( 8 + num_items ))
+
+  CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
+    "Which consensus client do you want to run?" "${menu_height}" 65 "${num_items}" \
+    "${choices[@]}" 3>&1 1>&2 2>&3)
+
+  if [[ "${CONSENSUS_CLIENT}" = "nimbus.yml" && "${NETWORK}" = "gnosis" ]]; then
+    __write_vars+=("NIM_DOCKERFILE")
+    NIM_DOCKERFILE=Dockerfile.sourcegnosis
+  fi
+
+  if [[ "${CONSENSUS_CLIENT}" = "nimbus.yml" && "${arch}" =~ riscv64 ]]; then
+    __write_vars+=("NIM_DOCKERFILE")
+    NIM_DOCKERFILE=Dockerfile.source
+  fi
+
+# This only works if __query_consensus_client is always called first
+  CORE_FILES="${CONSENSUS_CLIENT}"
+
+  if [[ "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
+    CL_NODE=http://execution:5052
+  else
+    CL_NODE=http://consensus:5052
   fi
 
   if [[ "${__deployment}" = "lido_obol" && "${CONSENSUS_CLIENT}" = "lodestar.yml" ]]; then
     CONSENSUS_CLIENT="lodestar-cl-only.yml"  # Charon does not handle SSZ
     VALIDATOR_CLIENT="lodestar-vc-only.yml"
+    CORE_FILES="${CONSENSUS_CLIENT}:${VALIDATOR_CLIENT}"
   fi
 
   echo "Your consensus client file is:" "${CONSENSUS_CLIENT}"
@@ -4206,66 +4222,88 @@ __query_consensus_client() {
 
 
 __query_consensus_only_client() {
+  local -a choices=()
+  local arch
+  local num_items
+  local menu_height
+
+  __write_vars+=("CL_NODE")
+
+  arch=$(uname -m)
+
   if [[ "${NETWORK}" = "gnosis" ]]; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 13 65 5 \
-    "lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client" \
-    "teku-cl-only.yml" "Teku (Java) - consensus client" \
-    "lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client" \
-    "nimbus-cl-only.yml" "Nimbus (Nim) - consensus client" \
-    3>&1 1>&2 2>&3)
+    choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
+    choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
+    choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
+    choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 9 65 2 \
-    "teku-cl-only.yml" "Teku (Java) - consensus client" \
-    "lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client" \
-    3>&1 1>&2 2>&3)
-  elif uname -m | grep -q aarch64 || uname -m | grep -q arm64; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 13 65 7 \
-    "nimbus-cl-only.yml" "Nimbus (Nim) - consensus client" \
-    "grandine-cl-only.yml" "Grandine (Rust) - consensus client" \
-    "lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client" \
-    "lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client" \
-    "teku-cl-only.yml" "Teku (Java) - consensus client" \
-    "prysm-cl-only.yml" "Prysm (Go) - consensus client" \
-    3>&1 1>&2 2>&3)
-  elif uname -m | grep -q riscv64; then
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 9 65 1 \
-    "nimbus-cl-only.yml" "Nimbus (Nim) - consensus client" 3>&1 1>&2 2>&3)
+    choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
+    choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
+  elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
+    choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
+    choices+=("grandine-cl-only.yml" "Grandine (Rust) - consensus client")
+    choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
+    choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
+    choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
+    choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
+    choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
+  elif [[ "${arch}" =~ riscv64 ]]; then
+    choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
   else
-    CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
-    "Which consensus client do you want to run?" 14 65 7 \
-    "teku-cl-only.yml" "Teku (Java) - consensus client" \
-    "grandine-cl-only.yml" "Grandine (Rust) - consensus client" \
-    "lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client" \
-    "nimbus-cl-only.yml" "Nimbus (Nim) - consensus client" \
-    "lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client" \
-    "prysm-cl-only.yml" "Prysm (Go) - consensus client" \
-    3>&1 1>&2 2>&3)
+    choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
+    choices+=("grandine-cl-only.yml" "Grandine (Rust) - consensus client")
+    choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
+    choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
+    choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
+    choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
+    choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   fi
+
+  num_items=$(( ${#choices[@]} / 2 ))
+  menu_height=$(( 8 + num_items ))
+
+  CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
+    "Which consensus client do you want to run?" "${menu_height}" 65 "${num_items}" \
+    "${choices[@]}" 3>&1 1>&2 2>&3)
+
+  if [[ "${CONSENSUS_CLIENT}" = "nimbus-cl-only.yml" && "${NETWORK}" = "gnosis" ]]; then
+    __write_vars+=("NIM_DOCKERFILE")
+    NIM_DOCKERFILE=Dockerfile.sourcegnosis
+  fi
+
+  if [[ "${CONSENSUS_CLIENT}" = "nimbus-cl-only.yml" && "${arch}" =~ riscv64 ]]; then
+    __write_vars+=("NIM_DOCKERFILE")
+    NIM_DOCKERFILE=Dockerfile.source
+  fi
+
+# This only works when __query_consensus_only_client is always called first
+  CORE_FILES="${CONSENSUS_CLIENT}"
+
+  CL_NODE=http://consensus:5052
 
   echo "Your consensus client file is:" "${CONSENSUS_CLIENT}"
 }
 
 
+# Always called from __query_execution_client, __write_vars already has EL_NODE
 __query_custom_execution_client() {
   local var
 
+  __write_vars+=("JWT_SECRET")
+
   if [[ "${__minty_fresh}" -eq 1 ]]; then
-    EL_CUSTOM_NODE=""
+    EL_NODE=""
     JWT_SECRET=""
   else
     var="EL_NODE"
-    __get_value_from_env "${var}" "${__env_file}" "EL_CUSTOM_NODE"
+    __get_value_from_env "${var}" "${__env_file}" "${var}"
     var="JWT_SECRET"
-    __get_value_from_env "${var}" "${__env_file}" "JWT_SECRET"
+    __get_value_from_env "${var}" "${__env_file}" "${var}"
   fi
-  EL_CUSTOM_NODE=$(whiptail --title "Configure custom execution client" --inputbox "What is the URL for your custom \
-execution client? (right-click to paste)" 10 65 "${EL_CUSTOM_NODE}" 3>&1 1>&2 2>&3)
+  EL_NODE=$(whiptail --title "Configure custom execution client" --inputbox "What is the URL for your custom \
+execution client? (right-click to paste)" 10 65 "${EL_NODE}" 3>&1 1>&2 2>&3)
 
-  echo "Your custom execution client is: $EL_CUSTOM_NODE"
+  echo "Your custom execution client is: $EL_NODE"
 
   while true; do
     JWT_SECRET=$(whiptail --title "Configure JWT secret" --inputbox "What is the JWT secret shared with the \
@@ -4287,21 +4325,21 @@ again or Cancel on the next screen." 10 65
 
 
 __query_execution_client() {
-  local choices
+  local -a choices=()
   local arch
   local num_items
   local menu_height
 
+  __write_vars+=("EL_NODE")
+
   if [[ "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
     EXECUTION_CLIENT="erigon.yml"
     echo "Your execution client file is:" "${EXECUTION_CLIENT}"
-# This gets used, but shellcheck doesn't recognize that
-# shellcheck disable=SC2034
+    CORE_FILES+=":${EXECUTION_CLIENT}"
     EL_NODE="http://execution:8551"
     return 0
   fi
 
-  choices=()
   arch=$(uname -m)
 
   if [[ "${NETWORK}" = "gnosis" ]]; then
@@ -4315,11 +4353,13 @@ __query_execution_client() {
       exit 1
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]] ; then
+    choices+=("reth.yml" "Reth (Rust)")
     choices+=("besu.yml" "Besu (Java)")
     choices+=("nethermind.yml" "Nethermind (.NET)")
     choices+=("erigon.yml" "Erigon (Go)")
     choices+=("geth.yml" "Geth (Go)")
-  elif [[ "${arch}" = *"riscv64"* ]]; then
+    choices+=("ethrex.yml" "Ethrex (Rust)")
+  elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("geth.yml" "Geth (Go)")
   else
     choices+=("reth.yml" "Reth (Rust)")
@@ -4330,7 +4370,7 @@ __query_execution_client() {
     choices+=("ethrex.yml" "Ethrex (Rust)")
   fi
 
-  if [[ "${arch}" != *"riscv64"* && "${NETWORK}" =~ (hoodi|sepolia) ]]; then
+  if [[ ! "${arch}" =~ riscv64 && "${NETWORK}" =~ (hoodi|sepolia) ]]; then
     choices+=("nimbus-el.yml" "Nimbus (Nim) - alpha")
   fi
 
@@ -4339,28 +4379,28 @@ __query_execution_client() {
   menu_height=$(( 8 + num_items ))
 
   EXECUTION_CLIENT=$(whiptail --notags --title "Select execution client" --menu \
-  "Which execution client do you want to run?" "${menu_height}" 65 "${num_items}" \
-  "${choices[@]}" 3>&1 1>&2 2>&3)
+    "Which execution client do you want to run?" "${menu_height}" 65 "${num_items}" \
+    "${choices[@]}" 3>&1 1>&2 2>&3)
+
+  if [[ "${arch}" =~ riscv64 && "${EXECUTION_CLIENT}" = "geth.yml" ]]; then
+    __write_vars+=("GETH_DOCKERFILE")
+    GETH_DOCKERFILE=Dockerfile.source
+  fi
 
   if [[ "${EXECUTION_CLIENT}" = "NONE" ]]; then
-    unset EXECUTION_CLIENT
     __query_custom_execution_client
-    EL_NODE="${EL_CUSTOM_NODE}"
   else
     echo "Your execution client file is:" "${EXECUTION_CLIENT}"
-# This gets used, but shellcheck doesn't recognize that
-# shellcheck disable=SC2034
     EL_NODE="http://execution:8551"
+    CORE_FILES+=":${EXECUTION_CLIENT}"
   fi
 }
 
 
 __query_ssv_client() {
-  local choices
+  local -a choices=()
   local num_items
   local menu_height
-
-  choices=()
 
   choices+=("ssv.yml" "SSV Node (Go)")
   choices+=("anchor.yml" "Anchor (Rust)")
@@ -4369,26 +4409,43 @@ __query_ssv_client() {
   menu_height=$(( 8 + num_items ))
 
   SSV_CLIENT=$(whiptail --notags --title "Select SSV client" --menu \
-  "Which SSV client do you want to run?" "${menu_height}" 65 "${num_items}" \
-  "${choices[@]}" 3>&1 1>&2 2>&3)
+    "Which SSV client do you want to run?" "${menu_height}" 65 "${num_items}" \
+    "${choices[@]}" 3>&1 1>&2 2>&3)
+
+  CORE_FILES+=":${SSV_CLIENT}"
 
   echo "Your SSV client file is:" "${SSV_CLIENT}"
 }
 
 
 __query_4444() {  # Call with with --defaultno for RPC
-  if (whiptail --title "History expiry" --yesno "Do you want to expire pre-merge history? Good for a validator node, but makes eth_getLogs RPC calls impossible pre-merge" 10 65 "$1") then
+  __write_vars+=("EL_NODE_TYPE")
+
+  if [[ "${EXECUTION_CLIENT}" = "NONE" || ! "${NETWORK}" =~ (mainnet|sepolia) ]]; then
+    EL_NODE_TYPE=full
+    return
+  fi
+
+  if whiptail --title "History expiry" --yesno "Do you want to expire pre-merge history? Good for a validator node, but makes eth_getLogs RPC calls impossible pre-merge" 10 65 "$1"; then
     EL_NODE_TYPE=pre-merge-expiry
   else
-# shellcheck disable=SC2034
     EL_NODE_TYPE=full
   fi
 }
 
 
 __query_reth_snapshot() {
-  if (whiptail --title "Reth snapshot" --yesno "Do you want to speed up Reth sync by using a database snapshot? This breaks eth_getLogs RPC calls, do not use with RocketPool, SSV or NodeSet" 10 65) then
+  # Reth 2.1.0, remove the test for full
+  if [[ "${EXECUTION_CLIENT}" != "reth.yml" || "${NETWORK}" != "mainnet" || "${EL_NODE_TYPE}" = "full" ]]; then
+    return
+  fi
+
+  __write_vars+=("RETH_SNAPSHOT")
+
+  if whiptail --title "Reth snapshot" --yesno "Do you want to speed up Reth sync by using a database snapshot? This breaks eth_getLogs RPC calls, do not use with RocketPool, SSV or NodeSet" 10 65; then
     RETH_SNAPSHOT=true
+  else
+    RETH_SNAPSHOT=""
   fi
 }
 
@@ -4397,22 +4454,26 @@ __query_web3signer() {
   if [[ "${__minty_fresh}" -eq 0 ]]; then  # Do not force a key migration, only query on fresh install
     return
   fi
-  if (whiptail --title "Web3signer" --yesno "Do you want to keep validator keys in Web3signer?" 10 65) then
+
+  __write_vars+=("WEB3SIGNER")
+
+  if whiptail --title "Web3signer" --yesno "Do you want to keep validator keys in Web3signer?" 10 65; then
     WEB3SIGNER=true
+    CORE_FILES+=":web3signer.yml"
+  else
+    WEB3SIGNER=false
   fi
 }
 
 
 __query_grafana() {
-  if (whiptail --title "Grafana" --yesno "Do you want to use Grafana dashboards?" 10 65) then
+  if whiptail --title "Grafana" --yesno "Do you want to use Grafana dashboards?" 10 65; then
       if [[ "$OSTYPE" = "darwin"* ]]; then
       # macOS doesn't do well with / bind mount - leave node-exporter, cadvisor and loki/promtail off by default
-        GRAFANA_CLIENT="grafana-rootless.yml:grafana-shared.yml"
+        CORE_FILES+=":grafana-rootless.yml:grafana-shared.yml"
       else
-        GRAFANA_CLIENT="grafana.yml:grafana-shared.yml"
+        CORE_FILES+=":grafana.yml:grafana-shared.yml"
       fi
-  else
-    unset GRAFANA_CLIENT
   fi
 }
 
@@ -4420,20 +4481,22 @@ __query_grafana() {
 __query_remote_beacon() {
   local var
 
+  __write_vars+=("CL_NODE")
+
   if [[ "${__minty_fresh}" -eq 1 ]]; then
     if [[ "${__deployment}" = "rocket" ]]; then
-      REMOTE_BEACON="http://eth2:5052"
+      CL_NODE="http://eth2:5052"
     else
-      REMOTE_BEACON=""
+      CL_NODE=""
     fi
   else
     var="CL_NODE"
-    __get_value_from_env "${var}" "${__env_file}" "REMOTE_BEACON"
+    __get_value_from_env "${var}" "${__env_file}" "${var}"
   fi
-  REMOTE_BEACON=$(whiptail --title "Configure remote consensus client" --inputbox "What is the URL for your remote \
-consensus client? (right-click to paste)" 10 60 "${REMOTE_BEACON}" 3>&1 1>&2 2>&3)
+  CL_NODE=$(whiptail --title "Configure remote consensus client" --inputbox "What is the URL for your remote \
+consensus client? (right-click to paste)" 10 60 "${CL_NODE}" 3>&1 1>&2 2>&3)
 
-  echo "Your remote consensus client is:" "${REMOTE_BEACON}"
+  echo "Your remote consensus client is:" "${CL_NODE}"
 }
 
 
@@ -4444,7 +4507,7 @@ __query_checkpoint_beacon() {
     CHECKPOINT_SYNC_URL=""
   else
     var="CHECKPOINT_SYNC_URL"
-    __get_value_from_env "${var}" "${__env_file}" "CHECKPOINT_SYNC_URL"
+    __get_value_from_env "${var}" "${__env_file}" "${var}"
   fi
   if [[ -z "${CHECKPOINT_SYNC_URL}" ]]; then
     case "${NETWORK}" in
@@ -4479,10 +4542,12 @@ checkpoint sync provider? (right-click to paste)" 10 65 "${CHECKPOINT_SYNC_URL}"
 __query_graffiti() {
   local var
 
+  __write_vars+=("GRAFFITI" "DEFAULT_GRAFFITI")
+
   var="GRAFFITI"
-  __get_value_from_env "${var}" "${__env_file}" "GRAFFITI"
-  var="DEFAULT_GRAFFITI"
-  __get_value_from_env "${var}" "${__env_file}" "DEFAULT_GRAFFITI"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+  var="DEFAULT_GRAFFITI"  # "true" in default.env
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
 
   while true; do
     GRAFFITI=$(whiptail --title "Configure Graffiti" --inputbox "What optional Graffiti do you want to send with your blocks? \
@@ -4497,7 +4562,14 @@ __query_graffiti() {
 
   if [[ -n "${GRAFFITI}" ]]; then
     DEFAULT_GRAFFITI="false"
+  else
+    if whiptail --title "Default Graffiti" --yesno "Do you want to use the client's default Graffiti?" 10 65; then
+      DEFAULT_GRAFFITI="true"
+    else
+      DEFAULT_GRAFFITI="false"
+    fi
   fi
+
   if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
     echo "You are using the client's default Graffiti"
   else
@@ -4507,6 +4579,8 @@ __query_graffiti() {
 
 
 __query_checkpoint_sync() {
+  __write_vars+=("CHECKPOINT_SYNC_URL")
+
   if [[ "${NETWORK}" =~ ^https?:// ]]; then
     CHECKPOINT_SYNC_URL=""
     return
@@ -4515,9 +4589,11 @@ __query_checkpoint_sync() {
 }
 
 
-__query_coinbase() {
+__query_fee_recipient() {
   local var
   local exitstatus
+
+  __write_vars+=("FEE_RECIPIENT")
 
   var="FEE_RECIPIENT"
   __get_value_from_env "${var}" "${__env_file}" "FEE_RECIPIENT"
@@ -4543,7 +4619,7 @@ transaction rewards to be sent to by default? (right-click to paste, CANNOT be a
     else
       FEE_RECIPIENT=$(whiptail --title "Configure fallback fee recipient" --inputbox "What is the fallback fee recipient \
 address? Required so that a) the CL doesn't print warnings and b) you can use the CL REST API for validators. \
-(right-click to paste, CANNOT be an ENS)" 10 65 \
+(right-click to paste, CANNOT be an ENS)" 12 65 \
 "${FEE_RECIPIENT}" 3>&1 1>&2 2>&3)
     fi
 
@@ -4581,176 +4657,263 @@ __query_mev() {
   local selected
   local -A relays=()
   local -A optional_relays=()
+  local -a choices=()
+  local num_items
+  local menu_height
+  local relay
   local message
   local default
-  local formatted_mev_relays
-  local exitstatus
+  local message_mandatory=""
+  local aestus_default="ON"
+  local agnostic_default="ON"
+  local bloxroute_default="ON"
+  local flashbots_default="ON"
+  local manifold_default="ON"
+  local titan_global_default="ON"
+  local titan_regional_default="ON"
+  local ultrasound_default="ON"
+  local ultrasound_filtered_default="ON"
 
-  if [[ "${NETWORK}" = "gnosis" ]]; then
+  __write_vars+=("MEV_BOOST" "MEV_RELAYS")
+
+  if [[ ! "${NETWORK}" =~ ^(mainnet|hoodi|sepolia)$ ]]; then
+    MEV_BOOST="false"
+    MEV_RELAYS=""
     return 0
   fi
-  if [[ "${__deployment}" = "ssv" ]]; then
+
+  if [[ "${__deployment}" =~ (validator|rocket) ]]; then
+    if whiptail --title "MEV Boost" --yesno "Is MEV Boost configured on your remote consensus client and do you \
+want to use MEV Boost?" 10 65; then
+      MEV_BOOST="true"
+    else
+      MEV_BOOST="false"
+    fi
+    MEV_RELAYS=""
+    return 0
+  fi
+
+  if [[ "${__deployment}" = "ssv" ]]; then  # Don't give the user a choice and configure all relays that SSV knows about
     MEV_BOOST="true"
     case "${NETWORK}" in
       hoodi)
-        MEV_RELAYS="https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz,https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live,https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@boost-relay-hoodi.flashbots.net,https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
+        MEV_RELAYS='"
+https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live,
+https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@boost-relay-hoodi.flashbots.net,
+https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz,
+https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money
+"'
         ;;
       mainnet)
-        MEV_RELAYS="https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,\
-https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,\
-https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money,\
-https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live,\
-https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com"
+        MEV_RELAYS='"
+https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live,
+https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net,
+https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,
+https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,
+https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com,
+https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@global.titanrelay.xyz,
+https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money
+"'
         ;;
     esac
+    CORE_FILES+=":mev-boost.yml"
     return 0
   fi
+
   var="MEV_BOOST"
   __get_value_from_env "${var}" "${__env_file}" "__value"
-  # I do mean to match literally
-  # shellcheck disable=SC2076
-  if [[ "${__deployment}" =~ (validator|rocket) ]]; then
-    if (whiptail --title "MEV Boost" --yesno "Is MEV Boost configured on your remote consensus client and do you \
-want to use MEV Boost?" 10 65); then
-        MEV_BOOST="true"
-        MEV_RELAYS=""
-      fi
-      return 0
-  fi
-  if [[ "${__deployment}" =~ "lido_" ]]; then
-    MEV_BOOST="true"
-    while true; do
-      MEV_RELAYS=""
-      selected=""
-      case "${NETWORK}" in
-          mainnet)
-              relays=(
-                  ['Agnostic']="https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net"
-                  ['bloXroute']="https://0xb0b07cd0abef743db4260b0ed50619cf6ad4d82064cb4fbec9d3ec530f7c5e6793d9f286c4e082c0244ffb9f2658fe88@bloxroute.regulated.blxrbdn.com"
-                  ['Aestus']="https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live"
-                  ['bloXroute Max-Profit']="https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com"
-                  ['Flashbots']="https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
-                  ['Ultra Sound']="https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money"
-              )
-              optional_relays=(
-                  ['Titan Relay Global']="https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@global.titanrelay.xyz"
-                  ['Titan Relay Regional']='https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@regional.titanrelay.xyz'
-                  ['Manifold Finance']="https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com/"
-              )
-              selected=$(whiptail --title "Relays list" --checklist \
-                  "Choose relays (use spacebar to unselect)" 16 50 9 \
-                  "Agnostic" "" ON \
-                  "bloXroute" "" ON \
-                  "Aestus" "" ON \
-                  "bloXroute Max-Profit" "" ON \
-                  "Flashbots" "" ON \
-                  "Ultra Sound" "" ON \
-                  "Titan Relay Global" "(optional)" ON \
-                  "Titan Relay Regional" "(optional)" ON \
-                  "Manifold Finance" "(optional)" ON 3>&1 1>&2 2>&3)
-              ;;
-          hoodi)
-              relays=(
-                  ['Aestus']="https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live"
-                  ['Titan']="https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz"
-                  ['Flashbots']="https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@boost-relay-hoodi.flashbots.net"
-                  ['Ultrasound']="https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
-              )
-              selected=$(whiptail --title "Relays list" --checklist \
-                  "Choose relays" 12 30 5 \
-                  "Aestus" "" ON \
-                  "Titan" "" ON \
-                  "Flashbots" "" ON \
-                  "Ultrasound" "" ON \
-                  3>&1 1>&2 2>&3)
-              ;;
-            *)
-              echo "No MEV RELAYS configured for ${NETWORK}"
-              return
-              ;;
-      esac
-      for i in "${!relays[@]}"; do
-          if [[ ${selected} =~ ${i} ]]; then
-              if [[ -z "${MEV_RELAYS}" ]]; then
-                  MEV_RELAYS="${relays[$i]}"
-              else
-                  MEV_RELAYS="${MEV_RELAYS},${relays[$i]}"
-              fi
-          fi
-      done
-      exitstatus=$?
-      if [[ $exitstatus -eq 0 ]]; then
-          if [[ -z "${MEV_RELAYS}" ]]; then
-            whiptail --msgbox "At least one mandatory relay should be chosen" 10 75
-            continue
-          fi
-      else
-          echo "You chose Cancel."
-          exit 1
-      fi
-      for i in "${!optional_relays[@]}"; do
-          if [[ ${selected} =~ ${i} ]]; then
-              if [[ -z "${MEV_RELAYS}" ]]; then
-                  MEV_RELAYS="${optional_relays[$i]}"
-              else
-                  MEV_RELAYS="${MEV_RELAYS},${optional_relays[$i]}"
-              fi
-          fi
-      done
-      break
-    done
-    return 0
-  fi
-  if [[ "${__deployment}" = "rpc" ]]; then
-    message="Do you want to use MEV Boost, e.g. because you will connect validators to CL REST API?"
-    default="--defaultno"
-  else
-    message="Do you want to use MEV Boost?"
-    default=""
-  fi
-  if (whiptail --title "MEV Boost" --yesno "${message}" 10 65 "${default}") then
-    MEV_BOOST="true"
-    if [[ "${__value}" = "true" ]]; then  # MEV_BOOST=true was already configured
-      var="MEV_RELAYS"
-      __get_value_from_env "${var}" "${__env_file}" "MEV_RELAYS"
-    else
-      case "${NETWORK}" in
-        sepolia)
-          MEV_RELAYS=https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@boost-relay-sepolia.flashbots.net
-          ;;
-        hoodi)
-          MEV_RELAYS="https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz,https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live,https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@boost-relay-hoodi.flashbots.net,https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
-          ;;
-        mainnet)
-          MEV_RELAYS=https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,\
-https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,\
-https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@global.titanrelay.xyz,\
-https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money,\
-https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live,\
-https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net,\
-https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com,\
-https://0x8c7d33605ecef85403f8b7289c8058f440cbb6bf72b055dfe2f3e2c6695b6a1ea5a9cd0eb3a7982927a463feb4c3dae2@relay.wenmerge.com
-          ;;
-        *)
-          MEV_RELAYS=""
-          ;;
-      esac
+  if [[ "${__value}" = "true" && "${__network_change}" -eq 0 ]]; then  # MEV_BOOST=true was already configured, default disable anything the user hadn't chosen previously
+    var="MEV_RELAYS"
+    __get_value_from_env "${var}" "${__env_file}" "__value"
+
+    if [[ ! "${__value}" =~ aestus ]]; then
+      aestus_default="OFF"
     fi
-    # Replace newlines with "\n" for the whiptail input
-    formatted_mev_relays=$(printf '%s' "${MEV_RELAYS}" | sed ':a;N;$!ba;s/\n/\\n/g')
-
-    formatted_mev_relays=$(whiptail --title "Configure MEV relays" --inputbox "What MEV relay(s) do you want to use? \
-(right-click to paste)" 15 65 "${formatted_mev_relays}" 3>&1 1>&2 2>&3)
-
-    # Replace "\n" back to newlines to restore multi-line format
-    MEV_RELAYS=$(printf '%s' "${formatted_mev_relays}" | sed 's/\\n/\n/g')
-    echo "Your MEV relay(s): ${MEV_RELAYS}"
-    __final_msg+="\nYou are configured to get block building bids remotely via relay(s)."
-  else
-    MEV_BOOST="false"
-    MEV_RELAYS=""
-    __final_msg+="\nYou are configured to build blocks locally, only.\nPlease ensure you have 200 Mbit/s upload bandwidth or more."
+    if [[ ! "${__value}" =~ agnostic ]]; then
+      agnostic_default="OFF"
+    fi
+    if [[ ! "${__value}" =~ bloxroute ]]; then
+      bloxroute_default="OFF"
+    fi
+    if [[ ! "${__value}" =~ flashbots ]]; then
+      flashbots_default="OFF"
+    fi
+    if [[ ! "${__value}" =~ securerpc ]]; then
+      manifold_default="OFF"
+    fi
+    if [[ ! "${__value}" =~ (hoodi\.titanrelay|global.\titanrelay) ]]; then
+      titan_global_default="OFF"
+    fi
+    if [[ ! "${__value}" =~ regional\.titanrelay ]]; then
+      titan_regional_default="OFF"
+    fi
+    if [[ ! "${__value}" =~ (relay\.ultrasound|relay-hoodi\.ultrasound) ]]; then
+      ultrasound_default="OFF"
+    fi
+    if [[ ! "${__value}" =~ relay-filtered.*\.ultrasound ]]; then
+      ultrasound_filtered_default="OFF"
+    fi
   fi
+
+  if [[ "${__deployment}" =~ lido_ ]]; then
+    MEV_BOOST="true"
+    case "${NETWORK}" in
+      mainnet)
+        relays=(
+          ['Aestus']="https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live"
+          ['Agnostic']="https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net"
+          ['bloXroute']="https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com"
+          ['Flashbots']="https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
+          ['Manifold Finance']="https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com"
+          ['Ultra Sound']="https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money"
+          ['Ultra Sound Filtered']="https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay-filtered.ultrasound.money"
+        )
+        optional_relays=(
+          ['Titan Global']="https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@global.titanrelay.xyz"
+          ['Titan Regional']='https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@regional.titanrelay.xyz'
+        )
+        choices=(
+          "Aestus" "(unfiltered)" "${aestus_default}"
+          "Agnostic" "(unfiltered)" "${agnostic_default}"
+          "bloXroute" "" "${bloxroute_default}"
+          "Flashbots" "" "${flashbots_default}"
+          "Manifold Finance" "(unfiltered)" "${manifold_default}"
+          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+          "Titan Global" "(optional, unfiltered)" "${titan_global_default}"
+          "Titan Regional" "(optional)" "${titan_regional_default}"
+        )
+        message_mandatory="mandatory "
+        ;;
+      hoodi)
+        relays=(
+          ['Aestus']="https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live"
+          ['Flashbots']="https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@boost-relay-hoodi.flashbots.net"
+          ['Titan']="https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz"
+          ['Ultra Sound']="https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
+          ['Ultra Sound Filtered']="https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-filtered-hoodi.ultrasound.money"
+        )
+        choices=(
+          "Aestus" "(unfiltered)" "${aestus_default}"
+          "Flashbots" "" "${flashbots_default}"
+          "Titan" "(unfiltered)" "${titan_global_default}"
+          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+        )
+        ;;
+      *)
+        echo "No MEV RELAYS configured for ${NETWORK}"
+        MEV_BOOST=false
+        MEV_RELAYS=""
+        return 0
+        ;;
+    esac
+  else  # Not lido_ deployment
+    if [[ "${__deployment}" = "rpc" ]]; then
+      message="Do you want to use MEV Boost, e.g. because you will connect validators to CL REST API?"
+      default="--defaultno"
+    else
+      message="Do you want to use MEV Boost?"
+      default=""
+    fi
+    if ! whiptail --title "MEV Boost" --yesno "${message}" 10 65 "${default}"; then
+      MEV_BOOST="false"
+      MEV_RELAYS=""
+      __final_msg+="\nYou are configured to build blocks locally, only.\nPlease ensure you have 200 Mbit/s upload bandwidth or more."
+      return 0
+    else
+      MEV_BOOST="true"
+    fi
+
+    case "${NETWORK}" in
+      sepolia)
+        relays=(
+          ['Flashbots']="https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@boost-relay-sepolia.flashbots.net"
+        )
+        choices=(
+          "Flashbots" "" "${flashbots_default}"
+        )
+        ;;
+      hoodi)
+        relays=(
+          ['Aestus']="https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live"
+          ['Flashbots']="https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@boost-relay-hoodi.flashbots.net"
+          ['Titan']="https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz"
+          ['Ultra Sound']="https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
+          ['Ultra Sound Filtered']="https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-filtered-hoodi.ultrasound.money"
+        )
+        choices=(
+          "Aestus" "(unfiltered)" "${aestus_default}"
+          "Flashbots" "" "${flashbots_default}"
+          "Titan" "(unfiltered)" "${titan_global_default}"
+          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+        )
+        ;;
+      mainnet)
+        relays=(
+          ['Aestus']="https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live"
+          ['Agnostic']="https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net"
+          ['bloXroute']="https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com"
+          ['Flashbots']="https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
+          ['Manifold Finance']="https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com"
+          ['Titan Global']="https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@global.titanrelay.xyz"
+          ['Titan Regional']="https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@regional.titanrelay.xyz"
+          ['Ultra Sound']="https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money"
+          ['Ultra Sound Filtered']="https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay-filtered.ultrasound.money"
+        )
+        choices=(
+          "Aestus" "(unfiltered)" "${aestus_default}"
+          "Agnostic" "(unfiltered)" "${agnostic_default}"
+          "bloXroute" "" "${bloxroute_default}"
+          "Flashbots" "" "${flashbots_default}"
+          "Manifold Finance" "(unfiltered)" "${manifold_default}"
+          "Titan Global" "(unfiltered)" "${titan_global_default}"
+          "Titan Regional" "" "${titan_regional_default}"
+          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+        )
+        ;;
+    esac
+  fi
+
+# We have relays(), maybe optional_relays(), and choices(). Prompt user and construct MEV_RELAYS
+
+  num_items=$(( ${#choices[@]} / 3 ))
+  menu_height=$(( 8 + num_items ))
+
+  MEV_RELAYS='"'$'\n'
+  while true; do
+    selected=$(whiptail --title "Relays list" --checklist \
+      "Choose relays (use spacebar to unselect)" "${menu_height}" 65 "${num_items}" \
+      "${choices[@]}" \
+      3>&1 1>&2 2>&3)
+
+    if [[ -z "${selected}" ]]; then
+      whiptail --msgbox "At least one ${message_mandatory}relay should be chosen" 10 65
+      continue
+    fi
+
+    for relay in "${!relays[@]}"; do
+      if [[ ${selected} =~ \"${relay}\" ]]; then
+        MEV_RELAYS+="${relays[$relay]},"$'\n'
+      fi
+    done
+
+    for relay in "${!optional_relays[@]}"; do
+      if [[ ${selected} =~ \"${relay}\" ]]; then
+        MEV_RELAYS+="${optional_relays[$relay]},"$'\n'
+      fi
+    done
+# Remove trailing comma and add closing quote
+    MEV_RELAYS="${MEV_RELAYS%,$'\n'}"$'\n'
+    MEV_RELAYS+='"'
+    break
+  done
+
+  CORE_FILES+=":mev-boost.yml"
+  echo "Your MEV relay(s): ${MEV_RELAYS}"
+  __final_msg+="\nYou are configured to get block building bids remotely via relay(s)."
 }
 
 
@@ -4764,13 +4927,13 @@ __query_mev_factor() {
   local max_blobs
 
   var="MEV_BUILD_FACTOR"
-  __get_value_from_env "${var}" "${__env_file}" "MEV_BUILD_FACTOR"
-#shellcheck disable=SC2076
-  if [[ -n "${MEV_BUILD_FACTOR}" || ! "${MEV_BOOST}" = "true" || "${CONSENSUS_CLIENT}" =~ "-cl-only.yml" ]]; then
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+# If MEV_BUILD_FACTOR is already set to a non-default value, or MEV Boost is not enabled, or the user is using a CL-only deployment, leave as-is
+  if [[ ( -n "${MEV_BUILD_FACTOR}" && ! "${MEV_BUILD_FACTOR}" =~ ^(90|100)$ ) || "${MEV_BOOST}" != "true" || "${CONSENSUS_CLIENT}" =~ -cl-only\.yml ]]; then
     return
   fi
 
-  if ! [[ "${__distro}" =~ (ubuntu|debian) ]]; then
+  if [[ ! "${__distro}" =~ (ubuntu|debian) ]]; then
     __final_msg+="\nCannot measure network speed on ${__distro}. Please ensure you have 112 Mbit/s up or set MEV_BUILD_FACTOR=100 or set MAX_BLOBS."
     return
   fi
@@ -4788,12 +4951,16 @@ __query_mev_factor() {
     echo "Speedtest failed, skipping MEV Build Factor query"
     return
   fi
+
+# From here we know that we'll set these variables
+  __write_vars+=("MEV_BUILD_FACTOR" "MAX_BLOBS")
+
   down_speed=$(jq -r '.download' <<< "${speed_json}" | awk '{print int($1 / 1000000)}')
   up_speed=$(jq -r '.upload' <<< "${speed_json}" | awk '{print int($1 / 1000000)}')
   echo "Measured download speed is ${down_speed} Mbit/s."
   echo
   __final_msg+="\nYour measured upload speed is ${up_speed} Mbit/s.\nYour measured download speed is ${down_speed} Mbit/s."
-  if [[ "${up_speed}" -lt 112 ]]; then  # This should be adjusted as BPOs come in
+  if [[ "${up_speed}" -lt 112 ]]; then  # This should be adjusted as BPOs come in. 112 is BPO2
     echo "Your upload speed is less than 112 Mbit/s, it is ${up_speed} Mbit/s"
     max_blobs=$(echo "${up_speed}" | awk '{print int($1 / 5.33)}')
     if [[ "${max_blobs}" -eq 0 ]]; then
@@ -4806,57 +4973,57 @@ __query_mev_factor() {
       echo "You can upload up to ${max_blobs} with your upload speed"
       echo "Setting default MEV_BUILD_FACTOR and MAX_BLOBS=${max_blobs}"
       MEV_BUILD_FACTOR=""
-# shellcheck disable=SC2034
       MAX_BLOBS="${max_blobs}"
       __final_msg+="\nBlobs were restricted to ${max_blobs} max, because your upload speed is low."
     fi
   else
     message="Your upload speed is ${up_speed} Mbit/s. Do you want to build local blocks, when the relay pays less than 10% more?"
-    if (whiptail --title "MEV Build Factor" --yesno "${message}" 10 65) then
+    if whiptail --title "MEV Build Factor" --yesno "${message}" 10 65; then
       MEV_BUILD_FACTOR="90"
       __final_msg+="\nLocal block building is preferred, when the relay pays less than 10% more."
     else
       MEV_BUILD_FACTOR="100"
       __final_msg+="\nLocal block building is disabled."
     fi
+    MAX_BLOBS=""
   fi
 }
 
 
 __lido_withdrawal_credentials_address() {
-    local lido_address=""
-    case "${NETWORK}" in  # Lido Withdrawal Vault
-        mainnet)
-            lido_address="0xB9D7934878B5FB9610B3fE8A5e441e8fad7E293f"
-            ;;
-        hoodi)
-            lido_address="0x4473dCDDbf77679A643BdB654dbd86D67F8d32f2"
-            ;;
-        *)
-            lido_address="0x0000000000000000000000000000000000000000"
-            ;;
-    esac
-    echo "${lido_address}"
+  local lido_address
+
+  case "${NETWORK}" in  # Lido Withdrawal Vault
+    mainnet)
+      lido_address="0xB9D7934878B5FB9610B3fE8A5e441e8fad7E293f"
+      ;;
+    hoodi)
+      lido_address="0x4473dCDDbf77679A643BdB654dbd86D67F8d32f2"
+      ;;
+    *)
+      lido_address="0x0000000000000000000000000000000000000000"
+      ;;
+  esac
+  echo "${lido_address}"
 }
+
 
 __lido_keys_attention_message() {
-  local num_validators
-  local keystore_password
-  local keystore_password_confirm
-  local exitstatus
-
-  whiptail --title "Attention" --msgbox "Please, make sure that you set 32 ETH when generated deposit data\nAnd right execution address for your validator keys: $(__lido_withdrawal_credentials_address)\nOtherwise, your keys will not be valid!" 10 80
+  whiptail --title "Attention" --msgbox "Please, make sure that you set 32 ETH when you generate deposit data\nAnd use the right withdrawal address for your validator \
+keys: $(__lido_withdrawal_credentials_address)\nOtherwise, your keys will not be valid!" 10 65
 }
 
+
 __query_lido_keys_generation() {
-  local num_validators
-  local keystore_password
-  local keystore_password_confirm
+  local num_validators=1
+  local keystore_password=""
+  local keystore_password_confirm=""
   local mnemonic
   local exitstatus
 
   if [[ "${NETWORK}" = "mainnet" ]]; then
-    if (whiptail --title "Security warning" --yesno "Key generation is not recommended on MAINNET for security reasons.\n\nIt is recommended to Select 'No' to skip the step and generate keys in a more secure way later (ex. on an airgapped live USB)\n\nOtherwise, Select 'Yes' to proceed with key generation on this machine" 13 85) then
+    if whiptail --title "Security warning" --yesno "Key generation is not recommended on MAINNET for security reasons.\n\nIt is recommended to Select 'No' to skip the \
+step and generate keys in a more secure way later (ex. on an airgapped live USB)\n\nOtherwise, Select 'Yes' to proceed with key generation on this machine" 15 65 --defaultno; then
        echo "Proceeding with key generation on MAINNET."
     else
        __lido_keys_attention_message
@@ -4864,49 +5031,43 @@ __query_lido_keys_generation() {
     fi
   fi
 
-  num_validators="1"
-  keystore_password=""
-  keystore_password_confirm=""
-  num_validators=$(whiptail --title "Validators count" --inputbox "Enter the number of validators" 8 60 "${num_validators}" 3>&1 1>&2 2>&3)
-  while true; do
-    keystore_password=$(whiptail --title "Keystore password" --passwordbox "Enter validators keystore password (at least 12 chars)" 8 60 "${keystore_password}" 3>&1 1>&2 2>&3)
+  num_validators=$(whiptail --title "Validators count" --inputbox "Enter the number of validators" 8 65 "${num_validators}" 3>&1 1>&2 2>&3)
 
-    exitstatus=$?
-    if [[ $exitstatus -eq 0 ]]; then
-      if [[ ${#keystore_password} -ge 12 ]]; then
-        keystore_password_confirm=$(whiptail --title "Keystore password" --passwordbox "Confirm validators keystore password" 8 60 "${keystore_password_confirm}" 3>&1 1>&2 2>&3)
-        if [[ "${keystore_password}" = "${keystore_password_confirm}" ]]; then
-          echo "Keystore password set."
-          break
-        else
-          whiptail --msgbox "Passwords do not match. Please try again." 10 60
-        fi
+  while true; do
+    keystore_password=$(whiptail --title "Keystore password" --passwordbox "Enter validators keystore password (at least 12 chars)" 8 65 "${keystore_password}" 3>&1 1>&2 2>&3)
+    if [[ ${#keystore_password} -ge 12 ]]; then
+      keystore_password_confirm=$(whiptail --title "Keystore password" --passwordbox "Confirm validators keystore password" 8 65 "${keystore_password_confirm}" 3>&1 1>&2 2>&3)
+      if [[ "${keystore_password}" = "${keystore_password_confirm}" ]]; then
+        echo "Keystore password set."
+        break
       else
-        whiptail --msgbox "The keystore password secret needs to be at least 12 characters long. You can try \
-again or Cancel on the next screen." 10 75
+        whiptail --msgbox "Passwords do not match. Please try again." 10 65
       fi
     else
-      echo "You chose Cancel."
-      exit 1
+      whiptail --msgbox "The keystore password secret needs to be at least 12 characters long. You can try again or Cancel on the next screen." 10 65
     fi
   done
 
+  echo "Your number of validators is:" "${num_validators}"
+  mnemonic="existing"
+  if whiptail --title "Mnemonic" --yesno "Do you want to generate a new mnemonic?" 8 65; then
+    mnemonic="new"
+  fi
+
+  echo "When prompted to confirm the withdrawal address, use $(__lido_withdrawal_credentials_address)"
+  set +e  # Don't fail config if generation fails
+  export NETWORK=${NETWORK} && __docompose -f ./deposit-cli.yml --profile tools run --rm deposit-cli-${mnemonic} \
+    --uid "$(id -u)" \
+    --execution_address "$(__lido_withdrawal_credentials_address)" \
+    --num_validators "${num_validators}" \
+    --keystore_password "${keystore_password}" \
+    --non_interactive
   exitstatus=$?
-  if [[ $exitstatus -eq 0 ]]; then
-    echo "Your number of validators is:" "${num_validators}"
-    mnemonic="existing"
-    if (whiptail --title "Mnemonic" --yesno "Do you want to generate new mnemonic?" 8 60) then
-      mnemonic="new"
-    fi
-    export NETWORK=${NETWORK} && __docompose --profile tools run --rm deposit-cli-${mnemonic} \
-      --uid "$(id -u)" \
-      --execution_address "$(__lido_withdrawal_credentials_address)" \
-      --num_validators "${num_validators}" \
-      --keystore_password "${keystore_password}" \
-      --non_interactive
-  else
-    echo "You chose Cancel."
-    exit 1
+  set -e
+  if [[ "${exitstatus}" -ne 0 ]]; then
+    echo "Something went wrong during key generation. Please, try again."
+    read -n 1 -s -r -p "Press any key to continue..."
+    __lido_keys_attention_message
   fi
 }
 
@@ -4926,90 +5087,94 @@ __query_lido_obol_enr() {
 
   echo "Your created ENR is:" "${lido_obol_operator_enr}"
   echo "${lido_obol_operator_enr}" >> "./.eth/charon-enr-public-key"
-  whiptail --title "Lido Obol operator ENR creation outcome" --msgbox "Your ENR is created!\n\n1. Backup your private key (path: .eth/charon-enr-private-key)!\n2. Copy your public ENR for the further steps\n\nYour public ENR is:\n\n${lido_obol_operator_enr}" 16 80
+  whiptail --title "Lido Obol operator ENR creation outcome" --msgbox "Your ENR is created!\n\n1. Backup your private key (path: .eth/charon-enr-private-key)!\n\
+2. Copy your public ENR for the further steps\n\nYour public ENR is:\n\n${lido_obol_operator_enr}" 17 65
 }
+
 
 __query_lido_obol_cluster_definition() {
   local cluster_definition_url
   local cluster_definition_is_valid
-  local exitstatus
 
-    cluster_definition_url=$(whiptail --title "Lido Obol cluster creation" --inputbox "\nPut your cluster definition link below:" 10 80 "https://api.obol.tech/dv/example_link_to_your_definition" 3>&1 1>&2 2>&3)
-    if [[ -z "${cluster_definition_url}" ]]; then
-      echo "Cluster definition URL can't be empty"
-      exit 1
-    fi
-    exitstatus=$?
-    if [[ $exitstatus -eq 0 ]]; then
-        ${__as_owner} curl -o ./.eth/cluster-definition.tmp -s "${cluster_definition_url}" -H "Accept: application/json"
+  cluster_definition_url=$(whiptail --title "Lido Obol cluster creation" --inputbox "\nPut your cluster definition link below:" 10 65 \
+"https://api.obol.tech/dv/example_link_to_your_definition" 3>&1 1>&2 2>&3)
+  if [[ -z "${cluster_definition_url}" ]]; then
+    echo "Cluster definition URL can't be empty"
+    exit 1
+  fi
+  if ! ${__as_owner} curl -f -o ./.eth/cluster-definition.tmp -s "${cluster_definition_url}" -H "Accept: application/json"; then
+    echo "Failed to download cluster definition from the provided URL. Please check the URL and try again."
+    read -n 1 -s -r -p "Press any key to continue..."
+    exit 1
+  fi
+  set +e
 # shellcheck disable=SC2086
-        cluster_definition_is_valid=$(__docompose -f ./lido-obol.yml run --rm -v "$(pwd)"/.eth/cluster-definition.tmp:/cluster-definition.json:ro curl-jq sh -c \
-          "cat /cluster-definition.json | jq -r 'all(.validators[]; (.fee_recipient_address | ascii_downcase) == (\"'${FEE_RECIPIENT}'\" | ascii_downcase) and (.withdrawal_address | ascii_downcase) == (\"'$(__lido_withdrawal_credentials_address)'\" | ascii_downcase))'" | tail -n 1)
-        set -e
-        if [[ "${cluster_definition_is_valid}" = "true" ]]; then
-            echo "Your cluster definition url is:" "${cluster_definition_url}"
-            ${__as_owner} mv ./.eth/cluster-definition.tmp ./.eth/cluster-definition.json
-        else
-            whiptail --title "Lido Obol cluster creation" --msgbox "Your cluster definition is not valid.\n\nCheck that every validator has \`fee_recipient_address\` and \`withdrawal_address\` equal to Lido contracts and try again.\n\nLido fee recipient: '${FEE_RECIPIENT}'\nLido withdrawal credentials: '$(__lido_withdrawal_credentials_address)'" 14 90
-            echo "Your cluster definition is NOT valid."
-            ${__as_owner} rm ./.eth/cluster-definition.tmp
-            exit 1
-        fi
-    else
-        echo "You chose Cancel."
-        exit 1
-    fi
+  cluster_definition_is_valid=$(__docompose -f ./lido-obol.yml run --rm -v "$(pwd)"/.eth/cluster-definition.tmp:/cluster-definition.json:ro curl-jq sh -c \
+    "cat /cluster-definition.json | jq -r 'all(.validators[]; (.fee_recipient_address | ascii_downcase) == (\"'${FEE_RECIPIENT}'\" | ascii_downcase) and (.withdrawal_address | ascii_downcase) == (\"'$(__lido_withdrawal_credentials_address)'\" | ascii_downcase))'" | tail -n 1)
+  set -e
+  if [[ "${cluster_definition_is_valid}" = "true" ]]; then
+    echo "Your cluster definition url is:" "${cluster_definition_url}"
+    ${__as_owner} mv ./.eth/cluster-definition.tmp ./.eth/cluster-definition.json
+  else
+    whiptail --title "Lido Obol cluster creation" --msgbox "Your cluster definition is not valid.\n\nCheck that every validator has \`fee_recipient_address\` and \`withdrawal_address\` equal to Lido contracts and try again.\n\nLido fee recipient: '${FEE_RECIPIENT}'\nLido withdrawal credentials: '$(__lido_withdrawal_credentials_address)'" 14 90
+    echo "Your cluster definition is NOT valid."
+    ${__as_owner} rm ./.eth/cluster-definition.tmp
+    exit 1
+  fi
 }
+
 
 __query_lido_obol_cluster_dkg() {
-    local folder_postfix=""
-    local outcome
-    local exitstatus
+  local folder_postfix=""
+  local outcome
+  local exitstatus
 
-    if [[ -d ./.eth/validator_keys ]]; then
-        folder_postfix=${EPOCHSECONDS}
-        ${__as_owner} mkdir "./.eth_backup_${folder_postfix}"
-        ${__as_owner} cp -vr ./.eth/validator_keys "./.eth_backup_${folder_postfix}/validator_keys"
-        ${__as_owner} rm -rf ./.eth/validator_keys
+  if [[ -d ./.eth/validator_keys ]]; then
+    folder_postfix=${EPOCHSECONDS}
+    ${__as_owner} mkdir -p "./.eth_backup_${folder_postfix}"
+    ${__as_owner} cp -vr ./.eth/validator_keys "./.eth_backup_${folder_postfix}/validator_keys"
+    ${__as_owner} rm -rf ./.eth/validator_keys/*
+  fi
+  if whiptail --title "DKG ceremony" --yesno "Do you want to start DKG ceremony?\n\nMake sure all participants are ready!" 10 65; then
+    outcome=$(__docompose -f ./lido-obol.yml run -u "$(id -u)":"$(id -g)" --rm charon-run-dkg)
+    exitstatus=$?
+    if [[ "${exitstatus}" -ne 0 ]]; then
+      echo "Something went wrong. Please, try again."
+      exit 1
     fi
-    if (whiptail --title "DKG ceremony" --yesno "Do you want to start DKG ceremony?\n\nMake sure all participants are ready!" 10 60) then
-        outcome=$(__docompose -f ./lido-obol.yml run -u "$(id -u)":"$(id -g)" --rm charon-run-dkg)
-        exitstatus=$?
-        if [[ "${exitstatus}" -ne 0 ]]; then
-            echo "Something went wrong. Please, try again."
-            exit 1
-        fi
-        echo "DKG ceremony finished successfully"
-        whiptail --title "Finish" --msgbox "\nThe DKG is finished!" 10 40
-    else
-        whiptail --title "DKG ceremony" --msgbox "You should start DKG ceremony before proceeding further" 8 60
-        echo "DKG ceremony starting is canceled"
-        exit 1
-    fi
+    echo "DKG ceremony finished successfully"
+    whiptail --title "Finish" --msgbox "\nThe DKG is finished!" 10 65
+  else
+    whiptail --title "DKG ceremony" --msgbox "You should start DKG ceremony before proceeding further" 8 65
+    echo "DKG ceremony starting is canceled"
+    exit 1
+  fi
 }
+
 
 __query_dkg() {
   local key_file_content
   local public_key
+  local ssv_operator_id=-1
 
-  if uname -m | grep -q aarch64 || uname -m | grep -q arm64; then  # No multi-arch image for ssvlabs/ssv-dkg as of July 16th 2025
+  if uname -m | grep -q aarch64 || uname -m | grep -q arm64; then  # No multi-arch image for ssvlabs/ssv-dkg as of April 14th 2026
     return
   fi
 
-  __ssv_operator_id=-1
-  if (whiptail --title "DKG ceremony" --yesno "Do you want to participate in DKG ceremonies as an operator?" 10 60); then
+  if whiptail --title "DKG ceremony" --yesno "Do you want to participate in DKG ceremonies as an operator?" 10 65; then
     key_file_content=$(${__auto_sudo} cat ./ssv-config/encrypted_private_key.json)
     public_key=$(__docompose -f ./ssv-dkg.yml run --rm curl-jq sh -c \
-      "echo '${key_file_content}' | jq -r '.pubKey'" | tail -n 1)
-    echo "Your SSV node public key is: ${public_key}"
-    __ssv_operator_id=$(whiptail --title "Register SSV operator" --inputbox "\n1. Your SSV node public key:\n\n${public_key}\n\n2. Register your operator in the SSV network with the public key\n\n3. Input your Operator ID \
-(right-click to paste)" 22 85 3>&1 1>&2 2>&3)
-    if [[ -n "${__ssv_operator_id}" && ! "${__ssv_operator_id}" = "-1" ]]; then
-      sed -i'.original' "s|operatorID: .*|operatorID: ${__ssv_operator_id}|" ./ssv-config/dkg-config.yaml
-      echo "Your SSV Operator ID is: ${__ssv_operator_id}"
+      "echo '${key_file_content}' | jq -r '.pubkey'" | tail -n 1)
+    printf "\nYour SSV node public key is:\n\n%s\n\nRegister your operator now in the SSV network with the public key, at https://app.ssv.network\n" "${public_key}"
+    read -n 1 -s -r -p "Make a note of your SSV Operator ID, then press any key to continue..."
+    ssv_operator_id=$(whiptail --title "Input SSV Operator ID" --inputbox "Input your Operator ID (right-click to paste)" 9 65 3>&1 1>&2 2>&3)
+    if [[ -n "${ssv_operator_id}" && ! "${ssv_operator_id}" = "-1" ]]; then
+      sed -i'.original' "s|operatorID: .*|operatorID: ${ssv_operator_id}|" ./ssv-config/dkg-config.yaml
+      echo "Your SSV Operator ID is: ${ssv_operator_id}"
+      CORE_FILES+=":ssv-dkg.yml"
     else
       echo "Please manually edit \"./ssv-config/dkg-config.yaml\" with your SSV Operator ID"
-      echo "and add \":ssv-dkg.yml\" to \"COMPOSE_FILE\" in \".env\" after registering your operator."
+      echo "and add \":ssv-dkg.yml\" to \"CORE_FILES\" in \".env\" after registering your operator."
     fi
   fi
   rm -f ssv-config/dkg-config.yaml.original
@@ -5076,7 +5241,7 @@ __handle_error() {
       if __dodocker run --rm -v "$(__dodocker volume ls -q -f "name=web3signer-keys")":/var/lib/web3signer \
         alpine:3 [ -f /var/lib/web3signer/.migration_error ]; then
         echo "A previous PostgreSQL upgrade attempt failed after switching to the migrated data, and while switching"
-        echo "to PostgreSQL ${__target_pg} in \"${__env_file}\"."
+        echo "to PostgreSQL ${__target_pg} in \"${__env_file}\"."__
         echo "Web3signer has a marker file \".migration_error\" inside its Docker volume."
         echo
         echo "Please look through the upgrade messages and remedy the fault."
@@ -5114,464 +5279,375 @@ __check_legacy() {
   local var
   local client
 
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __value="${COMPOSE_FILE}"
 
-# Literal match intended
-# shellcheck disable=SC2076
-if [[ "${__value}" =~ "-allin1.yml" && ! "${__value}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then # Warn re Grandine once VC
-    if [[ "${__value}" =~ "teku-allin1.yml" ]]; then
+if [[ "${__value}" =~ -allin1\.yml && ! "${__value}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then # Warn re Grandine once VC
+    if [[ "${__value}" =~ teku-allin1\.yml ]]; then
       client="Teku"
-    elif [[ "${__value}" =~ "nimbus-allin1.yml" ]]; then
+    elif [[ "${__value}" =~ nimbus-allin1\.yml ]]; then
       client="Nimbus"
     elif [[ "${__value}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then
       client="Grandine"
     else
       client="Mystery"
     fi
-    if ! (whiptail --title "All-In-One detected" --yesno "All-In-One client ${client} detected. Re-configuration requires re-import of the keys, which has to be treated like a move with 15 minutes downtime, to avoid slashing. Do you wish to continue, regardless?" 10 65 --defaultno) then
-      echo "Aborting config"
-      exit 0
+    if ! whiptail --title "All-In-One detected" --yesno "All-In-One client ${client} detected. Re-configuration requires re-import of the keys, \
+which has to be treated like a move with 15 minutes downtime, to avoid slashing. Do you wish to continue, regardless?" 10 65 --defaultno; then
+      echo "Canceled config wizard."
+      exit 130
     fi
   fi
 }
 
-config() {
+
+# Create a SIREN_PASSWORD if there is none
+__make_siren_password() {
+  local var
+  var="SIREN_PASSWORD"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+  if [[ -z "${SIREN_PASSWORD}" ]]; then
+    __write_vars+=("SIREN_PASSWORD")
+    SIREN_PASSWORD=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+  fi
+}
+
+
+# Interactive configuration of a node, with CL, EL and VC
+__config_node() {
+  __query_consensus_client
+  if [[ "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
+    __query_validator_client
+  fi
+  __query_web3signer
+  __query_execution_client
+  __query_4444 ""
+  __query_reth_snapshot
+  __query_checkpoint_sync
+  __query_mev
+  __query_mev_factor
+  __query_grafana
+  __query_fee_recipient
+  __query_graffiti
+  if [[ "${NETWORK}" = "hoodi" || "${__deployment}" = "lido_csm" ]]; then
+    CORE_FILES+=":deposit-cli.yml"
+  fi
+}
+
+
+# Interactive configuration of an RPC node, with CL and EL
+__config_rpc() {
+  __query_consensus_only_client
+  __query_execution_client
+  __query_4444 "--defaultno"
+  __query_reth_snapshot
+  __query_checkpoint_sync
+  __query_mev
+  __query_grafana
+  __query_fee_recipient
+}
+
+
+# Interactive configuration of an SSV node, with CL, EL and SSV node
+__config_ssv() {
+  if [[ "${NETWORK}" = "hoodi" ]]; then
+    sed -i'.original' 's/  Network: .*/  Network: hoodi/' ssv-config/config.yaml
+  elif [[ "${NETWORK}" = "mainnet" ]]; then
+    sed -i'.original' 's/  Network: .*/  Network: mainnet/' ssv-config/config.yaml
+  else
+    echo "${NETWORK} is not something that works with SSV."
+    echo "Please choose Hoodi or Mainnet when running \"${__me} config\" again"
+    echo "Aborting."
+    exit 1
+  fi
+  rm ssv-config/config.yaml.original
+  __query_consensus_only_client
+  __query_ssv_client
+  if [[ ! -f "./ssv-config/password.pass" ]]; then
+    echo "Creating password file for encrypted SSV secret key"
+    head -c 16 /dev/urandom | base64 | tr -d '[:space:]' >./ssv-config/password.pass
+    ${__auto_sudo} chown 12000:12000 ./ssv-config/password.pass
+    ${__auto_sudo} chmod 600 ./ssv-config/password.pass
+  fi
+  if [[ ! -f "./ssv-config/encrypted_private_key.json" ]]; then
+    echo "Creating encrypted operator private key"
+    case "${SSV_CLIENT}" in
+      ssv.yml)
+        __dodocker run --name ssv-node-key-generation -v "$(pwd)/ssv-config/password.pass":/password.pass \
+          ssvlabs/ssv-node:latest /go/bin/ssvnode generate-operator-keys --password-file=/password.pass && \
+        __dodocker cp ssv-node-key-generation:/encrypted_private_key.json ./ssv-config/encrypted_private_key.json && \
+        __dodocker rm ssv-node-key-generation
+        ;;
+      anchor.yml)
+        __dodocker run --name anchor-key-generation -v "$(pwd)/ssv-config/password.pass":/password.pass \
+          sigp/anchor:latest keygen --password-file=/password.pass --encrypt --data-dir /anchor && \
+        __dodocker cp anchor-key-generation:/anchor/encrypted_private_key.json ./ssv-config/encrypted_private_key.json && \
+        __dodocker rm anchor-key-generation
+        ;;
+      *)
+        echo "Unknown SSV client \"${SSV_CLIENT}\". This is a bug."
+        exit 70
+        ;;
+    esac
+    ${__auto_sudo} chown 12000:12000 ./ssv-config/encrypted_private_key.json
+  fi
+  __query_dkg
+  __query_execution_client
+  __query_4444 ""
+  __query_reth_snapshot
+  __query_checkpoint_sync
+  __query_mev
+  __query_grafana
+  __query_fee_recipient
+}
+
+
+# Interactive configuration of a VC only
+__config_validator() {
+  __query_validator_client
+  __query_web3signer
+  __query_remote_beacon
+  __query_mev
+  __query_fee_recipient
+  __query_graffiti
+  if [[ "${NETWORK}" = "hoodi" ]]; then
+    CORE_FILES+=":deposit-cli.yml"
+  fi
+}
+
+
+# Interactive configuration of a VC only, for RocketPool
+__config_rocket() {
+  __write_vars+=("DOCKER_EXT_NETWORK")
+
+  __config_validator
+  CORE_FILES+=":ext-network.yml"
+  DOCKER_EXT_NETWORK="rocketpool_net"
+  __final_msg+="\nYou are connected to the \"rocketpool_net\" Docker bridge network"
+}
+
+
+# Interactive configuration of a Lido CSM node, with CL, EL and VC
+__config_lido_csm() {
   local lido_csm_url
+
+  __config_node
+
+  if whiptail --title "Keys generation" --yesno "Do you want to generate validator keys?" 10 65; then
+    __query_lido_keys_generation
+  else
+    __lido_keys_attention_message
+  fi
+
+  if [[ "${NETWORK}" = "hoodi" ]]; then
+    lido_csm_url="https://csm.testnet.fi/?ref=ethdocker"
+  else
+    lido_csm_url="https://csm.lido.fi/?ref=ethdocker"
+  fi
+  whiptail --title "Finish" --msgbox "Final steps!\n\n1. Run your node './ethd start'\n\n2. Wait until your node is fully synchronized\n\n\
+4. Open ${lido_csm_url} to submit your keys with '.eth/validator_keys/deposit-data-*.json' file content\n\n5. Wait for keys validation\n\n\
+6. Import your keys with './ethd keys import'" 19 65
+}
+
+
+# Interactive configuration of a Lido SimpleDVT SSV node, with CL, EL and SSV node
+__config_lido_ssv() {
+  __config_ssv
+}
+
+
+# Interactive configuration of a Lido SimpleDVT Obol node, with CL, EL and Obol Charon
+__config_lido_obol() {
   local cluster_lock_is_valid
   local obol_prom_remote_token
 
+  __write_vars+=("VE_LOCATOR_ADDRESS" "VE_ORACLE_ADDRESSES_ALLOWLIST" "VE_STAKING_MODULE_ID" "LIDO_DV_EXIT_EXIT_EPOCH" \
+    "VE_OPERATOR_ID" "OBOL_CLUSTER_NAME" "OBOL_CLUSTER_PEER" "OBOL_CHARON_REMOTE_LOKI_ADDRESSES" "ENABLE_DIST_ATTESTATION_AGGR")
+
+  if [[ ! "${NETWORK}" =~ (mainnet|hoodi) ]]; then
+    echo "Lido SimpleDVT Obol is not supported on network ${NETWORK}"
+    exit 1
+  fi
+
+  ENABLE_DIST_ATTESTATION_AGGR="true"
+
+  __query_consensus_client
+  CL_NODE="http://charon:3600"
+  __query_execution_client
+  __query_validator_client
+  __query_4444 ""
+  __query_reth_snapshot
+  __query_checkpoint_sync
+  __query_mev
+  __query_mev_factor
+  __query_grafana
+  __query_fee_recipient
+
+  case "${NETWORK}" in  # Lido Locator, and oracle allowlist for exits
+    mainnet)
+      VE_LOCATOR_ADDRESS="0xC1d0b3DE6792Bf6b4b37EccdcC24e45978Cfd2Eb"
+      VE_ORACLE_ADDRESSES_ALLOWLIST='["0x73181107c8D9ED4ce0bbeF7A0b4ccf3320C41d12","0x285f8537e1dAeEdaf617e96C742F2Cf36d63CcfB", \
+"0x404335BcE530400a5814375E7Ec1FB55fAff3eA2","0x946D3b081ed19173dC83Cd974fC69e1e760B7d78","0x007DE4a5F7bc37E2F26c0cb2E8A95006EE9B89b5",\
+"0xc79F702202E3A6B0B6310B537E786B9ACAA19BAf","0x61c91ECd902EB56e314bB2D5c5C07785444Ea1c8","0xe57B3792aDCc5da47EF4fF588883F0ee0c9835C9", \
+"0x4118DAD7f348A4063bD15786c299De2f3B1333F3"]'
+      VE_STAKING_MODULE_ID="2"
+      LIDO_DV_EXIT_EXIT_EPOCH="194048"  # capella
+      ;;
+    hoodi)
+      VE_LOCATOR_ADDRESS="0xe2EF9536DAAAEBFf5b1c130957AB3E80056b06D8"
+      VE_ORACLE_ADDRESSES_ALLOWLIST='["0xcA80ee7313A315879f326105134F938676Cfd7a9","0xf03B8DC8762B97F13Ac82e6F94bE3Ed002FF7459", \
+"0x1932f53B1457a5987791a40Ba91f71c5Efd5788F","0xf7aE520e99ed3C41180B5E12681d31Aa7302E4e5","0x99B2B75F490fFC9A29E4E1f5987BE8e30E690aDF", \
+"0x219743f1911d84B32599BdC2Df21fC8Dba6F81a2","0xD3b1e36A372Ca250eefF61f90E833Ca070559970","0x4c75FA734a39f3a21C57e583c1c29942F021C6B7", \
+"0x948A62cc0414979dc7aa9364BA5b96ECb29f8736","0xfe43A8B0b481Ae9fB1862d31826532047d2d538c","0x43C45C2455C49eed320F463fF4f1Ece3D2BF5aE2"]'
+      VE_STAKING_MODULE_ID="2"
+      LIDO_DV_EXIT_EXIT_EPOCH="256"  # capella
+      ;;
+  esac
+
+  if [[ -f ./.eth/cluster-lock.json ]]; then
+    if whiptail --title "Lido Obol cluster exists" --yesno "Your cluster has already been created. Continue with it?" 10 65; then
+# shellcheck disable=SC2086
+      cluster_lock_is_valid=$(__docompose -f ./lido-obol.yml run --rm -v "$(pwd)"/.eth/cluster-lock.json:/cluster-lock.json:ro curl-jq sh -c \
+        "cat /cluster-lock.json | jq -r 'all(.cluster_definition.validators[]; (.fee_recipient_address | ascii_downcase) == (\"'${FEE_RECIPIENT}'\" | ascii_downcase) and (.withdrawal_address | ascii_downcase) == (\"'$(__lido_withdrawal_credentials_address)'\" | ascii_downcase))'" | tail -n 1)
+      if [[ "${cluster_lock_is_valid}" =~ "true" ]]; then
+        echo "Your cluster lock is valid."
+      else
+        whiptail --title "Lido Obol cluster definition" --msgbox "Your cluster lock file './.eth/cluster-lock.json' is not valid.\n\nCheck that every validator has \`fee_recipient_address\` and \`withdrawal_address\` equal to Lido contracts and try again.\n\nLido fee recipient: '${FEE_RECIPIENT}'\nLido withdrawal credentials: '$(__lido_withdrawal_credentials_address)'" 14 90
+        echo "Your cluster lock is NOT valid."
+        exit 1
+      fi
+    elif whiptail --title "Lido Obol cluster creation" --yesno "Backup a previously created cluster to create a new one?" 10 65; then
+# A naive rm -rf on .eth throws out .gitignore
+      ${__as_owner} mkdir -p "./.eth_backup_${EPOCHSECONDS}"
+      ${__as_owner} cp -vr ./.eth/charon "./.eth_backup_${EPOCHSECONDS}"
+      ${__as_owner} rm -rf ./.eth/charon/*
+      ${__as_owner} cp -v ./.eth/cluster-lock.json "./.eth_backup_${EPOCHSECONDS}" 2>/dev/null || true
+      ${__as_owner} rm -f ./.eth/cluster-lock.json
+      ${__as_owner} cp -v ./.eth/cluster-definition.json "./.eth_backup_${EPOCHSECONDS}" 2>/dev/null || true
+      ${__as_owner} rm -f ./.eth/cluster-definition.json
+      ${__as_owner} cp -v ./.eth/charon-enr* "./.eth_backup_${EPOCHSECONDS}" 2>/dev/null || true
+      ${__as_owner} rm -f ./.eth/charon-enr*
+      __query_lido_obol_enr
+      __query_lido_obol_cluster_definition
+      __query_lido_obol_cluster_dkg
+    else
+      whiptail --title "Lido Obol cluster creation" --msgbox "The \`.eth\` folder must be empty or non-existent to continue" 10 65
+      echo "The \`.eth\` folder must be empty to create a new cluster"
+      exit 1
+    fi
+  else
+    if [[ -f "./.eth/charon-enr-private-key" && -f "./.eth/charon-enr-public-key" ]]; then
+      if whiptail --title "Lido Obol operator ENR creation" --yesno "You already have an ENR. Use it?" 8 65; then
+        echo "Using existing ENR"
+      else
+# A naive rm -rf on .eth throws out .gitignore
+        ${__as_owner} mkdir -p "./.eth_backup_${EPOCHSECONDS}"
+        ${__as_owner} cp -vr ./.eth/charon "./.eth_backup_${EPOCHSECONDS}"
+        ${__as_owner} rm -rf ./.eth/charon/*
+        ${__as_owner} cp -v ./.eth/cluster-lock.json "./.eth_backup_${EPOCHSECONDS}" 2>/dev/null || true
+        ${__as_owner} rm -f ./.eth/cluster-lock.json
+        ${__as_owner} cp -v ./.eth/cluster-definition.json "./.eth_backup_${EPOCHSECONDS}" 2>/dev/null || true
+        ${__as_owner} rm -f ./.eth/cluster-definition.json
+        ${__as_owner} cp -v ./.eth/charon-enr* "./.eth_backup_${EPOCHSECONDS}" 2>/dev/null || true
+        ${__as_owner} rm -f ./.eth/charon-enr*
+        __query_lido_obol_enr
+      fi
+    else
+      __query_lido_obol_enr
+    fi
+
+    if [[ -f ./.eth/cluster-definition.json ]]; then
+      if whiptail --title "Lido Obol cluster creation in process" --yesno "You already have a cluster definition. Use it?" 10 65; then
+        set +e
+# shellcheck disable=SC2086
+        cluster_definition_is_valid=$(__docompose -f ./lido-obol.yml run --rm -v "$(pwd)"/.eth/cluster-definition.json:/cluster-definition.json:ro curl-jq sh -c \
+          "cat /cluster-definition.json | jq -r 'all(.validators[]; (.fee_recipient_address | ascii_downcase) == (\"'${FEE_RECIPIENT}'\" | ascii_downcase) and (.withdrawal_address | ascii_downcase) == (\"'$(__lido_withdrawal_credentials_address)'\" | ascii_downcase))'" | tail -n 1)
+        set -e
+        if [[ "${cluster_definition_is_valid}" = "true" ]]; then
+          echo "Your cluster definition is valid."
+        else
+          whiptail --title "Lido Obol cluster creation" --msgbox "Your cluster definition is not valid.\n\nCheck that every validator has \`fee_recipient_address\` and \`withdrawal_address\` equal to Lido contracts and try again.\n\nLido fee recipient: '${FEE_RECIPIENT}'\nLido withdrawal credentials: '$(__lido_withdrawal_credentials_address)'" 14 90
+          echo "Your cluster definition is NOT valid."
+          exit 1
+        fi
+      else
+        __query_lido_obol_cluster_definition
+      fi
+    else
+      __query_lido_obol_cluster_definition
+    fi
+    __query_lido_obol_cluster_dkg
+  fi
+
+  VE_OPERATOR_ID=$(whiptail --title "Lido Operator ID" --inputbox "Input your Operator ID from Lido Operators dashboard \
+(right-click to paste)" 10 60 3>&1 1>&2 2>&3)
+  obol_prom_remote_token=$(whiptail --title "Obol Prometheus" --inputbox "Input the Obol Prometheus remote write token \
+(right-click to paste)" 10 60 3>&1 1>&2 2>&3)
+  cat ./prometheus/obol-prom.yml.sample > ./prometheus/custom-prom.yml
+  sed -i'.original' "s|      credentials: <PROM_REMOTE_WRITE_TOKEN>|      credentials: ${obol_prom_remote_token}|" ./prometheus/custom-prom.yml
+  rm -f ./prometheus/custom-prom.yml.original
+  OBOL_CHARON_REMOTE_LOKI_ADDRESSES=$(whiptail --title "Obol Loki" --inputbox "Input the Obol Loki remote URL \
+(right-click to paste)" 10 60 3>&1 1>&2 2>&3)
+  if [[ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]]; then
+    OBOL_CLUSTER_NAME=$(whiptail --title "Obol cluster name" --inputbox "What is your Obol cluster name? \
+(right-click to paste)" 10 60 "${__project_name}" 3>&1 1>&2 2>&3)
+    OBOL_CLUSTER_PEER=$(whiptail --title "Obol cluster peer" --inputbox "What is your Obol cluster peer name? \
+(right-click to paste)" 10 60 "eth-docker" 3>&1 1>&2 2>&3)
+  else
+    OBOL_CLUSTER_NAME=""
+    OBOL_CLUSTER_PEER=""
+    echo "Obol Loki remote URL is empty, skipping promtail"
+  fi
+
+  CORE_FILES+=":lido-obol.yml"
+  if [[ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]]; then
+    CORE_FILES+=":lido-obol-promtail.yml"
+  fi
+}
+
+
+config() {
+  local var
+
   # Create ENV file if needed
-  if ! [[ -f "${__env_file}" ]]; then
+  if [[ ! -f "${__env_file}" ]]; then
     ${__as_owner} cp default.env "${__env_file}"
     __minty_fresh=1
   else
     __minty_fresh=0
   fi
 
+  __get_compose_file
+
   __during_config=1
   __final_msg=""
+  CORE_FILES=""
+  __write_vars+=("CORE_FILES")
 
   __run_pre_update_script
 
-  if [[ "${__minty_fresh}" -eq 1 ]]; then
-    WEB3SIGNER=false
-  else
-    var="WEB3SIGNER"
-    __get_value_from_env "${var}" "${__env_file}" "WEB3SIGNER"
-  fi
   __check_legacy
   __query_network
   __query_deployment
-  case "${__deployment}" in
-    node|lido_csm)
-      __query_consensus_client
-      if [[ ! "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
-        __query_web3signer
-      fi
-      ;;
-    lido_obol)
-      __query_consensus_client
-      ;;
-    validator|rocket)
-      __query_validator_client
-      __query_web3signer
-      ;;
-    ssv|lido_ssv)
-      if [[ "${NETWORK}" = "hoodi" ]]; then
-        sed -i'.original' 's/  Network: .*/  Network: hoodi/' ssv-config/config.yaml
-      elif [[ "${NETWORK}" = "mainnet" ]]; then
-        sed -i'.original' 's/  Network: .*/  Network: mainnet/' ssv-config/config.yaml
-      else
-        echo "${NETWORK} is not something that works with SSV."
-        echo "Please choose Hoodi or Mainnet when running \"${__me} config\" again"
-        echo "Aborting."
-        exit 1
-      fi
-      rm ssv-config/config.yaml.original
-      __query_ssv_client
-      if [[ ! -f "./ssv-config/password.pass" ]]; then
-        echo "Creating password file for encrypted SSV secret key"
-        head -c 16 /dev/urandom | base64 | tr -d '[:space:]' >./ssv-config/password.pass
-        ${__auto_sudo} chown 12000:12000 ./ssv-config/password.pass
-        ${__auto_sudo} chmod 600 ./ssv-config/password.pass
-      fi
-      if [[ ! -f "./ssv-config/encrypted_private_key.json" ]]; then
-        echo "Creating encrypted operator private key"
-        case "${SSV_CLIENT}" in
-          ssv.yml )
-            __dodocker run --name ssv-node-key-generation -v "$(pwd)/ssv-config/password.pass":/password.pass \
-              ssvlabs/ssv-node:latest /go/bin/ssvnode generate-operator-keys --password-file=/password.pass && \
-            __dodocker cp ssv-node-key-generation:/encrypted_private_key.json ./ssv-config/encrypted_private_key.json && \
-            __dodocker rm ssv-node-key-generation
-            ;;
-          anchor.yml )
-            __dodocker run --name anchor-key-generation -v "$(pwd)/ssv-config/password.pass":/password.pass \
-              sigp/anchor:latest keygen --password-file=/password.pass --encrypt && \
-            __dodocker cp anchor-key-generation:/encrypted_private_key.json ./ssv-config/encrypted_private_key.json && \
-            __dodocker rm anchor-key-generation
-            ;;
-          * )
-            echo "Unknown SSV client \"${SSV_CLIENT}\". This is a bug."
-            exit 70
-            ;;
-        esac
-        ${__auto_sudo} chown 12000:12000 ./ssv-config/encrypted_private_key.json
-      fi
-      __query_dkg
-      __query_consensus_only_client
-      ;;
-    rpc)
-      __query_consensus_only_client
-      ;;
-    *)
-      echo "Unknown deployment ${__deployment}, this is a bug."
-      exit 70
-      ;;
-  esac
 
-  MEV_BOOST=false
-# I do mean to match literally
-# shellcheck disable=SC2076
-  if [[ ! "${__deployment}" =~ ^(validator|rocket)$  ]]; then
-    if [[ "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
-      CL_NODE=http://execution:5052
-      __query_execution_client
-      if [[ ! "${__deployment}" =~ ^(ssv|lido_ssv|rpc)$  ]]; then
-        __query_validator_client
-      fi
-      if [[ ! "${__deployment}" = "lido_obol" ]]; then
-        __query_web3signer
-      fi
-    else
-      CL_NODE="http://consensus:5052"
-      __query_execution_client
-    fi
-
-#shellcheck disable=SC2034
-    RETH_SNAPSHOT=""
-    if [[ -n "${EXECUTION_CLIENT+x}" && "${NETWORK}" =~ (mainnet|sepolia) ]]; then
-      if [[ "${__deployment}" = "rpc" ]]; then
-        __query_4444 --defaultno
-      else
-        __query_4444 ""
-      fi
-      if [[ "${EXECUTION_CLIENT:-}" = "reth.yml" && "${NETWORK}" = "mainnet" && ! "${EL_NODE_TYPE}" = "full" ]]; then
-        __query_reth_snapshot
-      fi
-    else  # On all other networks, disable
-#shellcheck disable=SC2034
-      EL_NODE_TYPE=full
-    fi
-
-    __query_checkpoint_sync
-    __query_mev
-    __query_mev_factor
-    __query_grafana
-    __query_coinbase
-    if [[ "${__deployment}" = "node" || "${__deployment}" = "lido_csm" ]]; then
-      __query_graffiti
-    fi
-    if [[ "${__deployment}" = "lido_csm" ]]; then
-      if (whiptail --title "Keys generation" --yesno "Do you want to generate validator keys?" 10 60) then
-        __query_lido_keys_generation
-      else
-        __lido_keys_attention_message
-      fi
-      if [[ "${NETWORK}" = "hoodi" ]]; then
-        lido_csm_url="https://csm.testnet.fi/?ref=ethdocker"
-      else
-        lido_csm_url="https://csm.lido.fi/?ref=ethdocker"
-      fi
-      whiptail --title "Finish" --msgbox "Final steps!\n\n1. Run your node './ethd start'\n\n2. Wait until your node is fully synchronized\n\n4. Open ${lido_csm_url} to submit your keys with '.eth/validator_keys/deposit-data-*.json' file content\n\n5. Wait for keys validation\n\n6. Import your keys by './ethd keys import'" 19 85
-    fi
-  else
-    unset EXECUTION_CLIENT
-    unset GRAFANA_CLIENT
-
-    __query_remote_beacon
-# This gets used, but shellcheck doesn't recognize that
-# shellcheck disable=SC2034
-    CL_NODE="${REMOTE_BEACON}"
-    __query_mev
-    __query_coinbase
-    __query_graffiti
-  fi
+# Every deployment type has a __config_xx function, which runs through the entire query and config workflow
+# This is not DRY, but makes it very easy to see and customize the config workflow
+  __config_"${__deployment}"
 
   __during_config=0
 
-  if [[ "${__deployment}" = "lido_obol" ]]; then
-    CL_NODE="http://charon:3600"
-    case "${NETWORK}" in  # Lido Locator, and oracle allowlist for exits
-      mainnet)
-# We are using the variable
-# shellcheck disable=SC2034
-        VE_LOCATOR_ADDRESS="0xC1d0b3DE6792Bf6b4b37EccdcC24e45978Cfd2Eb"
-# We are using the variable
-# shellcheck disable=SC2034
-        VE_ORACLE_ADDRESSES_ALLOWLIST='["0x73181107c8D9ED4ce0bbeF7A0b4ccf3320C41d12","0x285f8537e1dAeEdaf617e96C742F2Cf36d63CcfB","0x404335BcE530400a5814375E7Ec1FB55fAff3eA2","0x946D3b081ed19173dC83Cd974fC69e1e760B7d78","0x007DE4a5F7bc37E2F26c0cb2E8A95006EE9B89b5","0xc79F702202E3A6B0B6310B537E786B9ACAA19BAf","0x61c91ECd902EB56e314bB2D5c5C07785444Ea1c8","0xe57B3792aDCc5da47EF4fF588883F0ee0c9835C9","0x4118DAD7f348A4063bD15786c299De2f3B1333F3"]'
-# We are using the variable
-# shellcheck disable=SC2034
-        VE_STAKING_MODULE_ID="2"
-# We are using the variable
-# shellcheck disable=SC2034
-        LIDO_DV_EXIT_EXIT_EPOCH="194048" # capella
-        ;;
-      hoodi)
-# We are using the variable
-# shellcheck disable=SC2034
-        VE_LOCATOR_ADDRESS="0xe2EF9536DAAAEBFf5b1c130957AB3E80056b06D8"
-# We are using the variable
-# shellcheck disable=SC2034
-        VE_ORACLE_ADDRESSES_ALLOWLIST='["0xcA80ee7313A315879f326105134F938676Cfd7a9","0xf03B8DC8762B97F13Ac82e6F94bE3Ed002FF7459","0x1932f53B1457a5987791a40Ba91f71c5Efd5788F","0xf7aE520e99ed3C41180B5E12681d31Aa7302E4e5","0x99B2B75F490fFC9A29E4E1f5987BE8e30E690aDF","0x219743f1911d84B32599BdC2Df21fC8Dba6F81a2","0xD3b1e36A372Ca250eefF61f90E833Ca070559970","0x4c75FA734a39f3a21C57e583c1c29942F021C6B7","0x948A62cc0414979dc7aa9364BA5b96ECb29f8736","0xfe43A8B0b481Ae9fB1862d31826532047d2d538c","0x43C45C2455C49eed320F463fF4f1Ece3D2BF5aE2"]'
-# We are using the variable
-# shellcheck disable=SC2034
-        VE_STAKING_MODULE_ID="2"
-# We are using the variable
-# shellcheck disable=SC2034
-        LIDO_DV_EXIT_EXIT_EPOCH="256" # capella
-        ;;
-      *)
-        ;;
-    esac
+  __make_siren_password
+  __detect_v6
 
-    if [[ -f ./.eth/cluster-lock.json ]]; then
-      if (whiptail --title "Lido Obol cluster exists" --yesno "Your cluster has already been created. Continue with it?" 10 60); then
-# shellcheck disable=SC2086
-        cluster_lock_is_valid=$(__docompose -f ./lido-obol.yml run --rm -v "$(pwd)"/.eth/cluster-lock.json:/cluster-lock.json:ro curl-jq sh -c \
-          "cat /cluster-lock.json | jq -r 'all(.cluster_definition.validators[]; (.fee_recipient_address | ascii_downcase) == (\"'${FEE_RECIPIENT}'\" | ascii_downcase) and (.withdrawal_address | ascii_downcase) == (\"'$(__lido_withdrawal_credentials_address)'\" | ascii_downcase))'" | tail -n 1)
-        if [[ "${cluster_lock_is_valid}" =~ "true" ]]; then
-          echo "Your cluster lock is valid."
-        else
-          whiptail --title "Lido Obol cluster definition" --msgbox "Your cluster lock file './.eth/cluster-lock.json' is not valid.\n\nCheck that every validator has \`fee_recipient_address\` and \`withdrawal_address\` equal to Lido contracts and try again.\n\nLido fee recipient: '${FEE_RECIPIENT}'\nLido withdrawal credentials: '$(__lido_withdrawal_credentials_address)'" 14 90
-          echo "Your cluster lock is NOT valid."
-          exit 1
-        fi
-      elif (whiptail --title "Lido Obol cluster creation" --yesno "Backup a previously created cluster to create a new one?" 10 80); then
-        ${__as_owner} cp -vr ./.eth "./.eth_backup_${EPOCHSECONDS}"
-        ${__as_owner} rm -rf ./.eth
-        __query_lido_obol_enr
-        __query_lido_obol_cluster_definition
-        __query_lido_obol_cluster_dkg
-      else
-        whiptail --title "Lido Obol cluster creation" --msgbox "The \`.eth\` folder must be empty or non-existent to continue" 10 80
-        echo "The \`.eth\` folder must be empty to create a new cluster"
-        exit 1
-      fi
-    else
-      if [[ -f "./.eth/charon-enr-private-key" && -f "./.eth/charon-enr-public-key" ]]; then
-        if (whiptail --title "Lido Obol operator ENR creation" --yesno "You already have ENR. Use it?" 8 50); then
-          echo "Use existing ENR"
-        else
-          ${__as_owner} cp -vr ./.eth "./.eth_backup_${EPOCHSECONDS}"
-          ${__as_owner} rm -rf ./.eth
-          __query_lido_obol_enr
-        fi
-      else
-        __query_lido_obol_enr
-      fi
+  for var in "${__write_vars[@]}"; do
+    __update_value_in_env "${var}" "${!var?Variable ${var} is not set, this is a bug}" "${__env_file}"
+  done
 
-      if [[ -f ./.eth/cluster-definition.json ]]; then
-        if (whiptail --title "Lido Obol cluster creation in process" --yesno "You already have cluster definition. Use it?" 10 60); then
-# shellcheck disable=SC2086
-          cluster_definition_is_valid=$(__docompose -f ./lido-obol.yml run --rm -v "$(pwd)"/.eth/cluster-definition.json:/cluster-definition.json:ro curl-jq sh -c \
-            "cat /cluster-definition.json | jq -r 'all(.validators[]; (.fee_recipient_address | ascii_downcase) == (\"'${FEE_RECIPIENT}'\" | ascii_downcase) and (.withdrawal_address | ascii_downcase) == (\"'$(__lido_withdrawal_credentials_address)'\" | ascii_downcase))'" | tail -n 1)
-          if [[ "${cluster_definition_is_valid}" = "true" ]]; then
-            echo "Your cluster definition is valid."
-          else
-            whiptail --title "Lido Obol cluster creation" --msgbox "Your cluster definition is not valid.\n\nCheck that every validator has \`fee_recipient_address\` and \`withdrawal_address\` equal to Lido contracts and try again.\n\nLido fee recipient: '${FEE_RECIPIENT}'\nLido withdrawal credentials: '$(__lido_withdrawal_credentials_address)'" 14 90
-            echo "Your cluster definition is NOT valid."
-            exit 1
-          fi
-        else
-          __query_lido_obol_cluster_definition
-        fi
-      else
-        __query_lido_obol_cluster_definition
-      fi
-      __query_lido_obol_cluster_dkg
-    fi
+  echo "Your chosen yml files are:" "${CORE_FILES}"
+  var="CUSTOM_FILES"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+  __final_msg+="\nYou are using these service files: ${CORE_FILES}${CUSTOM_FILES:+:${CUSTOM_FILES}}"
 
-# We are using the variable
-# shellcheck disable=SC2034
-    VE_OPERATOR_ID=$(whiptail --title "Lido Operator ID" --inputbox "Put your Operator ID from Lido Operators dashboard \
-(right-click to paste)" 10 60 3>&1 1>&2 2>&3)
-    obol_prom_remote_token=$(whiptail --title "Obol Prometheus" --inputbox "Put Obol Prometheus remote write token \
-(right-click to paste)" 10 60 3>&1 1>&2 2>&3)
-    cat ./prometheus/obol-prom.yml.sample > ./prometheus/custom-prom.yml
-    sed -i'.original' "s|      credentials: <PROM_REMOTE_WRITE_TOKEN>|      credentials: ${obol_prom_remote_token}|" ./prometheus/custom-prom.yml
-    rm -f ./prometheus/custom-prom.yml.original
-    OBOL_CHARON_REMOTE_LOKI_ADDRESSES=$(whiptail --title "Obol Loki" --inputbox "Put Obol Loki remote URL \
-(right-click to paste)" 10 60 3>&1 1>&2 2>&3)
-    if [[ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]]; then
-      OBOL_CLUSTER_NAME=$(whiptail --title "Obol cluster name" --inputbox "Put your Obol cluster name \
-(right-click to paste)" 10 60 "${__project_name}" 3>&1 1>&2 2>&3)
-      OBOL_CLUSTER_PEER=$(whiptail --title "Obol cluster peer" --inputbox "Put your Obol cluster peer \
-(right-click to paste)" 10 60 "eth-docker" 3>&1 1>&2 2>&3)
-    else
-# This gets used, but shellcheck doesn't recognize that
-# shellcheck disable=SC2034
-      OBOL_CLUSTER_NAME=""
-# This gets used, but shellcheck doesn't recognize that
-# shellcheck disable=SC2034
-      OBOL_CLUSTER_PEER=""
-      echo "Obol Loki remote URL is empty, skipping"
-    fi
-  fi
-
-  if [[ -n "${CONSENSUS_CLIENT+x}" ]]; then
-    COMPOSE_FILE="${CONSENSUS_CLIENT}"
-    if [[ -n "${VALIDATOR_CLIENT+x}" ]]; then
-      COMPOSE_FILE="${COMPOSE_FILE}:${VALIDATOR_CLIENT}"
-    fi
-  elif [[ -n "${VALIDATOR_CLIENT+x}" ]]; then
-    COMPOSE_FILE="${VALIDATOR_CLIENT}"
-  else
-    echo "No consensus client or validator client selected. This is a bug. Aborting"
-    exit 70
-  fi
-  if [[ "${WEB3SIGNER}" = "true" ]]; then
-    COMPOSE_FILE="${COMPOSE_FILE}:web3signer.yml"
-  fi
-  if [[ -n "${EXECUTION_CLIENT+x}" ]]; then
-    COMPOSE_FILE="${COMPOSE_FILE}:${EXECUTION_CLIENT}"
-  fi
-  if [[ "${__deployment}" = "ssv" || "${__deployment}" = "lido_ssv" ]]; then
-    COMPOSE_FILE="${COMPOSE_FILE}:${SSV_CLIENT}"
-    if [[ -n "${__ssv_operator_id}" && ! "${__ssv_operator_id}" = "-1" ]]; then
-      COMPOSE_FILE="${COMPOSE_FILE}:ssv-dkg.yml"
-    fi
-  fi
-  if [[ -n "${GRAFANA_CLIENT+x}" ]]; then
-    COMPOSE_FILE="${COMPOSE_FILE}:${GRAFANA_CLIENT}"
-  fi
-  if [[ "${MEV_BOOST}" = "true" && ! "${__deployment}" = "rocket" ]]; then
-    COMPOSE_FILE="${COMPOSE_FILE}:mev-boost.yml"
-  fi
-  if [[ "${__deployment}" = "lido_obol" ]]; then
-    COMPOSE_FILE="${COMPOSE_FILE}:lido-obol.yml"
-    if [[ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]]; then
-      COMPOSE_FILE="${COMPOSE_FILE}:lido-obol-promtail.yml"
-    fi
-  fi
-  if [[ ("${__deployment}" = "node" || "${__deployment}" = "rocket") \
-       && "${NETWORK}" = "hoodi" ]]; then
-    COMPOSE_FILE="${COMPOSE_FILE}:deposit-cli.yml"
-  fi
-  if [[ "${__deployment}" = "lido_csm" ]]; then
-    COMPOSE_FILE="${COMPOSE_FILE}:deposit-cli.yml"
-  fi
-# Not multi-arch, this would break on ARM64
-
-#    COMPOSE_FILE="${COMPOSE_FILE}:ethdo.yml"
-  if [[ "${__deployment}" = "rocket" ]]; then
-    COMPOSE_FILE="${COMPOSE_FILE}:ext-network.yml"
-# This gets used, but shellcheck doesn't recognize that
-# shellcheck disable=SC2034
-    DOCKER_EXT_NETWORK="rocketpool_net"
-    __final_msg+="\nYou are connected to the \"rocketpool_net\" Docker bridge network"
-  fi
-
-  echo "Your COMPOSE_FILE is:" "${COMPOSE_FILE}"
-  __final_msg+="\nYou are using these service files: ${COMPOSE_FILE}"
-
-  var=FEE_RECIPIENT
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=GRAFFITI
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=DEFAULT_GRAFFITI
-  __update_value_in_env "${var}" "${!var:-"true"}" "${__env_file}"
-  var=CL_NODE
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=CHECKPOINT_SYNC_URL
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=COMPOSE_FILE
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=WEB3SIGNER
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=EL_NODE
-  __update_value_in_env "${var}" "${!var:-"http://execution:8551"}" "${__env_file}"
-  var=JWT_SECRET
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=NETWORK
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  if [[ ${NETWORK} =~ ^https?:// ]]; then  # The aliases need to not use ${NETWORK}
-    var=W3S_ALIAS
-    __update_value_in_env "${var}" "custom-web3signer" "${__env_file}"
-    var=PG_ALIAS
-    __update_value_in_env "${var}" "custom-postgres" "${__env_file}"
-    var=CL_ALIAS
-    __update_value_in_env "${var}" "custom-consensus" "${__env_file}"
-    var=EL_ALIAS
-    __update_value_in_env "${var}" "custom-execution" "${__env_file}"
-    var=MEV_ALIAS
-    __update_value_in_env "${var}" "custom-mev" "${__env_file}"
-  fi
-  var=MEV_BOOST
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=MEV_BUILD_FACTOR
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=MAX_BLOBS
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=MEV_RELAYS
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=EL_NODE_TYPE
-  __update_value_in_env "${var}" "${!var-full}" "${__env_file}"
-  var=RETH_SNAPSHOT
-  __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-  var=DOCKER_EXT_NETWORK
-  __update_value_in_env "${var}" "${!var:-"rocketpool_net"}" "${__env_file}"
-  if [[ "${__deployment}" = "lido_obol" ]]; then
-    var=LIDO_DV_EXIT_EXIT_EPOCH
-    __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-    var=VE_OPERATOR_ID
-    __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-    var=VE_LOCATOR_ADDRESS
-    __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-    var=VE_ORACLE_ADDRESSES_ALLOWLIST
-    __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-    var=VE_STAKING_MODULE_ID
-    __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-    var=OBOL_CHARON_REMOTE_LOKI_ADDRESSES
-    __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-    var=OBOL_CLUSTER_NAME
-    __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-    var=OBOL_CLUSTER_PEER
-    __update_value_in_env "${var}" "${!var-}" "${__env_file}"
-# We are using the variable
-# shellcheck disable=SC2034
-    ENABLE_DIST_ATTESTATION_AGGR="true"
-    var=ENABLE_DIST_ATTESTATION_AGGR
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
-  fi
-  if [[ "${NETWORK}" = "gnosis" && "${CONSENSUS_CLIENT}" =~ "nimbus" ]] ; then
-# We are using the variable
-# shellcheck disable=SC2034
-    NIM_DOCKERFILE=Dockerfile.sourcegnosis
-    var=NIM_DOCKERFILE
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
-  fi
-  if uname -m | grep -q riscv64; then
-# We are using the variable
-# shellcheck disable=SC2034
-    NIM_DOCKERFILE=Dockerfile.source
-    var=NIM_DOCKERFILE
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
-# We are using the variable
-# shellcheck disable=SC2034
-    GETH_DOCKERFILE=Dockerfile.source
-    var=GETH_DOCKERFILE
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
-  fi
-  var="SIREN_PASSWORD"
-  __get_value_from_env "${var}" "${__env_file}" "SIREN_PASSWORD"
-  if [[ -z "${SIREN_PASSWORD}" ]]; then
-    SIREN_PASSWORD=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
-  fi
-
-  __enable_v6
-
+  __get_compose_file
   __pull_and_build
   __nag_os_version
 
@@ -5590,8 +5666,7 @@ version() {
 
   grep "^This is" README.md
   echo
-  var="COMPOSE_FILE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __value="${COMPOSE_FILE}"
 
   # CL versions
   case "${__value}" in
@@ -5766,6 +5841,19 @@ version() {
       echo
       ;;
   esac
+}
+
+
+# Combine CORE_FILES and CUSTOM_FILES so they can be used as COMPOSE_FILE
+__get_compose_file() {
+  local var
+
+  var="CUSTOM_FILES"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+  var="CORE_FILES"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+
+  COMPOSE_FILE="${CORE_FILES}${CUSTOM_FILES:+:${CUSTOM_FILES}}"
 }
 
 
@@ -5964,10 +6052,20 @@ if ! __docompose --help >/dev/null 2>&1; then
 fi
 
 case "${__command}" in
-  help|config|keys|update|up|start|down|stop|restart|version|logs|cmd|terminate|prune-nethermind\
+  help|config|cmd|terminate)  # Commands that can be run without .env existing
+    ${__command} "$@"
+    exit 0
+    ;;
+  keys|update|up|start|down|stop|restart|version|logs|prune-nethermind\
 |prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
 |repair-reth|keyimport|space)
-    ${__command} "$@";;
+    if [[ ! -f "${__env_file}" ]]; then
+      echo "${__project_name} has not been configured. Please run \"${__me} config\" first."
+      exit 0
+    fi
+    __get_compose_file
+    ${__command} "$@"
+    ;;
   *)
     echo "Unrecognized command ${__command}"
     help

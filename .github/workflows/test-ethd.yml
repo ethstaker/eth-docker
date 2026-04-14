@@ -45,16 +45,15 @@ jobs:
           ENV_VERSION=42
           var=ENV_VERSION
           set_value_in_env
+          COMPOSE_FILE=teku.yml:besu.yml
+          var=COMPOSE_FILE
+          set_value_in_env
       - name: Test ethd update
         run: ./ethd update --debug --non-interactive
       - name: Remove .env
         run: rm .env
       - name: Test ethd config defaults
         run: expect ./.github/test-ethd-config.exp all-defaults
-        env:
-          TERM: xterm
-      - name: Test ethd config no checkpoint
-        run: expect ./.github/test-ethd-config.exp no-checkpoint
         env:
           TERM: xterm
       - name: Test ethd config no mev
