@@ -300,7 +300,7 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
 
 # Traces
   if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
-    __grandine+=" --grandine-telemetrymetricsurl http://tempo:4317 --grandine-telemetryservicename grandine --grandine-telemetrylevel ${LOG_LEVEL:-info}"
+    __grandine+=" --grandine-telemetrymetricsurl http://tempo:4318 --grandine-telemetryservicename grandine --grandine-telemetrylevel ${LOG_LEVEL:-info}"
   # These may become default in future. Here so Grandine doesn't murder itself in the meantime
     export OTEL_TRACES_SAMPLER=parentbased_traceidratio
     export OTEL_TRACES_SAMPLER_ARG=0.01

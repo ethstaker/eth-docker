@@ -136,7 +136,7 @@ set -- "${__args[@]}"
 
 # Traces
 if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
-  __trace="--telemetry-collector-url http://tempo:4317 --telemetry-service-name lighthouse"
+  __trace="--telemetry-collector-url http://tempo:4318 --telemetry-service-name lighthouse"
 # These may become default in future. Here so Lighthouse doesn't murder itself in the meantime
   export OTEL_TRACES_SAMPLER=parentbased_traceidratio
   export OTEL_TRACES_SAMPLER_ARG=0.01
