@@ -17,6 +17,8 @@ services:
       - http://validator:8009/metrics
       - --server.address
       - https://beaconcha.in/api/v1/client/metrics?apikey=${BEACON_STATS_API}&machine=${BEACON_STATS_MACHINE}
+    labels:
+      - logs.collect=true
 # As of Nov 2022 Prysm's own client-stats would require source build. Using beaconcha.in's instead
 #  client-stats:
 #    restart: "unless-stopped"

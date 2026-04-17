@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: 3.13
+          python-version: 3.14
           cache: 'pip'
       - name: Lint sources
         uses: pre-commit/action@v3.0.1

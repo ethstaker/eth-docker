@@ -1,2 +1,4 @@
 # Ensure user-added configs don't get mixed up in git
+prometheus.yml
 custom-prom.yml
+conf.d

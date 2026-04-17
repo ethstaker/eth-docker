@@ -1,0 +1,100 @@
+// This file is not meant to be edited
+// Create your own config.d/<something.alloy> file instead for additional config
+
+// Discover docker containers to collect logs and metrics from
+discovery.docker "docker_containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Log config
+// Extract container name from __meta_docker_container_name label and add as label
+discovery.relabel "docker_logs" {
+  targets = discovery.docker.docker_containers.targets
+
+ rule {
+    source_labels = ["__meta_docker_container_label_logs_collect"]
+    regex         = "true"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container_name"
+  }
+}
+
+// Scrape logs from docker containers and send to be processed
+loki.source.docker "docker_logs" {
+  host    = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.docker_logs.output
+  forward_to = [loki.process.process_logs.receiver]
+}
+
+// Logs write targets are in loki-write.alloy
+
+
+// Metrics config
+discovery.relabel "docker_metrics" {
+  targets = discovery.docker.docker_containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_metrics_scrape"]
+    regex         = "true"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "job"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_metrics_path"]
+    regex         = "(.+)"
+    target_label  = "__metrics_path__"
+  }
+
+  rule {
+    source_labels = ["__address__", "__meta_docker_container_label_metrics_port"]
+    regex         = "([^:]+)(?::\\d+)?;(\\d+)"
+    target_label  = "__address__"
+    replacement   = "$1:$2"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_metrics_host", "__meta_docker_container_label_metrics_port"]
+    regex         = "(.+);(\\d+)"
+    target_label  = "__address__"
+    replacement   = "$1:$2"
+  }
+
+  rule {
+  source_labels = ["__meta_docker_container_label_metrics_job"]
+  regex         = "(.+)"
+  target_label  = "job"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_metrics_interval"]
+    regex         = "(.+)"
+    target_label  = "__scrape_interval__"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_metrics_instance"]
+    regex         = "(.+)"
+    target_label  = "instance"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_metrics_network"]
+    target_label  = "network"
+  }
+}
+
+// Metrics write targets are in prometheus-write.alloy

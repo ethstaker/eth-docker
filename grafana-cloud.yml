@@ -1,10 +1,10 @@
-# Custom Prometheus rules. Use prometheus/custom-prom.yml which will be merged into
-# /etc/prometheus/prometheus.yml inside the prometheus container.
+# Use ./alloy/write-loki.yml and ./alloy/write-prometheus.yml to control
+# where logs and metrics are being sent
+# ./alloy/config.d can have additional configuration files such as custom scrape targets
 #
-# You could add additional scrape targets as well as additional global sections such as remote-write.
-# This file is called grafana-cloud.yml as adding a remote write to Grafana Cloud is likely a
-# common use case. It properly is a Prometheus without Grafana and the ability to add custom
-# content to prometheus.yml
+# This file is called grafana-cloud.yml, as adding a remote write to Grafana Cloud is a
+# common use case. It properly is a Grafana Alloy without local Grafana, or a local metrics/log store
+
 
 x-logging: &logging
   logging:
@@ -15,34 +15,6 @@ x-logging: &logging
       tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
 
 services:
-  prometheus:
-    restart: "unless-stopped"
-    build:
-      context: ./prometheus
-    image: prometheus:local
-    user: root
-    pull_policy: never
-    volumes:
-      - prom-data:/prometheus
-      - /etc/localtime:/etc/localtime:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./prometheus/custom-prom.yml:/etc/prometheus/custom-prom.yml:ro
-      - ./prometheus/conf.d/:/etc/prometheus/conf.d/:ro
-    command:
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-40d}
-      - --web.console.libraries=/usr/share/prometheus/console_libraries
-      - --web.console.templates=/usr/share/prometheus/consoles
-    <<: *logging
-    extra_hosts:  # So we can scrape targets on the host
-      - "host.docker.internal:host-gateway"
-    labels:
-      - metrics.scrape=true
-      - metrics.path=/metrics
-      - metrics.port=9090
-      - metrics.instance=prometheus
-      - metrics.network=${NETWORK}
-
   ethereum-metrics-exporter:
     restart: "unless-stopped"
     image: samcm/ethereum-metrics-exporter:debian-latest
@@ -56,6 +28,7 @@ services:
       - metrics.path=/metrics
       - metrics.port=9090
       - metrics.instance=ethereum-metrics-exporter
+      - logs.collect=true
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -88,16 +61,19 @@ services:
       - metrics.port=${NODE_EXPORTER_PORT:-9199}
       - metrics.instance=node-exporter
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
   blackbox-exporter:
     restart: "unless-stopped"
-    image: prom/blackbox-exporter:master
+    image: prom/blackbox-exporter:latest
     volumes:
       - ./prometheus/blackbox.yml:/config/blackbox.yml
       - /etc/localtime:/etc/localtime:ro
     command:
       - --config.file=/config/blackbox.yml
     <<: *logging
+    labels:
+      - logs.collect=true
 
   json-exporter:
     restart: "unless-stopped"
@@ -115,6 +91,7 @@ services:
       - metrics.port=7979
       - metrics.instance=json-exporter
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
   cadvisor:
     restart: "unless-stopped"
@@ -138,28 +115,32 @@ services:
       - metrics.port=8080
       - metrics.instance=cadvisor
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
-  promtail:
-    image: grafana/promtail:latest
-    user: root
+  alloy:
+    image: grafana/alloy:latest
+    restart: unless-stopped
     volumes:
-      - /etc/machine-id:/etc/machine-id:ro
-      - ./promtail:/etc/promtail
-      - promtail-data:/tmp
+      - alloy-data:/var/lib/alloy
+      - ./alloy:/etc/alloy
+      - /etc/localtime:/etc/localtime:ro
+      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro
       - ${DOCKER_ROOT:-/var/lib/docker}/containers:/var/lib/docker/containers:ro,rslave
-    entrypoint: ./etc/promtail/entrypoint.sh
-    command: ["/usr/bin/promtail"]
-    environment:
-      SERVER_LABEL_HOSTNAME: ${LOGS_LABEL:-notset}
-    restart: "unless-stopped"
-    <<: *logging
+    extra_hosts:  # So we can scrape targets on the host
+      - "host.docker.internal:host-gateway"
+    entrypoint:
+      - alloy
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics
-      - metrics.port=9080
-      - metrics.instance=promtail
+      - metrics.port=12345
+      - metrics.instance=alloy
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
 volumes:
-  prom-data:
-  promtail-data:
+  alloy-data:

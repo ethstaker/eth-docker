@@ -1,0 +1,5 @@
+# Expose Alloy port for UI access
+services:
+  alloy:
+    ports:
+      - ${SHARE_IP:-}:${ALLOY_PORT:-12345}:12345/tcp

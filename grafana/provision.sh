@@ -168,6 +168,7 @@ case "${CLIENT}" in
     tmp=$(mktemp)
     status=0
     wget -t 3 -T 10 -qcO - "${url}" \
+      | jq '.title = "Grandine Dashboard"' \
       | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' \
       >"${tmp}" || status=1
     handle_replacement "${status}" "${tmp}" "${file}"

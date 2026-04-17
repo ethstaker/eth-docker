@@ -24,3 +24,4 @@ services:
       - metrics.port=10000
       - metrics.instance=cb-pbs
       - metrics.network=${NETWORK}
+      - logs.collect=true

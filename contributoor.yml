@@ -24,3 +24,5 @@ services:
       - --attestation-subnet-check-enabled
       - --log-level=${LOG_LEVEL}
     command: ${CONTRIBUTOOR_EXTRAS}
+    labels:
+      - logs.collect=true

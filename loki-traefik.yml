@@ -1,0 +1,11 @@
+# To be used in conjunction with grafana.yml, for log write
+# Please be very cautious, Loki is not authenticated by default
+services:
+  loki:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${LOKI_HOST:-loki}.service=${LOKI_HOST:-loki}
+      - traefik.http.routers.${LOKI_HOST:-loki}.entrypoints=web,websecure
+      - traefik.http.routers.${LOKI_HOST:-loki}.rule=Host(`${LOKI_HOST:-loki}.${DOMAIN}`)
+      - traefik.http.routers.${LOKI_HOST:-loki}.tls.certresolver=letsencrypt
+      - traefik.http.services.${LOKI_HOST:-loki}.loadbalancer.server.port=3100

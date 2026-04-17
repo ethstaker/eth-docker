@@ -82,6 +82,7 @@ services:
       - metrics.port=8008
       - metrics.instance=consensus
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
   # Uses keystore-m file and CL, so does belong here
   validator-exit:

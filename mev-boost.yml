@@ -48,3 +48,4 @@ services:
       - metrics.port=18551
       - metrics.instance=mev-boost
       - metrics.network=${NETWORK}
+      - logs.collect=true

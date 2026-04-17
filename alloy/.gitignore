@@ -1,4 +1,4 @@
 *
+!config.alloy
 !*.sample
-!entrypoint.sh
 !.gitignore

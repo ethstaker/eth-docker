@@ -80,6 +80,7 @@ services:
       - metrics.port=6060
       - metrics.instance=execution
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
   set-prune-marker:
     profiles: ["tools"]

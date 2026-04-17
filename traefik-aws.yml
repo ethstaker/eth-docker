@@ -43,13 +43,14 @@ services:
       - certs:/letsencrypt
       - ~/.aws:/root/.aws:ro
       - /etc/localtime:/etc/localtime:ro
+    <<: *logging
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics
       - metrics.port=8080
       - metrics.instance=traefik
       - metrics.network=${NETWORK}
-    <<: *logging
+      - logs.collect=true
 
   ddns:
     image: ddns-aws:local

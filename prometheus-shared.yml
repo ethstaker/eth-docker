@@ -1,4 +1,4 @@
-# Prometheus federation, or other reasons to have prometheus through traefik
+# Prometheus federation, remote write, or access to the UI
 services:
   prometheus:
     ports:

@@ -1,0 +1,49 @@
+services:
+  alloy:
+    image: grafana/alloy:latest
+    restart: unless-stopped
+    environment:
+      CHARON_LOKI_ADDRESSES: ${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}
+      CLUSTER_NAME: ${OBOL_CLUSTER_NAME}
+      CLUSTER_PEER: ${OBOL_CLUSTER_PEER}
+    volumes:
+      - ./alloy-obol:/etc/alloy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DOCKER_ROOT:-/var/lib/docker}/containers:/var/lib/docker/containers:ro,rslave
+      - alloy-obol-data:/var/lib/alloy
+    entrypoint: /etc/alloy/docker-entrypoint.sh
+    command:
+      - alloy
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=12345
+      - metrics.instance=obol-alloy
+      - metrics.network=${NETWORK}
+
+  charon:
+    labels:
+      - obol-alloy-monitored=true
+
+  execution:
+    labels:
+      - obol-alloy-monitored=true
+
+  consensus:
+    labels:
+      - obol-alloy-monitored=true
+
+  validator:
+    labels:
+      - obol-alloy-monitored=true
+
+  mev-boost:
+    labels:
+      - obol-alloy-monitored=true
+
+volumes:
+  alloy-obol-data:

@@ -92,6 +92,7 @@ services:
       - metrics.port=8009
       - metrics.instance=validator
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
   create-wallet:
     profiles: ["tools"]

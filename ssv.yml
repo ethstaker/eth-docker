@@ -43,6 +43,7 @@ services:
       - metrics.port=15000
       - metrics.instance=ssv-node
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
 volumes:
   ssv-data:

@@ -82,6 +82,7 @@ services:
       - metrics.port=9001
       - metrics.instance=web3signer
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
   postgres:
     restart: "unless-stopped"
@@ -103,6 +104,8 @@ services:
         aliases:
           # This allows multiple Eth Docker stacks all connected to the same bridge network
           - ${PG_ALIAS:-${NETWORK}-postgres}
+    labels:
+      - logs.collect=true
 
 volumes:
   web3signer-keys:

@@ -1,11 +1,11 @@
-# To be used in conjunction with grafana.yml
+# To be used in conjunction with grafana.yml, for federation or remote write
 # Please be very cautious, prometheus is not authenticated by default
 services:
   prometheus:
     labels:
       - traefik.enable=true
-      - traefik.http.routers.${PROM_HOST:-prom}.service=${PROM_HOST:-prom}
-      - traefik.http.routers.${PROM_HOST:-prom}.entrypoints=web,websecure
-      - traefik.http.routers.${PROM_HOST:-prom}.rule=Host(`${PROM_HOST:-prom}.${DOMAIN}`)
-      - traefik.http.routers.${PROM_HOST:-prom}.tls.certresolver=letsencrypt
-      - traefik.http.services.${PROM_HOST:-prom}.loadbalancer.server.port=9090
+      - traefik.http.routers.${PROM_HOST:-prometheus}.service=${PROM_HOST:-prometheus}
+      - traefik.http.routers.${PROM_HOST:-prometheus}.entrypoints=web,websecure
+      - traefik.http.routers.${PROM_HOST:-prometheus}.rule=Host(`${PROM_HOST:-prometheus}.${DOMAIN}`)
+      - traefik.http.routers.${PROM_HOST:-prometheus}.tls.certresolver=letsencrypt
+      - traefik.http.services.${PROM_HOST:-prometheus}.loadbalancer.server.port=9090

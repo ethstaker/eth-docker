@@ -33,3 +33,4 @@ services:
       - traefik.http.routers.${SIREN_HOST:-siren}.rule=Host(`${SIREN_HOST:-siren}.${DOMAIN}`)
       - traefik.http.routers.${SIREN_HOST:-siren}.tls.certresolver=letsencrypt
       - traefik.http.services.${SIREN_HOST:-siren}.loadbalancer.server.port=80
+      - logs.collect=true

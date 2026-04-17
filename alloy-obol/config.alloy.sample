@@ -1,0 +1,120 @@
+discovery.docker "docker" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Logs
+loki.process "docker" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.docker { }
+}
+
+discovery.relabel "docker" {
+  targets = discovery.docker.docker.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_obol_alloy_monitored"]
+    regex         = "true"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["container"]
+    regex         = ".*charon.*"
+    target_label  = "job"
+    replacement   = "lido-charon"
+  }
+
+  rule {
+    source_labels = ["container"]
+    regex         = ".*execution.*"
+    target_label  = "job"
+    replacement   = "lido-execution"
+  }
+
+  rule {
+    source_labels = ["container"]
+    regex         = ".*consensus.*"
+    target_label  = "job"
+    replacement   = "lido-consensus"
+  }
+
+  rule {
+    source_labels = ["container"]
+    regex         = ".*validator.*"
+    target_label  = "job"
+    replacement   = "lido-validator"
+  }
+
+  rule {
+    source_labels = ["container"]
+    regex         = ".*mev-boost.*"
+    target_label  = "job"
+    replacement   = "lido-mev-boost"
+  }
+
+  rule {
+    target_label = "cluster_name"
+    replacement  = "$CLUSTER_NAME"
+  }
+
+  rule {
+    target_label = "cluster_peer"
+    replacement  = "$CLUSTER_PEER"
+  }
+}
+
+loki.source.docker "docker" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.docker.targets
+  forward_to    = [loki.process.docker.receiver]
+  relabel_rules = discovery.relabel.docker.rules
+}
+
+loki.write "default" {
+  endpoint {
+    url = "$CHARON_LOKI_ADDRESSES"
+  }
+  external_labels = {
+    cluster_name = "$CLUSTER_NAME",
+    cluster_peer = "$CLUSTER_PEER",
+  }
+}
+
+// Metrics
+discovery.relabel "docker_metrics" {
+  targets = discovery.docker.docker.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "job"
+    regex         = "charon"
+    action        = "keep"
+  }
+}
+
+prometheus.scrape "docker_metrics" {
+  targets         = discovery.relabel.docker_metrics.output
+  forward_to      = [
+    prometheus.remote_write.default.receiver,
+  ]
+  scrape_interval = "15s"
+  scrape_timeout  = "12s"
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "https://vm.monitoring.gcp.obol.tech/write"
+
+    authorization {
+      type        = "Bearer"
+      credentials = "$OBOL_PROM_REMOTE_WRITE_TOKEN"
+    }
+  }
+}

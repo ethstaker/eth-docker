@@ -110,6 +110,7 @@ services:
       - metrics.port=8008
       - metrics.instance=consensus
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
   wipe-db:
     profiles: ["tools"]

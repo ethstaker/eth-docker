@@ -1,0 +1,5 @@
+# Expose Loki port for remote write
+services:
+  loki:
+    ports:
+      - ${SHARE_IP:-}:${LOKI_PORT:-3100}:3100/tcp

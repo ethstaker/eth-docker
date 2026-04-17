@@ -103,6 +103,7 @@ services:
       - metrics.port=8008
       - metrics.instance=consensus
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
   validator:
     restart: "unless-stopped"
@@ -173,6 +174,7 @@ services:
       - metrics.port=8009
       - metrics.instance=validator
       - metrics.network=${NETWORK}
+      - logs.collect=true
 
   create-wallet:
     profiles: ["tools"]

@@ -1,4 +1,6 @@
-# Grafana for use with rootless docker. Omits node-exporter, cadvisor, promtail and Loki
+# Grafana for use with rootless docker
+# Omits node-exporter and cadvisor. If you want them, run them on the host, then scrape
+# them with custom config in ./alloy/config.d
 x-logging: &logging
   logging:
     driver: json-file
@@ -10,29 +12,23 @@ x-logging: &logging
 services:
   prometheus:
     restart: "unless-stopped"
-    build:
-      context: ./prometheus
-    image: prometheus:local
-    pull_policy: never
+    image: prom/prometheus:latest
     volumes:
       - prom-data:/prometheus
+      - ./prometheus/prometheus.yml:/prometheus/prometheus.yml
       - /etc/localtime:/etc/localtime:ro
-      - ./prometheus/conf.d/:/etc/prometheus/conf.d/:ro
-      - ./prometheus/custom-prom.yml:/etc/prometheus/custom-prom.yml:ro
-    environment:
-      - CLIENT=${COMPOSE_FILE}
     command:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-40d}
-      - --web.console.libraries=/usr/share/prometheus/console_libraries
-      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-remote-write-receiver
     <<: *logging
-    extra_hosts:  # So we can scrape targets on the host
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      - blackbox-exporter
-      - json-exporter
-      - ethereum-metrics-exporter
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=9090
+      - metrics.instance=prometheus
+      - metrics.network=${NETWORK}
+      - logs.collect=true
 
   ethereum-metrics-exporter:
     restart: "unless-stopped"
@@ -42,10 +38,17 @@ services:
       - --consensus-url=http://consensus:${CL_REST_PORT:-5052}
       - --execution-url=http://execution:${EL_RPC_PORT:-8545}
     <<: *logging
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=9090
+      - metrics.instance=ethereum-metrics-exporter
+      - metrics.network=${NETWORK}
+      - logs.collect=true
 
   blackbox-exporter:
     restart: "unless-stopped"
-    image: prom/blackbox-exporter:master
+    image: prom/blackbox-exporter:latest
     volumes:
       - ./prometheus/blackbox.yml:/config/blackbox.yml
       - /etc/localtime:/etc/localtime:ro
@@ -63,9 +66,16 @@ services:
     command:
       - --config.file
       - /config/json.yml
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=7979
+      - metrics.instance=json-exporter
+      - metrics.network=${NETWORK}
+      - logs.collect=true
 
   tempo:
-    image: grafana/tempo:2.10.3
+    image: grafana/tempo:2.10.4
     command:
       - '-config.file=/etc/tempo.yaml'
     volumes:
@@ -80,6 +90,49 @@ services:
       - metrics.port=3200
       - metrics.instance=tempo
       - metrics.network=${NETWORK}
+      - logs.collect=true
+
+  alloy:
+    image: grafana/alloy:latest
+    restart: unless-stopped
+    volumes:
+      - alloy-data:/var/lib/alloy
+      - ./alloy:/etc/alloy
+      - /etc/localtime:/etc/localtime:ro
+      - ${DOCKER_SOCK:-${XDG_RUNTIME_DIR%/}/docker.sock}:/var/run/docker.sock:ro
+      - ${DOCKER_ROOT:-${HOME}/.local/share/docker}/containers:/var/lib/docker/containers:ro
+    extra_hosts:  # So we can scrape targets on the host
+      - "host.docker.internal:host-gateway"
+    entrypoint:
+      - alloy
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=12345
+      - metrics.instance=alloy
+      - metrics.network=${NETWORK}
+      - logs.collect=true
+
+  loki:
+    image: grafana/loki:latest
+    volumes:
+      - loki-data:/tmp
+      - ./loki:/etc/loki
+    command:
+      - '--config.file=/etc/loki/loki.yml'
+    restart: "unless-stopped"
+    <<: *logging
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=3100
+      - metrics.instance=loki
+      - metrics.network=${NETWORK}
+      - logs.collect=true
 
   grafana:
     restart: "unless-stopped"
@@ -112,3 +165,5 @@ volumes:
   grafana-config:
   prom-data:
   tempo-data:
+  loki-data:
+  alloy-data:

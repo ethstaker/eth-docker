@@ -22,3 +22,4 @@ services:
       - metrics.port=9090
       - metrics.instance=ethereum-metrics-exporter
       - metrics.network=${NETWORK}
+      - logs.collect=true

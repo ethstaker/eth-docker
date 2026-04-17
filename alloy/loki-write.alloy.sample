@@ -1,0 +1,35 @@
+// Adjust loki-write.alloy, but not .sample, if you have a remote Loki
+// Process logs and send to Loki
+loki.process "process_logs" {
+    stage.docker { }
+
+    forward_to = [
+      loki.write.local_loki.receiver,  // Comment out if there is no local Loki
+//      loki.write.remote_loki.receiver,  // Uncomment to also send to remote Loki
+    ]
+}
+
+loki.write "local_loki" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+loki.write "remote_loki" {
+  external_labels = {
+    server = "<server-name>",
+  }
+
+  endpoint {
+    url = "https://my-loki.example.com/loki/api/v1/push"  // Adjust to your Loki URL
+    http_headers = {
+      "X-Scope-OrgID" = ["primary"],
+      // "CF-Access-Client-Id" = ["<the-CF-id>"],
+      // "CF-Access-Client-Secret" = ["<the-CF-secret>"],
+    }
+    // basic_auth {
+    //  username = "<USERNAME>"
+    //  password = "<PASSWORD>"
+    // }
+  }
+}

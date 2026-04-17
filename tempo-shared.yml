@@ -1,0 +1,6 @@
+# Expose Tempo port for trace collection
+services:
+  tempo:
+    ports:
+      - ${SHARE_IP:-}:${TEMPO_GRPC_PORT:-4317}:4317/tcp
+      - ${SHARE_IP:-}:${TEMPO_HTTP_PORT:-4318}:4318/tcp

@@ -1,0 +1,4 @@
+*
+!*.sample
+!docker-entrypoint.sh
+!.gitignore

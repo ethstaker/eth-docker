@@ -1,0 +1,16 @@
+# To be used in conjunction with grafana.yml, for trace collection
+# Please be very cautious, Loki is not authenticated by default
+services:
+  tempo:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${TEMPO_GRPC_HOST:-tempo-grpc}.service=${TEMPO_GRPC_HOST:-tempo-grpc}
+      - traefik.http.routers.${TEMPO_GRPC_HOST:-tempo-grpc}.entrypoints=web,websecure
+      - traefik.http.routers.${TEMPO_GRPC_HOST:-tempo-grpc}.rule=Host(`${TEMPO_GRPC_HOST:-tempo-grpc}.${DOMAIN}`)
+      - traefik.http.routers.${TEMPO_GRPC_HOST:-tempo-grpc}.tls.certresolver=letsencrypt
+      - traefik.http.services.${TEMPO_GRPC_HOST:-tempo-grpc}.loadbalancer.server.port=4317
+      - traefik.http.routers.${TEMPO_HTTP_HOST:-tempo-http}.service=${TEMPO_HTTP_HOST:-tempo-http}
+      - traefik.http.routers.${TEMPO_HTTP_HOST:-tempo-http}.entrypoints=web,websecure
+      - traefik.http.routers.${TEMPO_HTTP_HOST:-tempo-http}.rule=Host(`${TEMPO_HTTP_HOST:-tempo-http}.${DOMAIN}`)
+      - traefik.http.routers.${TEMPO_HTTP_HOST:-tempo-http}.tls.certresolver=letsencrypt
+      - traefik.http.services.${TEMPO_HTTP_HOST:-tempo-http}.loadbalancer.server.port=4318

@@ -46,8 +46,8 @@ jobs:
         run: ./.github/check-service.sh json-exporter
       - name: Test cadvisor
         run: ./.github/check-service.sh cadvisor
-      - name: Test promtail
-        run: ./.github/check-service.sh promtail
+      - name: Test alloy
+        run: ./.github/check-service.sh alloy
       - name: Test Loki
         run: ./.github/check-service.sh loki
       - name: Test Grafana

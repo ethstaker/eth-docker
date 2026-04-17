@@ -40,13 +40,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - certs:/letsencrypt
       - /etc/localtime:/etc/localtime:ro
+    <<: *logging
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics
       - metrics.port=8080
       - metrics.instance=traefik
       - metrics.network=${NETWORK}
-    <<: *logging
+      - logs.collect=true
 
   ddns:
     image: qmcgaw/ddns-updater:${DDNS_TAG}

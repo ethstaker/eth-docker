@@ -1,0 +1,32 @@
+// Adjust prometheus-write.alloy, but not .sample, if you have a remote Mimir/Thanos/VictoriaMetrics/Prometheus
+// Scrape metrics and send to metrics store
+prometheus.scrape "docker_metrics" {
+  targets         = discovery.relabel.docker_metrics.output
+  forward_to      = [
+    prometheus.remote_write.local_prometheus.receiver,  // Comment out if there is no local Prometheus
+    // prometheus.remote_write.remote_prometheus.receiver,  // Uncomment to also send to remote metrics store
+  ]
+  scrape_interval = "15s"
+  scrape_timeout  = "12s"
+}
+
+prometheus.remote_write "local_prometheus" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+prometheus.remote_write "remote_prometheus" {
+  endpoint {
+    url = "https://my-mimir.example.com/api/v1/push"
+    http_headers = {
+      "X-Scope-OrgID" = ["primary"],
+      // "CF-Access-Client-Id" = ["<the-CF-id>"],
+      // "CF-Access-Client-Secret" = ["<the-CF-secret>"],
+    }
+    // basic_auth {
+    //  username = "<USERNAME>"
+    //  password = "<PASSWORD>"
+    // }
+  }
+}

@@ -5,7 +5,7 @@ set -Eeuo pipefail
 __project_name="Eth Docker"
 __app_name="Ethereum node"
 __sample_service="consensus"
-__min_env_version=54
+__min_env_version=55
 __docker_exe="docker"
 __old_docker=0
 __docker_sudo=""
@@ -132,10 +132,10 @@ __handle_docker() {
   local regex
 
   set +e
-  if [[ "${__distro}" =~ (debian|ubuntu) ]] && ! grep -qi microsoft /proc/version; then
+  if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
     systemctl status docker >/dev/null
     exitstatus=$?
-    if [[ ! "${exitstatus}" -eq 0 ]]; then
+    if [[ ! "${exitstatus}" -eq 0 ]] && ! docker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
       echo "The Docker daemon is not running. Please check Docker installation."
       echo "\"sudo systemctl status docker\" and \"sudo journalctl -fu docker\" will be helpful."
       echo "Aborting."
@@ -166,9 +166,18 @@ __handle_docker() {
     echo "Will use sudo to access Docker"
     __docker_sudo="sudo"
   fi
-  if [[ -f "${__env_file}" && "${__distro}" =~ (debian|ubuntu) ]] && ! grep -qi microsoft /proc/version; then
+  if [[ -f "${__env_file}" && "${__distro}" =~ (debian|ubuntu) ]]; then
     DOCKER_ROOT=$(__dodocker system info --format '{{.DockerRootDir}}')
     var=DOCKER_ROOT
+    __update_value_in_env "${var}" "${!var}" "${__env_file}"
+
+    # on macOS, user would set this manually to Colima or Docker Desktop value
+    if __dodocker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
+      DOCKER_SOCK=/run/user/$(id -u)/docker.sock
+    else
+      DOCKER_SOCK=/var/run/docker.sock
+    fi
+    var=DOCKER_SOCK
     __update_value_in_env "${var}" "${!var}" "${__env_file}"
 
     var=NODE_EXPORTER_IGNORE_MOUNT_REGEX
@@ -454,18 +463,22 @@ __check_compose_version() {
 
 
 __prep_conffiles() {
-# Create custom-prom.yml if it doesn't exist
-  if [[ ! -f "./prometheus/custom-prom.yml" ]]; then
-    ${__as_owner} touch "./prometheus/custom-prom.yml"
+# Create prometheus.yml if it doesn't exist
+  if [[ ! -f ./prometheus/prometheus.yml ]]; then
+    ${__as_owner} cp ./prometheus/prometheus.yml.sample ./prometheus/prometheus.yml
   fi
-# Make sure the prometheus dir and its contents are accessible to user nobody
-  if find prometheus -type d \! -perm 755 | grep -q .; then
-    find prometheus -type d -exec chmod 755 {} \;
+# Create alloy files if they do not exist
+  if [[ ! -f "alloy/loki-write.alloy" ]]; then
+    ${__as_owner} cp alloy/loki-write.alloy.sample alloy/loki-write.alloy
   fi
-  if find prometheus -name '*.yml' \! -perm 664 | grep -q .; then
-    find prometheus -name '*.yml' -exec chmod 664 {} \;
+  if [[ ! -f "alloy/prometheus-write.alloy" ]]; then
+    ${__as_owner} cp alloy/prometheus-write.alloy.sample alloy/prometheus-write.alloy
   fi
-# Create config.yaml if it doesn't exist
+  if [[ ! -f "alloy/alloy-logs.alloy" ]]; then
+    ${__as_owner} cp alloy/alloy-logs.alloy.sample alloy/alloy-logs.alloy
+  fi
+
+# Create SSV config.yaml if it doesn't exist
   if [[ ! -f "ssv-config/config.yaml" ]]; then
     ${__as_owner} cp ssv-config/config.yaml.sample ssv-config/config.yaml
   fi
@@ -4176,6 +4189,12 @@ __query_consensus_client() {
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+  elif [[ "${__deployment}" = "lido_obol" ]]; then
+    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
+    choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+    choices+=("teku.yml" "Teku (Java) - consensus and validator client")
+    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
+    choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
   else
     choices+=("teku.yml" "Teku (Java) - consensus and validator client")
     choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
@@ -4469,8 +4488,8 @@ __query_web3signer() {
 
 __query_grafana() {
   if whiptail --title "Grafana" --yesno "Do you want to use Grafana dashboards?" 10 65; then
-      if [[ "$OSTYPE" = "darwin"* ]]; then
-      # macOS doesn't do well with / bind mount - leave node-exporter, cadvisor and loki/promtail off by default
+      if [[ "$OSTYPE" = "darwin"* ]] || __dodocker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
+      # macOS doesn't do well with / bind mount - leave node-exporter and cadvisor off by default
         CORE_FILES+=":grafana-rootless.yml:grafana-shared.yml"
       else
         CORE_FILES+=":grafana.yml:grafana-shared.yml"
@@ -5462,7 +5481,8 @@ __config_lido_obol() {
   local obol_prom_remote_token
 
   __write_vars+=("VE_LOCATOR_ADDRESS" "VE_ORACLE_ADDRESSES_ALLOWLIST" "VE_STAKING_MODULE_ID" "LIDO_DV_EXIT_EXIT_EPOCH" \
-    "VE_OPERATOR_ID" "OBOL_CLUSTER_NAME" "OBOL_CLUSTER_PEER" "OBOL_CHARON_REMOTE_LOKI_ADDRESSES" "ENABLE_DIST_ATTESTATION_AGGR")
+    "VE_OPERATOR_ID" "OBOL_CLUSTER_NAME" "OBOL_CLUSTER_PEER" "OBOL_CHARON_REMOTE_LOKI_ADDRESSES" "ENABLE_DIST_ATTESTATION_AGGR" \
+    "OBOL_PROM_REMOTE_WRITE_TOKEN" )
 
   if [[ ! "${NETWORK}" =~ (mainnet|hoodi) ]]; then
     echo "Lido SimpleDVT Obol is not supported on network ${NETWORK}"
@@ -5581,28 +5601,22 @@ __config_lido_obol() {
 
   VE_OPERATOR_ID=$(whiptail --title "Lido Operator ID" --inputbox "Input your Operator ID from Lido Operators dashboard \
 (right-click to paste)" 10 60 3>&1 1>&2 2>&3)
-  obol_prom_remote_token=$(whiptail --title "Obol Prometheus" --inputbox "Input the Obol Prometheus remote write token \
+  OBOL_PROM_REMOTE_WRITE_TOKEN=$(whiptail --title "Obol Prometheus" --inputbox "Input the Obol Prometheus remote write token \
 (right-click to paste)" 10 60 3>&1 1>&2 2>&3)
-  cat ./prometheus/obol-prom.yml.sample > ./prometheus/custom-prom.yml
-  sed -i'.original' "s|      credentials: <PROM_REMOTE_WRITE_TOKEN>|      credentials: ${obol_prom_remote_token}|" ./prometheus/custom-prom.yml
-  rm -f ./prometheus/custom-prom.yml.original
   OBOL_CHARON_REMOTE_LOKI_ADDRESSES=$(whiptail --title "Obol Loki" --inputbox "Input the Obol Loki remote URL \
 (right-click to paste)" 10 60 3>&1 1>&2 2>&3)
   if [[ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]]; then
     OBOL_CLUSTER_NAME=$(whiptail --title "Obol cluster name" --inputbox "What is your Obol cluster name? \
-(right-click to paste)" 10 60 "${__project_name}" 3>&1 1>&2 2>&3)
+(right-click to paste)" 10 60 3>&1 1>&2 2>&3)
     OBOL_CLUSTER_PEER=$(whiptail --title "Obol cluster peer" --inputbox "What is your Obol cluster peer name? \
-(right-click to paste)" 10 60 "eth-docker" 3>&1 1>&2 2>&3)
+(right-click to paste)" 10 60 3>&1 1>&2 2>&3)
   else
-    OBOL_CLUSTER_NAME=""
-    OBOL_CLUSTER_PEER=""
-    echo "Obol Loki remote URL is empty, skipping promtail"
+    OBOL_CLUSTER_NAME="dummy-cluster"
+    OBOL_CLUSTER_PEER="dummy-peer"
+    echo "Obol Loki remote URL is empty, skipping log collection"
   fi
 
-  CORE_FILES+=":lido-obol.yml"
-  if [[ -n "${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}" ]]; then
-    CORE_FILES+=":lido-obol-promtail.yml"
-  fi
+  CORE_FILES+=":lido-obol.yml:lido-obol-alloy.yml"
 }
 
 
