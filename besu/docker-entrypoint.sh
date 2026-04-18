@@ -129,6 +129,7 @@ set -- "${__args[@]}"
 # Traces
 if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
   __trace="--metrics-protocol=opentelemetry"
+  export OTEL_METRICS_EXPORTER=none
   export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
   export OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
   export OTEL_EXPORTER_OTLP_INSECURE=true
