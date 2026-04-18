@@ -128,10 +128,13 @@ set -- "${__args[@]}"
 
 # Traces
 if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
+  __trace="--metrics-protocol=opentelemetry"
   export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
   export OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
   export OTEL_EXPORTER_OTLP_INSECURE=true
   export OTEL_SERVICE_NAME=besu
+else
+  __trace=""
 fi
 
 if [[ -f /var/lib/besu/prune-marker ]]; then
@@ -147,5 +150,5 @@ if [[ -f /var/lib/besu/prune-marker ]]; then
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__datadir} ${__network} ${__ipv6} ${__prune} ${EL_EXTRAS}
+  exec "$@" ${__datadir} ${__network} ${__ipv6} ${__prune} ${__trace} ${EL_EXTRAS}
 fi
