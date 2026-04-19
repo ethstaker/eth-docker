@@ -5,6 +5,7 @@ set -Eeuo pipefail
 __project_name="Eth Docker"
 __app_name="Ethereum node"
 __sample_service="consensus"
+__min_env_version=54
 __docker_exe="docker"
 __old_docker=0
 __docker_sudo=""
@@ -1760,10 +1761,10 @@ __env_migrate() {
     if [[ -z "${__value}" || ${__value} != 0x* || ${#__value} -ne 42 ]]; then
       if [[ "${__non_interactive}" -eq 0 ]]; then
         whiptail --msgbox "A fee recipient ETH wallet address is required in order to start the client. This is \
-  for priority fees and, optionally, MEV. Please enter a valid ETH address in the next screen. Refer to \
-  ${__project_name} docs (https://ethdocker.com/About/Rewards) for more information.\n\nCAUTION: \"${__me} up\" will fail if no \
-  valid address is set" 12 75
-        __query_coinbase
+for priority fees and, optionally, MEV. Please enter a valid ETH address in the next screen. Refer to \
+${__project_name} docs (https://ethdocker.com/About/Rewards) for more information.\n\nCAUTION: \"${__me} up\" will fail if no \
+valid address is set" 12 75
+        __query_fee_recipient
         __update_value_in_env "${var}" "${!var}" "${__env_file}"
       else
         echo "A fee recipient ETH wallet address is required in order to start the client. Please set one in \".env\"."
@@ -5617,6 +5618,7 @@ config() {
   fi
 
   __get_compose_file
+  __verify_env_file "${__min_env_version}"
 
   __during_config=1
   __final_msg=""
@@ -5857,6 +5859,27 @@ __get_compose_file() {
 }
 
 
+# env file exists, and if version passed, is minimum version
+__verify_env_file() {
+  local var
+
+  if [[ ! -f "${__env_file}" ]]; then
+    echo "Error: ${__env_file} not found. Please run \"${__me} config\" first to create it."
+    exit 1
+  fi
+
+  if [[ -n "${1+x}" ]]; then
+    var=ENV_VERSION
+    __get_value_from_env "${var}" "${__env_file}" "__value"
+    if [[ "${__value}" -lt "$1" ]]; then
+      echo "Error: ${var} version ${__value} in ${__env_file} is less than required version $1."
+      echo "Please run \"${__me} update\", or manually adjust ${__env_file} from default.env."
+      exit 1
+    fi
+  fi
+}
+
+
 __update_help() {
   echo "usage: ${__me} update [--refresh-targets] [--non-interactive]"
   echo
@@ -6056,13 +6079,15 @@ case "${__command}" in
     ${__command} "$@"
     exit 0
     ;;
-  keys|update|up|start|down|stop|restart|version|logs|prune-nethermind\
+  update)
+    __verify_env_file
+    __get_compose_file
+    ${__command} "$@"
+    ;;
+  keys|up|start|down|stop|restart|version|logs|prune-nethermind\
 |prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
 |repair-reth|keyimport|space)
-    if [[ ! -f "${__env_file}" ]]; then
-      echo "${__project_name} has not been configured. Please run \"${__me} config\" first."
-      exit 0
-    fi
+    __verify_env_file "${__min_env_version}"
     __get_compose_file
     ${__command} "$@"
     ;;
