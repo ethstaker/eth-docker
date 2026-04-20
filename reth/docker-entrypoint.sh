@@ -175,12 +175,24 @@ fi
 if [[ -f /var/lib/reth/repair-trie ]]; then
   if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "Can't repair database on custom network"
-    rm "var/lib/reth/repair-trie"
+    rm -f /var/lib/reth/repair-trie
   else
-    rm "var/lib/reth/repair-trie"  # Remove first in case this panics
+    rm -f /var/lib/reth/repair-trie  # Remove first in case this panics
     echo "Running Reth database trie repair. This may take up to 2 hours"
 # shellcheck disable=SC2086
-    reth db --chain "${NETWORK}" --datadir /var/lib/reth ${__static} repair-trie
+    exec reth db --chain "${NETWORK}" --datadir /var/lib/reth ${__static} repair-trie
+  fi
+fi
+
+if [[ -f /var/lib/reth/migrate-v2 ]]; then
+  if [[ "${NETWORK}" =~ ^https?:// ]]; then
+    echo "Can't migrate database on custom network"
+    rm -f /var/lib/reth/migrate-v2
+  else
+    rm -f /var/lib/reth/migrate-v2  # Remove first in case this panics
+    echo "Running Reth database migration. This may take up to 24 hours for an archive node."
+# shellcheck disable=SC2086
+    exec reth db --chain "${NETWORK}" --datadir /var/lib/reth ${__static} migrate-v2
   fi
 fi
 

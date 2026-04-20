@@ -1375,6 +1375,34 @@ repair-reth() {
 }
 
 
+migrate-reth() {
+  local yn
+
+# Check for Reth
+  __value="${COMPOSE_FILE}"
+  if [[ ! "${__value}" =~ reth\.yml ]]; then
+    echo "You do not appear to be using Reth. Aborting"
+    return 0
+  fi
+
+  if [[ "${__non_interactive}" -eq 0 ]]; then
+    echo
+    while true; do
+      read -rp "WARNING - About to migrate the Reth database to v2. This can take up to 24 hours for an archive node. Do you wish to continue? (Y/n) " yn
+      case "${yn}" in
+        [Nn]o|[Nn]) echo "Skipping Reth database migration"; return 0;;
+        *) break;;
+      esac
+    done
+  fi
+
+  __docompose exec execution touch /var/lib/reth/migrate-v2
+  echo "Restarting Reth to initiate migration"
+  echo "You can monitor progress with \"./ethd logs -f execution\"."
+  restart execution
+}
+
+
 __detect_v6() {
   local v6_works
 
@@ -5981,6 +6009,8 @@ __full_help() {
   echo "    stops the Lighthouse consensus client and prunes state."
   echo "  repair-reth"
   echo "    stops the Reth execution client and repairs its database."
+  echo "  migrate-reth"
+  echo "    stops the Reth execution client and migrates its database to v2."
   echo "  resync-execution"
   echo "    removes the execution layer database and forces a resync."
   echo "  resync-consensus"
@@ -6136,7 +6166,7 @@ case "${__command}" in
     ;;
   keys|up|start|down|stop|restart|version|logs|prune-nethermind\
 |prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
-|repair-reth|keyimport|space)
+|repair-reth|migrate-reth|keyimport|space)
     __verify_env_file "${__min_env_version}"
     __get_compose_file
     ${__command} "$@"
