@@ -620,7 +620,7 @@ __fstab_noatime() {
     echo "for systemd's internal mount unit management and does not affect the active mount options"
     echo "applied via 'mount'."
     echo
-    diff ${noatime} ${fstab} || true
+    diff ${fstab} ${noatime} || true
   else
     echo "No ${fstab} entry for ${mountpoint} — not adding one automatically."
     echo "Manual intervention required for \"noatime\" persistence."
