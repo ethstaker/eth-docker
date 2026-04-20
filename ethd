@@ -2043,9 +2043,10 @@ update() {
   fi
 
 # This is long-running, and it's better if we're in a protected session if interactive
-  if [[ -z "${STY:-}" && -z "${TMUX:-}" && ! "$*" =~ "--non-interactive" && ! "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
+  if [[ -z "${ETHDSECUNDO-}" && -z "${STY:-}" && -z "${TMUX:-}" && -n "${SSH_CONNECTION:-}" && ! "$*" =~ --no-screen \
+        && ! "$*" =~ --non-interactive && ! "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     no_screen_cmd=0
-    echo "\"${__me} update\" benefits from running in a session that protects it against disconnects."
+    echo "\"${__me} update\" over SSH benefits from running in a session that protects it against disconnects."
     if [[ -z "$(command -v screen)" ]]; then
       if [[ "${__cannot_sudo}" -eq 0 && "${__distro}" =~ (ubuntu|debian) ]]; then
         echo "Installing screen"
@@ -2054,10 +2055,6 @@ update() {
         echo "\"screen\" command not found, continuing as-is"
         no_screen_cmd=1
       fi
-    fi
-    if [[ -z "${SSH_CONNECTION:-}" ]]; then
-      no_screen_cmd=1
-      echo "You are in a local terminal session, not starting screen"
     fi
 
     if [[ "${no_screen_cmd}" -eq 0 ]]; then
@@ -2170,6 +2167,9 @@ update() {
         ;;
       --debug | --trace)
         __debug=1
+        shift
+        ;;
+      --no-screen)
         shift
         ;;
       *)
@@ -5906,7 +5906,7 @@ __verify_env_file() {
 
 
 __update_help() {
-  echo "usage: ${__me} update [--refresh-targets] [--non-interactive]"
+  echo "usage: ${__me} update [--refresh-targets] [--non-interactive] [--no-screen]"
   echo
   echo "Updates ${__project_name} itself, as required the contents of \".env\", and the clients."
   echo
@@ -5917,6 +5917,7 @@ __update_help() {
   echo
   echo "\"--refresh-targets\" sets Docker tags, source targets, and repos of clients back to the defaults in \"default.env\"."
   echo "\"--non-interactive\" does not ask questions and assumes Yes for database resyncs and migrations."
+  echo "\"--no-screen\" does not use \"screen\" during the update."
   echo
 }
 
@@ -5932,7 +5933,7 @@ __full_help() {
   echo "  keys ACTION [--non-interactive] [--debug]"
   echo "    list, count, delete, import keys; their fee recipients; and gas fees"
   echo "    Run without ACTION to get help text"
-  echo "  update [--refresh-targets] [--non-interactive] [--debug] [--trace]"
+  echo "  update [--refresh-targets] [--non-interactive] [--no-screen] [--debug] [--trace]"
   echo "    updates all client versions and ${__project_name} itself"
   echo "    --refresh-targets will reset your custom build targets in ${__env_file} to defaults"
   echo "  up|start [service-name]"
