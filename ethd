@@ -279,12 +279,12 @@ __upgrade_docker() {
               echo "Docker ${__docker_version} with runc ${runc_version} detected"
               echo "This version of runc is vulnerable"
               __nag_os_version
-              if [ "${__eol_os}" -eq 1 ]; then
+              if [[ "${__eol_os}" -eq 1 ]]; then
                 echo "${__project_name} cannot update runc on Ubuntu ${__os_major_version}."
                 return
               fi
               echo "It is recommended that you update runc"
-              if [ "${__non_interactive}" -eq 0 ]; then
+              if [[ "${__non_interactive}" -eq 0 && "${__cannot_sudo}" -eq 0 ]]; then
                 while true; do
                   read -rp "Do you want to update runc (yes/no) " yn
                   case "${yn}" in
@@ -308,7 +308,7 @@ __upgrade_docker() {
             return
           fi
           echo "It is recommended that you update Docker-CE"
-          if [[ "${__non_interactive}" -eq 0 ]]; then
+          if [[ "${__non_interactive}" -eq 0 && "${__cannot_sudo}" -eq 0 ]]; then
             while true; do
               read -rp "Do you want to update Docker-CE? (yes/no) " yn
               case "${yn}" in
@@ -431,7 +431,7 @@ __check_compose_version() {
       echo
       if [[ "${__distro}" = "ubuntu" ]]; then
         echo "It is recommended that you replace Compose V1 with Compose V2."
-        if [[ "${__non_interactive}" -eq 0 ]]; then
+        if [[ "${__non_interactive}" -eq 0 && "${__cannot_sudo}" -eq 0 ]]; then
           while true; do
             read -rp "Do you want to update Docker Compose to V2? (yes/no) " yn
             case "${yn}" in
@@ -497,29 +497,31 @@ __prep_conffiles() {
     ${__as_owner} cp ssv-config/dkg-config.yaml.sample ssv-config/dkg-config.yaml
   fi
 # Make sure ssv-config yaml files are 664
-  if find ssv-config -maxdepth 0 \! -perm 755 | grep -q .; then
-    chmod 755 ssv-config
+  if find ssv-config -maxdepth 0 \! -perm -0755 | grep -q .; then
+    ${__as_owner} chmod u=rwx,go=rx ssv-config
   fi
   if find ssv-config -name '*.yaml' \! -perm 664 | grep -q .; then
-    chmod 664 ssv-config/*.yaml
+    ${__as_owner} chmod 664 ssv-config/*.yaml
   fi
 # Make sure local user owns the dkg output dir and everything in it
 if find .eth/dkg_output \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q .; then
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
       echo "Fixing ownership of .eth/dkg_output"
       ${__auto_sudo} chown -R "${__owner}:${__owner_group}" .eth/dkg_output
-      ${__auto_sudo} chmod 755 .eth/dkg_output
+      ${__as_owner} chmod u=rwx,go=rx .eth/dkg_output
     else
       echo "Ownership of .eth/dkg_output should be fixed, but this user can't sudo"
     fi
   fi
-# Make sure the dkg output dir and its subdirs are mod 0755
-  if find .eth/dkg_output -type d \! -perm 755 | grep -q .; then
-    find .eth/dkg_output -type d -exec chmod 755 {} \;
+# Make sure the dkg output dir and its subdirs are mod x755
+  if find .eth/dkg_output -type d \! -perm -0755 | grep -q .; then
+# shellcheck disable=SC2086
+    find .eth/dkg_output -type d -exec ${__as_owner} chmod u=rwx,go=rx {} \;
   fi
-# Make sure the contents of the dkg output dir are mod 0644
+# Make sure the contents of the dkg output dir are mod 644
   if find .eth/dkg_output -type f \! -perm 644 | grep -q .; then
-    find .eth/dkg_output -type f -exec chmod 644 {} \;
+# shellcheck disable=SC2086
+    find .eth/dkg_output -type f -exec ${__as_owner} chmod 644 {} \;
   fi
 
 # Create cb-config.toml if it doesn't exist
@@ -766,11 +768,11 @@ __optimize_host() {
 
 __install_docker() {
   local repo
-  local groups
+  local user
 
   if [[ "${__distro}" = "ubuntu" ]]; then
     repo=ubuntu
-  elif [[ "${__distro}" = *"debian"* ]]; then
+  elif [[ "${__distro}" =~ debian ]]; then
     repo=debian
   else
     echo
@@ -800,10 +802,10 @@ EOF
     echo "Docker is already installed"
   fi
 
-  groups=$(${__as_owner} groups)
-  if [[ ! "${groups}" =~ "docker" ]]; then
+  user="${SUDO_USER:-$(id -nu)}"
+  if ! id -nG "${user}" | grep -qw docker; then
     echo "Making your user part of the docker group"
-    ${__auto_sudo} usermod -aG docker "${__owner}"
+    ${__auto_sudo} usermod -aG docker "${user}"
     echo "Please run newgrp docker or log out and back in"
   else
     echo "Your user is already part of the docker group"
@@ -961,7 +963,11 @@ space() {
   __get_value_from_env "${var}" "${__env_file}" "ANCIENT_DIR"
   if [[ -n "${ANCIENT_DIR}" ]]; then
     echo
-    ${__auto_sudo} du -sh "${ANCIENT_DIR}"
+    if [[ "${__cannot_sudo}" -eq 0 ]]; then
+      ${__auto_sudo} du -sh "${ANCIENT_DIR}"
+    else
+      echo "Your user cannot sudo. ${__project_name} cannot show the size of ${ANCIENT_DIR}."
+    fi
   fi
 }
 
@@ -2285,7 +2291,7 @@ __verify_ancient_dir() {
     return 1
   fi
 
-  if ! mapfile -t entries < <(${__auto_sudo} find "${dir}" -mindepth 1 -maxdepth 1 -exec basename {} \;); then
+  if [[ "${__cannot_sudo}" -eq 0 ]] && ! mapfile -t entries < <(${__auto_sudo} find "${dir}" -mindepth 1 -maxdepth 1 -exec basename {} \;); then
     echo "ANCIENT_DIR ${dir} contents could not be listed. This is unexpected and may be a configuration error, or a bug."
     return 1
   fi
@@ -4969,7 +4975,7 @@ __query_mev_factor() {
     return
   fi
 
-  if ! dpkg-query -W -f='${Status}' speedtest-cli 2>/dev/null | grep -q "ok installed"; then
+  if [[ "${__cannot_sudo}" -eq 0 ]] && ! dpkg-query -W -f='${Status}' speedtest-cli 2>/dev/null | grep -q "ok installed"; then
     echo "Installing speedtest-cli"
     ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y --no-install-recommends speedtest-cli
   fi
@@ -5192,6 +5198,11 @@ __query_dkg() {
     return
   fi
 
+  if [[ "${__cannot_sudo}" -eq 1 ]]; then
+    whiptail --title "Need sudo" --msgbox "SSV DKG requires your user to have sudo rights" 10 65
+    exit 1
+  fi
+
   if whiptail --title "DKG ceremony" --yesno "Do you want to participate in DKG ceremonies as an operator?" 10 65; then
     key_file_content=$(${__auto_sudo} cat ./ssv-config/encrypted_private_key.json)
     public_key=$(__docompose -f ./ssv-dkg.yml run --rm curl-jq sh -c \
@@ -5394,12 +5405,20 @@ __config_ssv() {
   __query_consensus_only_client
   __query_ssv_client
   if [[ ! -f "./ssv-config/password.pass" ]]; then
+    if [[ "${__cannot_sudo}" -eq 1 ]]; then
+      whiptail --title "Need sudo" --msgbox "SSV key generation requires your user to have sudo rights" 10 65
+      exit 1
+    fi
     echo "Creating password file for encrypted SSV secret key"
     head -c 16 /dev/urandom | base64 | tr -d '[:space:]' >./ssv-config/password.pass
     ${__auto_sudo} chown 12000:12000 ./ssv-config/password.pass
     ${__auto_sudo} chmod 600 ./ssv-config/password.pass
   fi
   if [[ ! -f "./ssv-config/encrypted_private_key.json" ]]; then
+    if [[ "${__cannot_sudo}" -eq 1 ]]; then
+      whiptail --title "Need sudo" --msgbox "SSV key generation requires your user to have sudo rights" 10 65
+      exit 1
+    fi
     echo "Creating encrypted operator private key"
     case "${SSV_CLIENT}" in
       ssv.yml)
@@ -6019,6 +6038,11 @@ __owner_group=$(ls -ld . | awk '{print $4}')
 if [[ "${__owner}" = "root" ]]; then
   echo "Please install ${__project_name} as a non-root user."
   exit 0
+fi
+
+if [[ "${EUID}" -eq 0 ]]; then
+  echo "WARNING - please run ${__me} as a non-root user. It is not extensively tested when run as \"root\"."
+  echo
 fi
 
 __command="$1"
