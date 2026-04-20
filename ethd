@@ -194,14 +194,25 @@ __handle_docker() {
 
 
 __handle_root() {
-  if [[ "${EUID}" -eq 0 ]]; then
+  local g
+  local found=0
+
+  if [[ "${EUID}" != $(id -u "${__owner}") ]]; then
     __as_owner="sudo -u ${__owner}"
-  else
-    if groups | grep -q '\bsudo\b' || groups | grep -q '\badmin\b'; then
-      __auto_sudo="sudo"
-    else
-      __cannot_sudo=1
-    fi
+  fi
+
+  if [[ "${EUID}" -ne 0 ]]; then
+    for g in $(id -nG); do
+      if [[ "${g}" =~ ^(sudo|admin)$ ]]; then
+        __auto_sudo="sudo"
+        found=1
+        break
+      fi
+    done
+  fi
+
+  if [[ "${EUID}" -ne 0 && "${found}" -eq 0 ]]; then
+    __cannot_sudo=1
   fi
 }
 
@@ -6002,7 +6013,8 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 # Use this to make sure root doesn't end up owning files
 # shellcheck disable=SC2012
 __owner=$(ls -ld . | awk '{print $3}')
-__owner_group=$(id -gn "${__owner}")
+# shellcheck disable=SC2012
+__owner_group=$(ls -ld . | awk '{print $4}')
 
 if [[ "${__owner}" = "root" ]]; then
   echo "Please install ${__project_name} as a non-root user."
