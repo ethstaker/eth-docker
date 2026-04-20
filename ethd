@@ -2043,7 +2043,7 @@ update() {
   fi
 
 # This is long-running, and it's better if we're in a protected session if interactive
-  if [[ -z "${ETHDSECUNDO-}" && -z "${STY:-}" && -z "${TMUX:-}" && -n "${SSH_CONNECTION:-}" && ! "$*" =~ --no-screen \
+  if [[ -z "${ETHDSECUNDO:-}" && -z "${STY:-}" && -z "${TMUX:-}" && -n "${SSH_CONNECTION:-}" && ! "$*" =~ --no-screen \
         && ! "$*" =~ --non-interactive && ! "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     no_screen_cmd=0
     echo "\"${__me} update\" over SSH benefits from running in a session that protects it against disconnects."
