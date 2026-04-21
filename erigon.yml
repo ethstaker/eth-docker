@@ -101,6 +101,8 @@ services:
       - /var/lib/erigon/ee-secret/jwtsecret
       - ${EL_MAX_PEER_COUNT:+--maxpeers}
       - ${EL_MAX_PEER_COUNT:+${EL_MAX_PEER_COUNT}}
+      - ${MAX_BLOBS:+--builder.maxblobs}
+      - ${MAX_BLOBS:+${MAX_BLOBS}}
     labels:
       - metrics.scrape=true
       - metrics.path=/debug/metrics/prometheus
