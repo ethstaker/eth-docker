@@ -59,6 +59,8 @@ services:
       - ${EL_P2P_PORT:-30303}
       - ${EL_MAX_PEER_COUNT:+--Network.MaxActivePeers}
       - ${EL_MAX_PEER_COUNT:+${EL_MAX_PEER_COUNT}}
+      - ${MAX_BLOBS:+--Blocks.BlockProductionBlobLimit}
+      - ${MAX_BLOBS:+${MAX_BLOBS}}
       - --HealthChecks.Enabled
       - "true"
       - --HealthChecks.UIEnabled
