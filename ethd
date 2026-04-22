@@ -1943,13 +1943,68 @@ __nag_os_update() {
 }
 
 
+__docker_df_to_bytes() {
+  local awk_exe
+
+  if [[ "$OSTYPE" = "darwin"* ]]; then
+    awk_exe="gawk"  # Built-in awk can't handle multi-line. Does require brew install gawk
+  else
+    awk_exe="awk"
+  fi
+
+  ${awk_exe} -v v="$1" '
+    # docker system df reports GB, not GiB
+    function pow1000(n, i) { r=1; for (i=0;i<n;i++) r*=1000; return r }
+
+    BEGIN {
+      match(v, /^([0-9.]+)([kMGTP]?B)$/, m)
+
+      num = m[1]
+      unit = m[2]
+
+      if (unit == "B")      bytes = num
+      else if (unit == "kB") bytes = num * pow1000(1)
+      else if (unit == "MB") bytes = num * pow1000(2)
+      else if (unit == "GB") bytes = num * pow1000(3)
+      else if (unit == "TB") bytes = num * pow1000(4)
+      else if (unit == "PB") bytes = num * pow1000(5)  # OK yes I am being silly
+      else bytes = 0  # In case format parsing fails
+
+      printf "%.0f\n", bytes
+    }
+  '
+}
+
+
+__prune_docker_cache() {
+  local val
+  local bytes
+  local threshold
+
+  val=$(__dodocker system df --format '{{if eq .Type "Build Cache"}}{{.Reclaimable}}{{end}}' \
+      | sed '/^$/d' | awk '{print $1}' || true)
+  if [[ ! "${val}" =~ ^[0-9.]+[kMGTP]?B$ ]]; then
+    echo "Docker build cache size query failed. This may be a bug."
+    return
+  fi
+  bytes=$(__docker_df_to_bytes "${val}")
+
+  threshold=$((50 * 1000 * 1000 * 1000 ))  # 50GB
+  if [[ "$bytes" =~ ^[0-9]+$ && "${bytes}" -gt "${threshold}" ]]; then
+    echo "Pruning Docker build cache, >50GB reclaimable."
+    __dodocker system prune --force
+  fi
+}
+
+
 __pull_and_build() {
   echo "Building local client images"
-  __dodocker system prune --force
+  __prune_docker_cache
   __docompose --profile tools pull
   __source_build
   __docompose --profile tools build --pull
 }
+
 
 # Run optional pre-update hook script for custom actions before update/config.
 # Users can create pre-ethd-update.sh to run validation or preparation steps.
