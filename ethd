@@ -5,7 +5,7 @@ set -Eeuo pipefail
 __project_name="Eth Docker"
 __app_name="Ethereum node"
 __sample_service="consensus"
-__min_env_version=55
+__min_env_version=56
 __docker_exe="docker"
 __old_docker=0
 __docker_sudo=""
@@ -1121,6 +1121,16 @@ __source_build() {
 # shellcheck disable=SC2154
       if [[ "${__value}" = "Dockerfile.source" ]]; then
         __docompose --profile tools build --pull --no-cache deposit-cli-new
+      fi
+      ;;
+  esac
+  case "${COMPOSE_FILE}" in
+    *web3signer.yml*)
+      var="W3S_DOCKERFILE"
+      __get_value_from_env "${var}" "${__env_file}" "__value"
+# shellcheck disable=SC2154
+      if [[ "${__value}" = "Dockerfile.source" ]]; then
+        __docompose build --pull --no-cache web3signer
       fi
       ;;
   esac
@@ -5816,6 +5826,7 @@ config() {
 
 version() {
   local var
+  local w3s_exec=""
 
   grep "^This is" README.md
   echo
@@ -5939,7 +5950,17 @@ version() {
   # Web3signer version
   case "${__value}" in
     *web3signer.yml*)
-      __docompose exec web3signer /opt/web3signer/bin/web3signer --version
+      var=W3S_DOCKER_TAG
+      __get_value_from_env "${var}" "${__env_file}" "${var}"
+      var=W3S_DOCKERFILE
+      __get_value_from_env "${var}" "${__env_file}" "${var}"
+      if [[ "${W3S_DOCKERFILE}" = "Dockerfile.binary" && "${W3S_DOCKER_TAG}" =~ distroless ]]; then
+        w3s_exec="java -cp /opt/web3signer/lib/* tech.pegasys.web3signer.Web3SignerApp"
+      else
+        w3s_exec="/opt/web3signer/bin/web3signer"
+      fi
+  # shellcheck disable=SC2086
+      __docompose exec web3signer ${w3s_exec} --version
       echo
       __docompose exec postgres pg_config --version
       echo

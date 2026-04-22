@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [[ "$(id -u)" -eq 0 ]]; then
-  chown -R web3signer /var/lib/web3signer
-  exec gosu web3signer docker-entrypoint.sh "$@"
-fi
+# Because we're oh-so-clever with custom NETWORK, we may need to remove what's already passed in.
+__strip_network_args() {
+  local arg
+  __args=()
+  for arg in "$@"; do
+    if [[ ! "${arg}" = "--network=${NETWORK}" ]]; then
+      __args+=("${arg}")
+    fi
+  done
+}
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+
+if [[ "${NETWORK:-}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -25,31 +32,13 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   fi
   set +e
   __network="--network=/var/lib/web3signer/testnet/${config_dir}/config.yaml"
+
+  __strip_network_args "$@"
+  set -- "${__args[@]}"
 else
-  __network="--network=${NETWORK}"
+  __network=""
 fi
 
-if [[ -f /var/lib/web3signer/.migration_fatal_error ]]; then
-    echo "An error occurred during \"ethd update\" and slashing protection database migration, that makes it unsafe to start Web3signer."
-    echo "Until this is manually remedied, Web3signer will refuse to start up."
-    echo "Aborting."
-    echo
-    echo "If this issue has since been resolved, you can remove the \".migration_fatal_error\" marker file in Web3signer's"
-    echo "Docker volume."
-    echo
-    echo "ONLY remove the marker file if the issue has been resolved. You risk slashing otherwise."
-    sleep 30
-    exit 1
-fi
-
-if [[ -f /var/lib/web3signer/.migration_error ]]; then
-    echo "An error occurred during \"ethd update\", while switching to a new version of PostgreSQL."
-    echo "Web3signer will start, but won't work until PostgreSQL's version matches the slashing protection database"
-    echo "version."
-    echo
-    echo "If this issue has since been resolved, you can remove the \".migration_error\" marker file in Web3signer's"
-    echo "Docker volume."
-fi
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
 exec "$@" ${__network}

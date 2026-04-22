@@ -23,6 +23,12 @@ jobs:
             test_el: false
             test_vc: false
           - env: |-
+              CORE_FILES=web3signer.yml
+              W3S_DOCKERFILE=Dockerfile.source
+            test_cl: false
+            test_el: false
+            test_vc: false
+          - env: |-
               COMPOSE_FILE=nimbus-vp.yml
               NIMVP_DOCKERFILE=Dockerfile.source
             test_cl: false

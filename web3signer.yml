@@ -19,6 +19,7 @@ services:
     pull_policy: never
     volumes:
       - web3signer-slashing-data:/var/lib/postgres-data:ro
+      - web3signer-keys:/var/lib/web3signer
     environment:
       - PG_DOCKER_TAG=${PG_DOCKER_TAG}
       - PG_ALIAS=${PG_ALIAS}
@@ -40,17 +41,20 @@ services:
     build:
       context: ./web3signer
       args:
+        - BUILD_TARGET=${W3S_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
+        - SRC_REPO=${W3S_SRC_REPO:-https://github.com/Consensys/web3signer}
         - DOCKER_TAG=${W3S_DOCKER_TAG:-latest}
         - DOCKER_REPO=${W3S_DOCKER_REPO:-consensys/web3signer}
-      dockerfile: Dockerfile.binary
+      dockerfile: ${W3S_DOCKERFILE}
     image: web3signer:local
     pull_policy: never
-    user: web3signer
+    user: 10000:10000
     volumes:
       - web3signer-keys:/var/lib/web3signer
       - /etc/localtime:/etc/localtime:ro
+    read_only: ${W3S_READ_ONLY:-false}
     environment:
-      - JAVA_OPTS=${W3S_HEAP:--Xmx6g}
+      - JAVA_TOOL_OPTIONS=${W3S_HEAP:--Xmx6g}
       - NETWORK=${NETWORK}
       - PG_ALIAS=${PG_ALIAS:-${NETWORK}-postgres}
     networks:
@@ -62,15 +66,14 @@ services:
       w3s-init:
         condition: service_completed_successfully
     <<: *logging
-    entrypoint:
-      - docker-entrypoint.sh
-      - /opt/web3signer/bin/web3signer
+    command:
       - --key-store-path=/var/lib/web3signer/keys
       - --metrics-enabled
       - --metrics-host-allowlist=*
       - --http-host-allowlist=*
       - --logging=${LOG_LEVEL:-info}
       - eth2
+      - --network=${NETWORK}
       - --enable-key-manager-api=true
       - --slashing-protection-db-url=jdbc:postgresql://${PG_ALIAS:-${NETWORK}-postgres}/web3signer
       - --slashing-protection-db-username=postgres
