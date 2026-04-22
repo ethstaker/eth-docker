@@ -1,0 +1,31 @@
+# hadolint global ignore=DL3008
+FROM eclipse-temurin:25-jdk-noble AS builder
+
+#ARG BUILD_TARGET=main
+ARG BUILD_TARGET=d32d6faf156b42985d6287a99e379b91d86fdb44
+ARG SRC_REPO=https://github.com/usmansaleem/v4keystore_converter
+ARG SRC_DIR=converter
+WORKDIR /usr/src
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git
+
+RUN bash -eo pipefail <<'EOF'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  git checkout "$TARGET"
+  git submodule update --init --recursive --jobs $(nproc)
+  ./gradlew installDist
+EOF
+
+FROM eclipse-temurin:25-jre-noble
+
+COPY --from=builder /usr/src/converter/converter/build/install/converter/ /opt/converter/
+COPY ./convert-keys.sh /usr/local/bin/
+
+USER 10000:10000
+
+ENTRYPOINT ["/opt/converter/bin/converter"]
