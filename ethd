@@ -5005,6 +5005,10 @@ __query_mev_factor() {
     echo "Installing speedtest-cli"
     ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y --no-install-recommends speedtest-cli
   fi
+  if ! dpkg-query -W -f='${Status}' speedtest-cli 2>/dev/null | grep -q "ok installed"; then
+    echo "Cannot install \"speedtest-cli\", skipping MEV Build Factor query"
+    return
+  fi
   echo "Running speedtest"
   set +e
   speed_json=$(speedtest-cli --secure --json)
