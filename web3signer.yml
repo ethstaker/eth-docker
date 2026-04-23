@@ -107,6 +107,22 @@ services:
     labels:
       - logs.collect=true
 
+  reduce-key-security:
+    profiles: ["tools"]
+    restart: "no"
+    build:
+      context: ./web3signer
+      dockerfile: Dockerfile.convert
+    image: w3s-converter:local
+    pull_policy: never
+    user: 10000:10000
+    volumes:
+      - web3signer-keys:/var/lib/web3signer
+    environment:
+      - NETWORK=${NETWORK}
+    entrypoint:
+      - convert-keys.sh
+
 volumes:
   web3signer-keys:
   web3signer-slashing-data:
