@@ -196,8 +196,8 @@ if [[ "${IPV6}" = "true" ]]; then
   ipv4_pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
   ipv6_pattern="^[0-9A-Fa-f]{1,4}:"  # Sufficient to check the start
   set +e
-  public_v4=$(curl -s -4 ifconfig.me)
-  public_v6=$(curl -s -6 ifconfig.me)
+  public_v4=$(curl -s -m5 -4 ifconfig.me)
+  public_v6=$(curl -s -m5 -6 ifconfig.me)
   set -e
   valid_v4=0
   if [[ "${public_v4}" =~ ${ipv4_pattern} ]]; then
