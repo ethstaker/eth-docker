@@ -659,9 +659,11 @@ validator-delete() {
   local vc_api_tls
   local pubkeys=()
   local keys_to_array
+  local num_keys
   local yn
   local status
   local file
+  local i
 
   if [[ -z "${__pubkey}" ]]; then
     echo "Please specify a validator public key to delete, or \"all\""
@@ -713,7 +715,11 @@ validator-delete() {
   else
     pubkeys+=( "${__pubkey}" )
   fi
+  num_keys=${#pubkeys[@]}
+  i=0
   for __pubkey in "${pubkeys[@]}"; do
+    (( i+=1 ))
+    echo "Deleting key ${i} of ${num_keys}"
     # Remove remote registration, with a path not to
     if [[ "${WEB3SIGNER}" = "true" ]]; then
       if [[ -z "${W3S_NOREG+x}" ]]; then
@@ -846,6 +852,7 @@ validator-import() {
   local keyfile
   local passfile
   local yn
+  local i
 
   __eth2_val_tools=0
 
@@ -893,6 +900,8 @@ and secrets directories into .eth/validator_keys instead."
     password="${KEYSTORE_PASSWORD}"
     justone=1
   else
+    echo "You are about to import ${num_files} keys."
+    echo
     echo "WARNING - imported keys are immediately live. If these keys exist elsewhere,"
     echo "you WILL get slashed. If it has been less than 15 minutes since you deleted them elsewhere,"
     echo "you are at risk of getting slashed. Exercise caution"
@@ -934,10 +943,12 @@ and secrets directories into .eth/validator_keys instead."
     fi
   fi
   reg_errored=0
+  i=0
 # See https://www.shellcheck.net/wiki/SC2044 as for why
 # Using file descriptor 3 so this doesn't conflict with the "different passwords" read
 # Could also use dialog, but would need to make sure it exists
   while IFS= read -r -u 3 keyfile; do
+    (( i+=1 ))
     [[ -f "${keyfile}" ]] || continue
     keydir=$(dirname "${keyfile}")
     __pubkey=0x$(jq -r '.pubkey' "${keyfile}")
@@ -1024,6 +1035,7 @@ and secrets directories into .eth/validator_keys instead."
       jq --arg keystore_value "${keystore_json}" --arg password_value "${password}" --slurpfile protect_value /tmp/protect.json '. | .keystores += [$keystore_value] | .passwords += [$password_value] | . += {slashing_protection: $protect_value[0]}' <<< '{}' >/tmp/apidata.txt
     fi
 
+    echo "Importing key ${i} of ${num_files}"
     if [[ "${WEB3SIGNER}" = "true" ]]; then
       __token=NIL
       vc_api_container=${__api_container}
