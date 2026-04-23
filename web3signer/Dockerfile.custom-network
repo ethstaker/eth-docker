@@ -21,10 +21,10 @@ RUN set -eux; \
 # Create data mount point with permissions
 RUN mkdir -p /var/lib/web3signer/keys && chown -R ${USER}:${USER} /var/lib/web3signer && chmod -R 700 /var/lib/web3signer
 # Cannot assume buildkit, hence no chmod
-COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+COPY --chown=${USER}:${USER} ./docker-entrypoint-custom-network.sh /usr/local/bin/docker-entrypoint.sh
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 
 USER ${USER}
 
-ENTRYPOINT ["/opt/web3signer/bin/web3signer"]
+ENTRYPOINT ["docker-entrypoint.sh", "/opt/web3signer/bin/web3signer"]

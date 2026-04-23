@@ -1,6 +1,9 @@
 #!/bin/bash
 set -Eeu
 
+# Permissions
+mkdir -p /var/lib/web3signer/keys && chown -R 10000:10000 /var/lib/web3signer
+
 # Configuration
 db_url="postgresql://postgres:postgres@${PG_ALIAS}:5432/web3signer"
 check_query="SELECT 1 FROM pg_database WHERE datname = current_database() AND datcollversion <> (SELECT collversion FROM pg_collation WHERE collname = 'en_US.utf8' LIMIT 1);"
@@ -47,6 +50,28 @@ if [[ -f "${data_dir}/PG_VERSION" ]]; then
     sleep 30
     exit 1
   fi
+fi
+
+if [[ -f /var/lib/web3signer/.migration_fatal_error ]]; then
+    echo "An error occurred during \"ethd update\" and slashing protection database migration, that makes it unsafe to start Web3signer."
+    echo "Until this is manually remedied, Web3signer will refuse to start up."
+    echo "Aborting."
+    echo
+    echo "If this issue has since been resolved, you can remove the \".migration_fatal_error\" marker file in Web3signer's"
+    echo "Docker volume."
+    echo
+    echo "ONLY remove the marker file if the issue has been resolved. You risk slashing otherwise."
+    sleep 30
+    exit 1
+fi
+
+if [[ -f /var/lib/web3signer/.migration_error ]]; then
+    echo "An error occurred during \"ethd update\", while switching to a new version of PostgreSQL."
+    echo "Web3signer will start, but won't work until PostgreSQL's version matches the slashing protection database"
+    echo "version."
+    echo
+    echo "If this issue has since been resolved, you can remove the \".migration_error\" marker file in Web3signer's"
+    echo "Docker volume."
 fi
 
 exec "$@"
