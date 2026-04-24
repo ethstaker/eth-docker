@@ -29,6 +29,7 @@ services:
       - EL_EXTRAS=${EL_EXTRAS:-}
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - AUTOPRUNE_NM=${AUTOPRUNE_NM:-true}
+      - NM_FLATDB=${NETHERMIND_FLATDB:-}
       - NETWORK=${NETWORK}
       # For Grandine plugin
       - COMPOSE_FILE=${COMPOSE_FILE}
@@ -75,7 +76,6 @@ services:
       - 0.0.0.0
       - --JsonRpc.EnginePort
       - ${EE_PORT:-8551}
-      - --JsonRpc.AdditionalRpcUrls=http://127.0.0.1:1337|http|admin
       - --JsonRpc.JwtSecretFile=/var/lib/nethermind/ee-secret/jwtsecret
       - --Metrics.Enabled
       - "true"
@@ -83,8 +83,6 @@ services:
       - 0.0.0.0
       - --Metrics.ExposePort
       - "6060"
-      - --Pruning.FullPruningCompletionBehavior
-      - AlwaysShutdown
       - --log
       - ${LOG_LEVEL}
     labels:
