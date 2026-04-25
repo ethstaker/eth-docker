@@ -506,7 +506,7 @@ __prep_conffiles() {
   if find alloy-obol -maxdepth 0 \! -perm -o+rx | grep -q .; then
     ${__as_owner} chmod o+rx alloy-obol
   fi
-  if find alloy -type f -name '*.alloy' \! -perm -o+r | grep -q .; then
+  if find alloy-obol -type f -name '*.alloy' \! -perm -o+r | grep -q .; then
     ${__as_owner} chmod o+r alloy-obol/*.alloy
   fi
 
