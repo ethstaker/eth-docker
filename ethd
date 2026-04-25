@@ -477,6 +477,14 @@ __prep_conffiles() {
   if [[ ! -f ./prometheus/prometheus.yml ]]; then
     ${__as_owner} cp ./prometheus/prometheus.yml.sample ./prometheus/prometheus.yml
   fi
+# Make sure all yml under prometheus dir are readable
+  if find prometheus -maxdepth 0 \! -perm -o+rx | grep -q .; then
+    ${__as_owner} chmod o+rx prometheus
+  fi
+  if find prometheus -type f -name '*.yml' \! -perm -o+r | grep -q .; then
+    ${__as_owner} chmod o+r prometheus/*.yml
+  fi
+
 # Create alloy files if they do not exist
   if [[ ! -f "alloy/loki-write.alloy" ]]; then
     ${__as_owner} cp alloy/loki-write.alloy.sample alloy/loki-write.alloy
@@ -487,6 +495,20 @@ __prep_conffiles() {
   if [[ ! -f "alloy/alloy-logs.alloy" ]]; then
     ${__as_owner} cp alloy/alloy-logs.alloy.sample alloy/alloy-logs.alloy
   fi
+# Make sure alloy files are readable
+  if find alloy -maxdepth 0 \! -perm -o+rx | grep -q .; then
+    ${__as_owner} chmod o+rx alloy
+  fi
+  if find alloy -type f -name '*.alloy' \! -perm -o+r | grep -q .; then
+    ${__as_owner} chmod o+r alloy/*.alloy
+  fi
+# Make sure alloy-obol files are readable
+  if find alloy-obol -maxdepth 0 \! -perm -o+rx | grep -q .; then
+    ${__as_owner} chmod o+rx alloy-obol
+  fi
+  if find alloy -type f -name '*.alloy' \! -perm -o+r | grep -q .; then
+    ${__as_owner} chmod o+r alloy-obol/*.alloy
+  fi
 
 # Create SSV config.yaml if it doesn't exist
   if [[ ! -f "ssv-config/config.yaml" ]]; then
@@ -495,12 +517,12 @@ __prep_conffiles() {
   if [[ ! -f "ssv-config/dkg-config.yaml" ]]; then
     ${__as_owner} cp ssv-config/dkg-config.yaml.sample ssv-config/dkg-config.yaml
   fi
-# Make sure ssv-config yaml files are 664
-  if find ssv-config -maxdepth 0 \! -perm -0755 | grep -q .; then
-    ${__as_owner} chmod u=rwx,go=rx ssv-config
+# Make sure ssv-config yaml files are readable
+  if find ssv-config -maxdepth 0 \! -perm -o+rx | grep -q .; then
+    ${__as_owner} chmod o+rx ssv-config
   fi
-  if find ssv-config -name '*.yaml' \! -perm 664 | grep -q .; then
-    ${__as_owner} chmod 664 ssv-config/*.yaml
+  if find ssv-config -type f -name '*.yaml' \! -perm -o+r | grep -q .; then
+    ${__as_owner} chmod o+r ssv-config/*.yaml
   fi
 # Make sure local user owns the dkg output dir and everything in it
 if find .eth/dkg_output \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q .; then
@@ -512,21 +534,26 @@ if find .eth/dkg_output \( \! -user "${__owner}" -o \! -group "${__owner_group}"
       echo "Ownership of .eth/dkg_output should be fixed, but this user can't sudo"
     fi
   fi
-# Make sure the dkg output dir and its subdirs are mod x755
-  if find .eth/dkg_output -type d \! -perm -0755 | grep -q .; then
+# Make sure the dkg output dir and its subdirs are readable
+  if find .eth/dkg_output -type d \! -perm -o+rx | grep -q .; then
 # shellcheck disable=SC2086
-    find .eth/dkg_output -type d -exec ${__as_owner} chmod u=rwx,go=rx {} \;
+    find .eth/dkg_output -type d -exec ${__as_owner} chmod o+rx {} \;
   fi
-# Make sure the contents of the dkg output dir are mod 644
-  if find .eth/dkg_output -type f \! -perm 644 | grep -q .; then
+# Make sure the contents of the dkg output dir are readable
+  if find .eth/dkg_output -type f \! -perm -o+rx | grep -q .; then
 # shellcheck disable=SC2086
-    find .eth/dkg_output -type f -exec ${__as_owner} chmod 644 {} \;
+    find .eth/dkg_output -type f -exec ${__as_owner} chmod o+rx {} \;
   fi
 
 # Create cb-config.toml if it doesn't exist
   if [[ ! -f "commit-boost/cb-config.toml" ]]; then
     ${__as_owner} cp commit-boost/cb-config.toml.sample commit-boost/cb-config.toml
   fi
+# Make sure cb-config.toml is readable
+  if find commit-boost -type f -name 'cb-config.toml' \! -perm -o+r | grep -q .; then
+    ${__as_owner} chmod o+r commit-boost/cb-config.toml
+  fi
+
 # Create tempo.yaml if it doesn't exist
   if [[ ! -f "tempo/tempo.yaml" ]]; then
     ${__as_owner} cp tempo/tempo.yaml.sample tempo/tempo.yaml
@@ -534,8 +561,30 @@ if find .eth/dkg_output \( \! -user "${__owner}" -o \! -group "${__owner_group}"
   if [[ ! -f "tempo/overrides.yaml" ]]; then
     ${__as_owner} cp tempo/overrides.yaml.sample tempo/overrides.yaml
   fi
+# Make sure tempo files are readable
+  if find tempo -maxdepth 0 \! -perm -o+rx | grep -q .; then
+    ${__as_owner} chmod o+rx tempo
+  fi
+  if find tempo -type f -name '*.yaml' \! -perm -o+r | grep -q .; then
+    ${__as_owner} chmod o+r tempo/*.yaml
+  fi
+# Make sure loki files are readable
+  if find loki -maxdepth 0 \! -perm -o+rx | grep -q .; then
+    ${__as_owner} chmod o+rx loki
+  fi
+  if find loki -type f -name '*.yml' \! -perm -o+r | grep -q .; then
+    ${__as_owner} chmod o+r loki/*.yml
+  fi
+# Make sure Siren entrypoint is executable
+  if find siren -maxdepth 0 \! -perm -o+rx | grep -q .; then
+    ${__as_owner} chmod o+rx siren
+  fi
+  if find siren -type f -name '*.sh' \! -perm -o+r | grep -q .; then
+    ${__as_owner} chmod o+rx siren/*.sh
+  fi
+
 # Make sure local user owns .env
-if find . -name .env \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q ./.env; then
+  if find . -name .env \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q ./.env; then
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
       echo "Fixing ownership of .env"
       ${__auto_sudo} chown -R "${__owner}:${__owner_group}" .env
@@ -805,7 +854,7 @@ EOF
   if ! id -nG "${user}" | grep -qw docker; then
     echo "Making your user part of the docker group"
     ${__auto_sudo} usermod -aG docker "${user}"
-    echo "Please run newgrp docker or log out and back in"
+    echo "Please log out and back in or run \"sudo su - $(id -un)\""
   else
     echo "Your user is already part of the docker group"
   fi
