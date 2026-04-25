@@ -2150,9 +2150,10 @@ update() {
     if [[ -z "${__value}" || "${__value}" = "latest" ]]; then
       export ETHDPINNED=""
       ${__as_owner} git fetch origin --tags
-      __value=$(git tag --sort=-v:refname | head -1)
+      __value=$(${__as_owner} git tag --sort=-v:refname | head -1)
       if [[ -z "${__value}" ]]; then
         echo "No tags found, falling back to main branch"
+        ${__as_owner} git checkout main || ${__as_owner} git checkout -B main origin/main
         ${__as_owner} git pull origin main
       else
         ${__as_owner} git checkout -B "tag-${__value}" "tags/${__value}"
