@@ -6061,8 +6061,14 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 # Use this to make sure root doesn't end up owning files
 # shellcheck disable=SC2012
 __owner=$(ls -ld . | awk '{print $3}')
-# shellcheck disable=SC2012
-__owner_group=$(ls -ld . | awk '{print $4}')
+if [[ -g . ]]; then
+  # setgid: new files inherit directory group
+  # shellcheck disable=SC2012
+  __owner_group=$(ls -ld . | awk '{print $4}')
+else
+  # no setgid: new files inherit owner's primary group
+  __owner_group=$(id -gn "${__owner}")
+fi
 
 if [[ "${__owner}" = "root" ]]; then
   echo "Please install ${__project_name} as a non-root user."
