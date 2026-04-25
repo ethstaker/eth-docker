@@ -6,9 +6,13 @@ __project_name="Eth Docker"
 __app_name="Ethereum node"
 __sample_service="consensus"
 __min_env_version=55
+__target_pg=18
+__current_docker=29
 __docker_exe="docker"
 __old_docker=0
+__oldish_docker=0
 __docker_sudo=""
+__docker_version=""
 __docker_major_version=""
 __docker_minor_version=""
 __docker_patch_version=""
@@ -21,7 +25,6 @@ __compose_upgraded=0
 __distro=""
 __os_major_version=""
 __os_minor_version=""
-__target_pg=18
 __min_ubuntu=22
 __suggest_ubuntu="24.04 or 22.04."
 __upgrade_ubuntu="24.04: https://gist.github.com/yorickdowne/94f1e5538007f4c9d3da7b22b0dc28a4"
@@ -159,6 +162,11 @@ __handle_docker() {
     __old_docker=1
   else
     __old_docker=0
+  fi
+
+# Warn user if their Docker-CE on Debian/Ubuntu is old. Maybe they're not updating.
+  if [[ "${__distro}" =~ (debian|ubuntu) && "${__docker_major_version}" -lt "${__current_docker}" ]] && dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
+    __oldish_docker=1
   fi
 
   if ! docker images >/dev/null 2>&1; then
@@ -6195,4 +6203,12 @@ if [[ "${__old_compose}" -eq 1 && "${__compose_major}" -eq 2 ]]; then
   if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
     echo "Please do so by running: \"sudo apt update && sudo apt dist-upgrade\""
   fi
+fi
+
+if [[ "${__oldish_docker}" -eq 1 ]]; then
+  echo "You are using Docker-CE version ${__docker_version}, which is not current."
+  echo "Try a \"sudo apt update && sudo apt dist-upgrade\". If that does not bring in an updated Docker-CE,"
+  echo "its repo file may have become disabled during an OS upgrade. Check \"/etc/apt/sources.list.d\" for"
+  echo "your Docker repo \".list\" or \".sources\", and if it's been disabled, recreate it or re-enable it."
+  echo "See https://docs.docker.com/engine/install/ for instructions."
 fi
