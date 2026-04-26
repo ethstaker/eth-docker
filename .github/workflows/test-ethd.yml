@@ -36,7 +36,7 @@ jobs:
       - name: Set up Docker on macOS
         if: ${{ startsWith(matrix.os, 'macos-') }}
         uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
-      - name: Install Expect
+      - name: Prerequisites on Ubuntu
         if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         run: sudo apt-get install -y expect whiptail
       - name: Prerequisites on macOS
