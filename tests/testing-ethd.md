@@ -83,3 +83,30 @@ Test that on Hoodi and Mainnet, verify that `deposit-cli.yml` is added to `CORE_
 Lido Obol can't be tested without a live Obol cluster, but run through it as far as possible to rule out obvious issues
 
 Lido SSV is identical to SSV
+
+## Multi-user test paths
+
+Likely requires a full test of possible ownership combinations when the code governing this logic is touched.
+
+Tests the code with directory ownership `node:node-admins`; `node`, `alice` and `bob` part of the `node-admins` group, `alice` part
+of the `sudo` group and `bob` not, and setgid set or not on the directory, `setgid+s` and `setgid-s`.
+
+Also test a regular `alice:alice` setup of eth-docker, and that the code works well in that case.
+
+Test scenarios
+- dir `alice:alice`, regular
+- dir `alice:alice`, umask 077
+- dir `alice:alice` and 700/600 permissions, `alice` with umask 022
+- dir `alice:alice` and 700/600 permissions, `alice` with umask 077
+- dir `node:node-admins`, `alice` with umask 022
+- dir `node:node-admins`, `alice` with umask 077
+- dir `node:node-admins`, `bob` (can't sudo)
+- dir `node:node-admins`, `charlie` (can't sudo and isn't member of `node-admins`) test failure case
+- dir `node:node-admins`, `charlie` (can sudo), test `__as_owner` sudo behavior
+- dir `node:node-admins` and 700/600 permissions, `alice` with umask 022
+- dir `node:node-admins` and 700/600 permissions, `alice` with umask 077
+
+- `.env` ownership and permissions after `./ethd space`. Should be `user:user` when solo, `user:group` when not and group doesn't have write right, `otheruser:group` when group does have write rights
+- Ditto check ownership and permissions of bind-mounted files in alloy, alloy-obol, prometheus, loki, tempo, ssv-config. They need to be `other` readable.
+- Run a stack with Grafana and verify that all services are up and not restarting
+- `./ethd config` and choose SSV with dkg, check generated files for ownership and permissions, possibly after another `./ethd space`. Should config run prep_conf at end so that permissions are adjusted right away?

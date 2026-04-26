@@ -6,6 +6,13 @@ __project_name="Eth Docker"
 __app_name="Ethereum node"
 __sample_service="consensus"
 __min_env_version=55
+__min_ubuntu=22
+__suggest_ubuntu="24.04 or 22.04."
+__upgrade_ubuntu="24.04: https://gist.github.com/yorickdowne/94f1e5538007f4c9d3da7b22b0dc28a4"
+__min_debian=12
+__suggest_debian="13 or 12."
+__upgrade_debian="13: https://gist.github.com/yorickdowne/3cecc7b424ce241b173510e36754af47"
+__target_pg=18
 __docker_exe="docker"
 __old_docker=0
 __docker_sudo=""
@@ -21,13 +28,6 @@ __compose_upgraded=0
 __distro=""
 __os_major_version=""
 __os_minor_version=""
-__target_pg=18
-__min_ubuntu=22
-__suggest_ubuntu="24.04 or 22.04."
-__upgrade_ubuntu="24.04: https://gist.github.com/yorickdowne/94f1e5538007f4c9d3da7b22b0dc28a4"
-__min_debian=12
-__suggest_debian="13 or 12."
-__upgrade_debian="13: https://gist.github.com/yorickdowne/3cecc7b424ce241b173510e36754af47"
 __eol_os=0
 __non_interactive=0
 __debug=0
@@ -56,6 +56,7 @@ __cannot_sudo=0
 __as_owner=""
 __owner=""
 __owner_group=""
+__group_can_write=0
 __value=""  # This is a global to hand a result back from __get_value_from_env
 __free_space=0
 __docker_dir="/var/lib/docker"
@@ -196,26 +197,106 @@ __handle_docker() {
 }
 
 
-__handle_root() {
-  local g
-  local found=0
+# Allow users to set their own umask like 077, and make it x0x if we are going to rely on group write
+__adjust_umask_for_group() {
+  local current_umask
+  local new_umask
 
-  if [[ "${EUID}" != $(id -u "${__owner}") ]]; then
+  current_umask=$(umask)
+
+  # split into 3 or 4 digits safely, set group to 0
+  case ${#current_umask} in
+    3) # ugo form
+      u=${current_umask:0:1}
+      g=0
+      o=${current_umask:2:1}
+      new_umask="${u}${g}${o}"
+      ;;
+    4) # sugo form
+      s=${current_umask:0:1}
+      u=${current_umask:1:1}
+      g=0
+      o=${current_umask:3:1}
+      new_umask="${s}${u}${g}${o}"
+      ;;
+  esac
+
+  umask "${new_umask}"
+}
+
+
+# Who owns the directory, what permissions do they have, and do we need to sudo -u ${__owner} when creating files
+# Also, can we sudo
+# Assume owner has rw on everything
+# EUID is owner of directory: No umask adjustment, no sudo
+# EUID is not owner of directory, but directory is group-writeable and EUID is in the group that can write:
+#   change umask to not touch group perms
+# Neither: sudo -u ${__owner}
+# __owner and __owner_group are set at script entry and have the user:group owners of the directory
+__handle_ownership() {
+  local g
+  local can_sudo=0
+  local is_in_group=0
+  local perms
+  local group_w
+  local sudo_group
+  local reason_msg=""
+  local action_msg=""
+
+# shellcheck disable=SC2012
+  perms=$(ls -ld . | awk '{print $1}')
+
+  group_w="${perms:5:1}"
+  if [[ "${group_w}" != "-" ]]; then
+    __group_can_write=1
+  fi
+
+  for g in $(id -nG); do
+    if [[ "${g}" = "${__owner_group}" ]]; then
+      is_in_group=1
+      break
+    fi
+  done
+
+  if [[ "${EUID}" = $(id -u "${__owner}") ]]; then  # No adjustments needed
+    __as_owner=""
+  elif [[ "${__group_can_write}" -eq 1 && "${is_in_group}" -eq 1 ]]; then  # Adjust umask to make sure files are group-writable
+    __adjust_umask_for_group
+  else
     __as_owner="sudo -u ${__owner}"
   fi
 
+  if [[ "$OSTYPE" = "darwin"* ]]; then
+    sudo_group="admin"
+  else
+    sudo_group="sudo"
+  fi
+
+# Figure out whether the user can sudo
+  __cannot_sudo=1
   if [[ "${EUID}" -ne 0 ]]; then
     for g in $(id -nG); do
-      if [[ "${g}" =~ ^(sudo|admin)$ ]]; then
+      if [[ "${g}" = "${sudo_group}" ]]; then
         __auto_sudo="sudo"
-        found=1
+        __cannot_sudo=0
         break
       fi
     done
+  else  # root always can
+    __cannot_sudo=0
   fi
 
-  if [[ "${EUID}" -ne 0 && "${found}" -eq 0 ]]; then
-    __cannot_sudo=1
+  if [[ -n "${__as_owner}" && "${__cannot_sudo}" -eq 1 ]]; then  # Have to sudo but can't
+    if [[ "${is_in_group}" -eq 1 ]]; then
+      reason_msg="and all of its groups "
+      action_msg="or give write permissions to ${__owner_group}, "
+    fi
+    echo "The $(dirname "$(realpath "${BASH_SOURCE[0]}")") directory is owned by ${__owner}, the script runs as $(id -nu), and that user ${reason_msg}cannot write files in \
+this directory, nor run \"sudo\"."
+    echo "This means ${__me} cannot modify or create files, which keeps it from working."
+    echo "Please run ${__me} as ${__owner}, ${action_msg}or make $(id -nu) part of the ${sudo_group} group."
+    echo "Aborting."
+    exit 1
   fi
 }
 
@@ -473,6 +554,8 @@ __check_compose_version() {
 
 
 __prep_conffiles() {
+  local env
+
 # Create prometheus.yml if it doesn't exist
   if [[ ! -f ./prometheus/prometheus.yml ]]; then
     ${__as_owner} cp ./prometheus/prometheus.yml.sample ./prometheus/prometheus.yml
@@ -529,7 +612,7 @@ if find .eth/dkg_output \( \! -user "${__owner}" -o \! -group "${__owner_group}"
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
       echo "Fixing ownership of .eth/dkg_output"
       ${__auto_sudo} chown -R "${__owner}:${__owner_group}" .eth/dkg_output
-      ${__as_owner} chmod u=rwx,go=rx .eth/dkg_output
+      ${__as_owner} chmod u+rwx,o+rx .eth/dkg_output
     else
       echo "Ownership of .eth/dkg_output should be fixed, but this user can't sudo"
     fi
@@ -583,17 +666,25 @@ if find .eth/dkg_output \( \! -user "${__owner}" -o \! -group "${__owner_group}"
     ${__as_owner} chmod o+rx siren/*.sh
   fi
 
-# Make sure local user owns .env
-  if find . -name .env \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q ./.env; then
+# Make sure directory owner owns .env, or it's owned by directory group and group is writable
+  if [[ ! -f "${__env_file}" ]] || find . -maxdepth 1 -name "${__env_file}" -user "${__owner}" -print -quit | grep -q "${__env_file}" \
+    || { find . -maxdepth 1 -name "${__env_file}" -group "${__owner_group}" -print -quit | grep -q "${__env_file}" \
+          && [[ "${__group_can_write}" -eq 1 ]]; }; then
+    true  # Nothing to do
+  else
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
-      echo "Fixing ownership of .env"
-      ${__auto_sudo} chown -R "${__owner}:${__owner_group}" .env
-      ${__auto_sudo} chmod -R 644 .env
-      if [[ -f .env.tmp ]]; then
-        ${__auto_sudo} rm -f .env.tmp
+      echo "Fixing ownership of ${__env_file}"
+      ${__auto_sudo} chown -R "${__owner}:${__owner_group}" "${__env_file}"
+      if [[ ${__group_can_write} -eq 1 ]]; then
+        ${__auto_sudo} chmod og+rw "${__env_file}"
+      else
+        ${__auto_sudo} chmod o+rw "${__env_file}"
+      fi
+      if [[ -f ${__env_file}.tmp ]]; then
+        ${__auto_sudo} rm -f "${__env_file}".tmp
       fi
     else
-      echo "Ownership of .env should be fixed, but this user can't sudo"
+      echo "Ownership of ${__env_file} should be fixed, but this user can't sudo"
     fi
   fi
 }
@@ -6127,7 +6218,7 @@ __command="$1"
 shift
 __params=$*
 
-__handle_root
+__handle_ownership
 __determine_distro
 __prep_conffiles
 
