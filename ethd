@@ -2198,11 +2198,15 @@ update() {
     __get_value_from_env "${var}" "${__env_file}" "__value"
     if [[ -z "${__value}" || "${__value}" = "latest" ]]; then
       export ETHDPINNED=""
-      branch=$(git rev-parse --abbrev-ref HEAD)
-      if [[ "${branch}" =~ ^tag-* ]]; then
-        git checkout main
+      ${__as_owner} git fetch origin --tags
+      __value=$(${__as_owner} git tag --sort=-v:refname | head -1)
+      if [[ -z "${__value}" ]]; then
+        echo "No tags found, falling back to main branch"
+        ${__as_owner} git checkout main || ${__as_owner} git checkout -B main origin/main
+        ${__as_owner} git pull origin main
+      else
+        ${__as_owner} git checkout -B "tag-${__value}" "tags/${__value}"
       fi
-      ${__as_owner} git pull origin main
     else
       export ETHDPINNED="${__value}"
       ${__as_owner} git fetch --tags
