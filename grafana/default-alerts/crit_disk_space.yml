@@ -79,11 +79,12 @@ groups:
               maxDataPoints: 43200
               refId: C
               type: threshold
-        noDataState: NoData
-        execErrState: Error
+        noDataState: OK
+        execErrState: OK
         for: 10m
         annotations:
           summary: Disk space critically low on {{ $labels.mountpoint }}, {{ $values.B }} percent free
         labels:
           severity: critical
+          origin: provisioned
         isPaused: false

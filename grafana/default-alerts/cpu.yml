@@ -81,11 +81,12 @@ groups:
               maxDataPoints: 43200
               refId: C
               type: threshold
-        noDataState: NoData
-        execErrState: Error
+        noDataState: OK
+        execErrState: OK
         for: 10m
         annotations:
           summary: CPU usage high, above 90%
         labels:
           severity: medium
+          origin: provisioned
         isPaused: false

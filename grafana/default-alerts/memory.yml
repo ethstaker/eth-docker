@@ -82,11 +82,12 @@ groups:
               maxDataPoints: 43200
               refId: C
               type: threshold
-        noDataState: NoData
-        execErrState: Error
+        noDataState: OK
+        execErrState: OK
         for: 5m
         annotations:
           summary: memory usage is dangerously high at {{ humanizePercentage $values.B.Value }}.
         labels:
           severity: critical
+          origin: provisioned
         isPaused: false

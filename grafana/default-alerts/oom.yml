@@ -89,4 +89,5 @@ groups:
           summary: A container ran out of memory and was killed by Linux
         labels:
           severity: critical
+          origin: provisioned
         isPaused: false
