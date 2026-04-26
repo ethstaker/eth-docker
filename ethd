@@ -5,7 +5,7 @@ set -Eeuo pipefail
 __project_name="Eth Docker"
 __app_name="Ethereum node"
 __sample_service="consensus"
-__min_env_version=55
+__min_env_version=56
 __docker_exe="docker"
 __old_docker=0
 __docker_sudo=""
@@ -2827,6 +2827,14 @@ prune-nethermind() {
   __get_value_from_env "${var}" "${__env_file}" "__value"
   if [[ "${__value}" = "archive" ]]; then
     echo "Nethermind is an archive node: Aborting."
+    exit 1
+  fi
+
+  # Check for FlatDB
+  var="NETHERMIND_FLATDB"
+  __get_value_from_env "${var}" "${__env_file}" "__value"
+  if [[ -n "${__value}" ]]; then
+    echo "Nethermind is configured for FlatDB, which need not and cannot be pruned. Aborting."
     exit 1
   fi
 

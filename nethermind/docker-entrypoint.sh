@@ -76,15 +76,38 @@ else
   __network="--config ${NETWORK}"
 fi
 
-if [[ ! "${NETWORK}" =~ ^https?:// && ! "${NODE_TYPE}" = "archive" ]]; then  # Only configure prune parameters for named networks
+if [[ "${NODE_TYPE}" = "archive" ]]; then
+  __flat=""
+else
+  case "${NM_FLATDB}" in
+    "")
+      __flat=""
+      ;;
+    flat)
+      echo "Enabling Nethermind FlatDB with Layout Flat"
+      __flat="--FlatDb.Enabled=true --FlatDb.ImportFromPruningTrieState=true"
+      ;;
+    flatintrie)
+      echo "Enabling Nethermind FlatDB with Layout FlatInTrie"
+      __flat="--FlatDb.Enabled=true --FlatDb.ImportFromPruningTrieState=true --FlatDb.Layout=FlatInTrie"
+      ;;
+    *)
+      __flat=""
+      echo "Unknown value ${NM_FLATBD} for \"NETHERMIND_FLATDB\". Continuing without FlatDB."
+      ;;
+  esac
+fi
+
+__prune=""
+if [[ ! "${NETWORK}" =~ ^https?:// && "${NODE_TYPE}" != "archive" && -z "${__flat}" ]]; then  # Only configure prune parameters for named networks
   memtotal=$(awk '/MemTotal/ {printf "%d", int($2/1024/1024)}' /proc/meminfo)
   parallel=$(($(nproc)/4))
   if [[ "${parallel}" -lt 2 ]]; then
     parallel=2
   fi
-  __prune="--Pruning.FullPruningMaxDegreeOfParallelism=${parallel}"
+  __prune="--Pruning.FullPruningMaxDegreeOfParallelism=${parallel} --Pruning.FullPruningCompletionBehavior=AlwaysShutdown --JsonRpc.AdditionalRpcUrls=http://127.0.0.1:1337|http|admin"
   if [[ "${AUTOPRUNE_NM}" = true ]]; then
-    __prune="${__prune} --Pruning.FullPruningTrigger=VolumeFreeSpace"
+    __prune+=" --Pruning.FullPruningTrigger=VolumeFreeSpace"
     if [[ "${NETWORK}" =~ (mainnet|gnosis) ]]; then
       __prune+=" --Pruning.FullPruningThresholdMb=375810"
     else
@@ -153,6 +176,10 @@ esac
 
 echo "Using pruning parameters:"
 echo "${__prune}"
+if [[ -n "${__flat}" ]]; then
+  echo "Using FlatDB parameters:"
+  echo "${__flat}"
+fi
 
 # New or old datadir
 if [[ -d /var/lib/nethermind-og/nethermind_db ]]; then
@@ -318,4 +345,4 @@ set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__datadir} ${__network} ${__prune} ${__grandine} ${EL_EXTRAS}
+exec "$@" ${__datadir} ${__network} ${__prune} ${__flat} ${__grandine} ${EL_EXTRAS}
