@@ -1798,6 +1798,11 @@ __env_migrate() {
 # shellcheck disable=SC2016
         __value='${CORE_FILES}${CUSTOM_FILES:+:${CUSTOM_FILES}}'
       fi
+      # Remove after Glamsterdam
+      if [[ "${var}" = "NODE_EXPORTER_COLLECTOR_MOUNT_PATH" && "${__value}" = "/dev/null" ]]; then
+        __value=""
+      fi
+
       if [[ "${var}" = "CL_QUIC_PORT" ]]; then
         __get_value_from_env "CL_P2P_PORT" "${__env_file}.source" "CL_P2P_PORT"
         if [[ -n "${CL_P2P_PORT}" && "${CL_P2P_PORT}" = "${__value}" ]]; then
