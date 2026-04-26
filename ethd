@@ -2070,10 +2070,10 @@ update() {
   local dirty
   local branch
 
-  if [[ "$*" =~ "--debug" ]]; then
+  if [[ "$*" =~ --debug ]]; then
     __debug=1
   fi
-  if [[ "$*" =~ "--trace" ]]; then
+  if [[ "$*" =~ --trace ]]; then
     __debug=1
     set -x
   fi
@@ -5769,7 +5769,9 @@ config() {
   __final_msg+="\nYou are using these service files: ${CORE_FILES}${CUSTOM_FILES:+:${CUSTOM_FILES}}"
 
   __get_compose_file
-  __pull_and_build
+  if [[ ! "$*" =~ --ci ]]; then
+    __pull_and_build
+  fi
   __nag_os_version
 
   echo -e "${__final_msg-}"

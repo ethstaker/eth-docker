@@ -20,111 +20,124 @@ proc address {} {
     send "0xDccf8451070a86183eE70D330C4c43b686E9CF86\t\r"
 }
 
+proc expect_or_fail {pattern procname {t ""}} {
+    set old_timeout $::timeout
+    if {$t ne ""} {
+        set ::timeout $t
+    }
+    expect {
+        $pattern {
+            $procname
+	}
+        timeout {
+            puts "Timeout waiting for: $pattern"
+            exit 1
+        }
+        eof {
+            puts "Unexpected EOF while waiting for: $pattern"
+            exit 1
+        }
+    }
+    set ::timeout $old_timeout
+}
+
+proc expect_optional {pattern procname {t ""}} {
+    set old_timeout $::timeout
+    if {$t ne ""} {
+        set ::timeout $t
+    }
+    expect {
+        $pattern {
+            $procname
+        }
+        timeout {}
+        eof {
+            puts "Unexpected EOF while waiting for optional: $pattern"
+            exit 1
+        }
+    }
+    set ::timeout $old_timeout
+}
+
+proc expect_eof {{t ""}} {
+    set old_timeout $::timeout
+    if {$t ne ""} {
+        set ::timeout $t
+    }
+    expect {
+        eof {}
+        timeout {
+            if {$t ne ""} {
+                puts "Timeout waiting for EOF"
+                exit 1
+            }
+        }
+    }
+    set ::timeout $old_timeout
+}
+
 proc default-deployment {} {
-    global spawn_id
-    expect "Select Network"
-    accept_default
-
-    expect "Select deployment type"
-    accept_default
-
-    expect "Select consensus client"
-    accept_default
-
-    expect "Select execution client"
-    accept_default
+    expect_or_fail "Select Network" accept_default
+    expect_or_fail "Select deployment type" accept_default
+    expect_or_fail "Select consensus client" accept_default
+    expect_optional "Web3signer" yes 5
+    expect_or_fail "Select execution client" accept_default
 }
 
+# Called without .env
 proc all-defaults {} {
-    global spawn_id
     default-deployment
 
-    expect "Configure CL checkpoint sync URL"
-    accept_default
+    expect_or_fail "Configure CL checkpoint sync URL" accept_default
+    expect_or_fail "MEV Boost" yes
+    expect_or_fail "Relays list" accept_default
+    expect_optional "MEV Build Factor" yes 30
+    expect_or_fail "Grafana" yes
+    expect_or_fail "Configure rewards address" address
+    expect_or_fail "Configure Graffiti" accept_default
+    expect_or_fail "Default Graffiti" yes
 
-    expect "MEV Boost"
-    yes
-
-    expect "Relays list"
-    accept_default
-
-    expect "Grafana"
-    yes
-
-    expect "Configure rewards address"
-    address
-
-    expect "Configure Graffiti"
-    accept_default
-
-    expect "Default Graffiti"
-    yes
-
-    expect EOF
+    expect_eof 15
 }
 
+# Called after all-defaults, existing .env
 proc no-mev {} {
-    global spawn_id
     default-deployment
 
-    expect "Configure CL checkpoint sync URL"
-    accept_default
+    expect_or_fail "Configure CL checkpoint sync URL" accept_default
+    expect_or_fail "MEV Boost" no
+    expect_or_fail "Grafana" yes
+    expect_or_fail "Configure rewards address" accept_default
+    expect_or_fail "Configure Graffiti" accept_default
+    expect_or_fail "Default Graffiti" yes
 
-    expect "MEV Boost"
-    no
-
-    expect "Grafana"
-    yes
-
-    expect "Configure rewards address"
-    address
-
-    expect "Configure Graffiti"
-    accept_default
-
-    expect "Default Graffiti"
-    yes
-
-    expect EOF
+    expect_eof 15
 }
 
+# Called after all-defaults, existing .env
 proc no-grafana {} {
-    global spawn_id
     default-deployment
 
-    expect "Configure CL checkpoint sync URL"
-    accept_default
+    expect_or_fail "Configure CL checkpoint sync URL" accept_default
+    expect_or_fail "MEV Boost" yes
+    expect_or_fail "Relays list" accept_default
+    expect_optional "MEV Build Factor" yes
+    expect_or_fail "Grafana" no
+    expect_or_fail "Configure rewards address" accept_default
+    expect_or_fail "Configure Graffiti" accept_default
+    expect_or_fail "Default Graffiti" yes
 
-    expect "MEV Boost"
-    yes
-
-    expect "Relays list"
-    accept_default
-
-    expect "Grafana"
-    no
-
-    expect "Configure rewards address"
-    address
-
-    expect "Configure Graffiti"
-    accept_default
-
-    expect "Default Graffiti"
-    yes
-
-    expect EOF
+    expect_eof 15
 }
 
 set timeout 5
-spawn ./ethd config
+spawn ./ethd config --ci
 
 # Check for the command-line argument
 if {$argc > 0} {
     set action [lindex $argv 0]
     switch -- $action {
         "all-defaults" all-defaults
-        "no-checkpoint" no-checkpoint
         "no-mev" no-mev
         "no-grafana" no-grafana
         default  { puts "Unknown action: $action"; exit 1 }
