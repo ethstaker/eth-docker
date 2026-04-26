@@ -10,5 +10,6 @@ ssv-config.yaml.bak
 blox-ssv-config.yaml
 blox-ssv-config.yaml.bak
 .nada
+.motd
 post-ethd-update.sh
 pre-ethd-update.sh

@@ -473,6 +473,10 @@ __check_compose_version() {
 
 
 __prep_conffiles() {
+# Create .motd if it doesn't exist
+  if [[ ! -f ./.motd ]]; then
+    ${__as_owner} cp ./.motd.sample ./.motd
+  fi
 # Create prometheus.yml if it doesn't exist
   if [[ ! -f ./prometheus/prometheus.yml ]]; then
     ${__as_owner} cp ./prometheus/prometheus.yml.sample ./prometheus/prometheus.yml
@@ -865,6 +869,7 @@ EOF
 
 install() {
   local yn
+  local project_dir
 
   if [[ ! "${__distro}" =~ (ubuntu|debian) ]]; then
     echo "${__project_name} does not know how to install Docker on ${__distro}"
@@ -918,8 +923,14 @@ install() {
       [Nn]*) return 0;;
       *) ;;
     esac
+    project_dir=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
     echo "alias ethd=$(realpath "${BASH_SOURCE[0]}")" >>~/.profile
-    echo "cat $(dirname "$(realpath "${BASH_SOURCE[0]}")")/.motd" >>~/.profile
+    echo "cat ${project_dir}/.motd" >>~/.profile
+    if [[ ! -f ./.motd ]]; then  # Also in __prep_conffiles, be doubly sure
+      ${__as_owner} cp ./.motd.sample ./.motd
+    fi
+    ${__as_owner} sed -i'.original' "s|~/eth-docker|${project_dir//&/\\&}|" ./.motd
+    ${__as_owner} rm -f ./.motd.original
     echo "Go ahead and 'source ~/.profile' or log out and back in."
     echo "After that, you can use the command 'ethd'."
   fi
