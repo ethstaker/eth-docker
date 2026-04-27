@@ -1249,8 +1249,8 @@ __migrate_compose_files() {
   local index
 
 # Some files have been renamed and others removed altogether
-  local from_yml=( )
-  local to_yml=( )
+  local from_yml=("lido-obol-promtail.yml")
+  local to_yml=("lido-obol-alloy.yml")
 
   IFS=":"
   set -o noglob
