@@ -97,6 +97,32 @@ discovery.relabel "docker_metrics" {
     regex         = "charon"
     action        = "keep"
   }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_metrics_path"]
+    regex         = "(.+)"
+    target_label  = "__metrics_path__"
+  }
+
+  rule {
+    source_labels = ["__address__", "__meta_docker_container_label_metrics_port"]
+    regex         = "([^:]+)(?::\\d+)?;(\\d+)"
+    target_label  = "__address__"
+    replacement   = "$1:$2"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_metrics_host", "__meta_docker_container_label_metrics_port"]
+    regex         = "(.+);(\\d+)"
+    target_label  = "__address__"
+    replacement   = "$1:$2"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_metrics_interval"]
+    regex         = "(.+)"
+    target_label  = "__scrape_interval__"
+  }
 }
 
 prometheus.scrape "docker_metrics" {
