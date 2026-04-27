@@ -6,6 +6,7 @@ services:
       CHARON_LOKI_ADDRESSES: ${OBOL_CHARON_REMOTE_LOKI_ADDRESSES}
       CLUSTER_NAME: ${OBOL_CLUSTER_NAME}
       CLUSTER_PEER: ${OBOL_CLUSTER_PEER}
+      OBOL_PROM_REMOTE_WRITE_TOKEN: ${OBOL_PROM_REMOTE_WRITE_TOKEN}
     volumes:
       - ./alloy-obol:/etc/alloy
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -25,10 +26,6 @@ services:
       - metrics.instance=obol-alloy
       - metrics.network=${NETWORK}
 
-  charon:
-    labels:
-      - obol-alloy-monitored=true
-
   execution:
     labels:
       - obol-alloy-monitored=true
@@ -38,10 +35,6 @@ services:
       - obol-alloy-monitored=true
 
   validator:
-    labels:
-      - obol-alloy-monitored=true
-
-  mev-boost:
     labels:
       - obol-alloy-monitored=true
 

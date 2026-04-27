@@ -49,3 +49,4 @@ services:
       - metrics.instance=mev-boost
       - metrics.network=${NETWORK}
       - logs.collect=true
+      - obol-alloy-monitored=true

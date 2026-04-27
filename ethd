@@ -1240,6 +1240,30 @@ __source_build() {
 }
 
 
+# Remove after Glamsterdam
+__migrate_alloy_obol() {
+  local prom_token
+
+  __get_compose_file
+  if [[ "${__source_ver}" -lt 55 && "${COMPOSE_FILE}" =~ lido-obol-alloy.yml ]]; then
+    var="OBOL_PROM_REMOTE_WRITE_TOKEN"
+    __get_value_from_env "${var}" "${__env_file}" "__value"
+    if [[ -z "${__value}" && -f ./prometheus/custom-prom.yml ]] && grep -q 'credentials:' ./prometheus/custom-prom.yml >/dev/null; then
+      echo "Migrating Lido Obol Promtail to Lido Obol Alloy"
+      prom_token=$(awk -F': *' '/credentials:/ {gsub(/"/,"",$2); print $2; exit}' ./prometheus/custom-prom.yml)
+      if [[ -z "${prom_token}" ]]; then
+        echo "Could not determine value of OBOL_PROM_REMOTE_WRITE_TOKEN in ./prometheus/custom-prom.yml"
+        echo "Please update it yourself with \"nano .env\""
+        return
+      fi
+      var="OBOL_PROM_REMOTE_WRITE_TOKEN"
+      OBOL_PROM_REMOTE_WRITE_TOKEN="${prom_token}"
+      __update_value_in_env "${var}" "${!var}" "${__env_file}"
+    fi
+  fi
+}
+
+
 # When this gets called $var is CORE_FILES or CUSTOM_FILES and $__value is what is set in .env for it
 # This function rebuilds __value, applying any file name changes
 __migrate_compose_files() {
@@ -2268,6 +2292,8 @@ update() {
   if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
     ${__as_owner} cp "${__env_file}".source "${__env_file}".bak
   fi
+  # Remove after Glamsterdam
+  __migrate_alloy_obol
   __pull_and_build
 
   __upgrade_postgres

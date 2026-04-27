@@ -36,6 +36,7 @@ services:
       - metrics.path=/metrics
       - metrics.port=3620
       - metrics.instance=charon
+      - obol-alloy-monitored=true
 
   charon-create-enr:
     profiles: ["tools"]
