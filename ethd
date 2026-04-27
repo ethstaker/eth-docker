@@ -265,7 +265,7 @@ __upgrade_docker() {
             echo "If an updated version of runc is available, please install it"
             echo "Alternatively, consider uninstalling runc and replacing it with crun"
 # Commented out until fixed versions have actually been released
-#              if [ "${__non_interactive}" -eq 0 ]; then
+#              if [[ "${__non_interactive}" -eq 0 ]]; then
 #                while true; do
 #                  read -rp "Do you want to update runc (yes/no) " yn
 #                  case "${yn}" in
@@ -285,7 +285,7 @@ __upgrade_docker() {
             echo "Docker ${__docker_version} with runc ${runc_version} detected"
             echo "This version of runc is vulnerable"
             __nag_os_version
-            if [ "${__eol_os}" -eq 1 ]; then
+            if [[ "${__eol_os}" -eq 1 ]]; then
               echo "${__project_name} cannot update runc on Ubuntu ${__os_major_version}."
               return
             fi
@@ -3803,7 +3803,7 @@ keys() {
     shift
     __prep-keyimport "$@"
     __docompose run --rm -e OWNER_UID="${owner_uid}" validator-keys import "${__keys_args}"
-  elif [ "${1:-}" = "create-prysm-wallet" ]; then
+  elif [[ "${1:-}" = "create-prysm-wallet" ]]; then
     __value="${COMPOSE_FILE}"
     if [[ ! "${__value}" =~ (prysm\.yml|prysm-vc-only\.yml) ]]; then
       echo "You do not appear to be using a Prysm validator. Aborting."
