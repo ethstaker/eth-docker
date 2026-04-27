@@ -1,0 +1,5 @@
+# Expose Alloy Obol port for UI access
+services:
+  alloy-obol:
+    ports:
+      - ${SHARE_IP:-}:${ALLOY_OBOL_PORT:-12346}:12345/tcp
