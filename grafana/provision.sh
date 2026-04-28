@@ -410,6 +410,7 @@ if [[ "${status}" -eq 0 ]]; then
   wget -t 3 -T 10 -qcO - "${url}" | jq 'walk(if . == "${DS_LOKI}" then "Loki" else . end)' >"${tmp}" || status=1
 fi
 handle_replacement "${status}" "${tmp}" "${file}"
+
 # Home staking dashboard
 id=17846
 status=0
@@ -421,6 +422,7 @@ if [[ "${status}" -eq 0 ]]; then
   wget -t 3 -T 10 -qcO - "${url}" | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${tmp}" || status=1
 fi
 handle_replacement "${status}" "${tmp}" "${file}"
+
 # Ethereum Metrics Exporter Dashboard
 id=16277
 status=0

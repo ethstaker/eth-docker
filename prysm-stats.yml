@@ -1,10 +1,20 @@
 # Send client stats to beaconcha.in service using client-metrics-exporter
+#
+x-logging: &logging
+  logging:
+    driver: ${LOG_DRIVER}
+    options:
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
+
 services:
   client-stats:
     restart: "unless-stopped"
     image: gobitfly/eth2-client-metrics-exporter:latest
     volumes:
       - /etc/localtime:/etc/localtime:ro
+    <<: *logging
     entrypoint:
       - /bin/eth2-client-metrics-exporter
       - --beaconnode.type

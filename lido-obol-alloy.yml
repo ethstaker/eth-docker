@@ -1,3 +1,11 @@
+x-logging: &logging
+  logging:
+    driver: ${LOG_DRIVER}
+    options:
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
+
 services:
   alloy-obol:
     image: grafana/alloy:latest
@@ -11,6 +19,7 @@ services:
       - ./alloy-obol:/etc/alloy
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-obol-data:/var/lib/alloy
+    <<: *logging
     entrypoint: /etc/alloy/docker-entrypoint.sh
     command:
       - alloy

@@ -4,15 +4,14 @@
 #
 # This file is called grafana-cloud.yml, as adding a remote write to Grafana Cloud is a
 # common use case. It properly is a Grafana Alloy without local Grafana, or a local metrics/log store
-
-
+#
 x-logging: &logging
   logging:
-    driver: json-file
+    driver: ${LOG_DRIVER}
     options:
-      max-size: 100m
-      max-file: "3"
-      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
 
 services:
   ethereum-metrics-exporter:

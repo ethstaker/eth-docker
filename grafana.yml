@@ -1,14 +1,14 @@
 # Use ./alloy/write-loki.yml and ./alloy/write-prometheus.yml to control
 # where logs and metrics are being sent
 # ./alloy can have additional configuration files such as custom scrape targets
-
+#
 x-logging: &logging
   logging:
-    driver: json-file
+    driver: ${LOG_DRIVER}
     options:
-      max-size: 100m
-      max-file: "3"
-      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
 
 services:
   # Adjust permissions. Can be removed after Glamsterdam

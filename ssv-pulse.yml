@@ -1,16 +1,17 @@
 x-logging: &logging
   logging:
-    driver: json-file
+    driver: ${LOG_DRIVER}
     options:
-      max-size: 100m
-      max-file: "3"
-      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
 
 services:
   ssv-pulse:
     image: ghcr.io/ssvlabs/ssv-pulse:latest
     pull_policy: always
     restart: no
+    <<: *logging
     command:
       - 'benchmark'
       - '--consensus-addr=${CL_NODE}'

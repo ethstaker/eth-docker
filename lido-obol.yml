@@ -1,10 +1,10 @@
 x-logging: &logging
   logging:
-    driver: json-file
+    driver: ${LOG_DRIVER}
     options:
-      max-size: 100m
-      max-file: "3"
-      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
 
 services:
   charon:
@@ -12,7 +12,6 @@ services:
     image: obolnetwork/charon:${CHARON_TAG:-latest}
     volumes:
       - .eth:/opt/charon/.charon
-    <<: *logging
     environment:
       - CHARON_BEACON_NODE_ENDPOINTS=${OBOL_CHARON_CL_ENDPOINTS:-http://consensus:5052}
       - CHARON_LOG_LEVEL=${OBOL_LOG_LEVEL:-debug}
@@ -31,6 +30,7 @@ services:
       - ${OBOL_P2P_PORT:-3610}:${OBOL_P2P_PORT:-3610}/tcp  # P2P TCP libp2p
     healthcheck:
       test: wget -qO- http://localhost:3620/readyz
+    <<: *logging
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics
