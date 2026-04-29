@@ -5167,14 +5167,19 @@ __query_mev_factor() {
     return
   fi
 
-  if [[ "${__cannot_sudo}" -eq 0 ]] && ! dpkg-query -W -f='${Status}' speedtest-cli 2>/dev/null | grep -q "ok installed"; then
-    echo "Installing speedtest-cli"
-    ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y --no-install-recommends speedtest-cli
+  if ! dpkg-query -W -f='${Status}' speedtest-cli 2>/dev/null | grep -q "ok installed" || ! dpkg-query -W -f='${Status}' jq 2>/dev/null | grep -q "ok installed"; then
+    if [[ "${__cannot_sudo}" -eq 0 ]]; then
+      echo "Installing speedtest-cli and jq"
+      if ! { ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y --no-install-recommends speedtest-cli jq; }; then
+        echo "Cannot install speedtest-cli and jq, skipping MEV Build Factor query"
+        return
+      fi
+    else
+      echo "Cannot install speedtest-cli and jq, skipping MEV Build Factor query"
+      return
+    fi
   fi
-  if ! dpkg-query -W -f='${Status}' speedtest-cli 2>/dev/null | grep -q "ok installed"; then
-    echo "Cannot install \"speedtest-cli\", skipping MEV Build Factor query"
-    return
-  fi
+
   echo "Running speedtest"
   set +e
   speed_json=$(speedtest-cli --secure --json)
