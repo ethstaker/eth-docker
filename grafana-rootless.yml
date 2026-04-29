@@ -1,6 +1,6 @@
 # Grafana for use with rootless docker
 # Omits node-exporter and cadvisor. If you want them, run them on the host, then scrape
-# them with custom config in ./alloy/config.d
+# them with custom config in ./alloy/
 x-logging: &logging
   logging:
     driver: json-file
@@ -100,7 +100,6 @@ services:
       - ./alloy:/etc/alloy
       - /etc/localtime:/etc/localtime:ro
       - ${DOCKER_SOCK:-${XDG_RUNTIME_DIR%/}/docker.sock}:/var/run/docker.sock:ro
-      - ${DOCKER_ROOT:-${HOME}/.local/share/docker}/containers:/var/lib/docker/containers:ro
     extra_hosts:  # So we can scrape targets on the host
       - "host.docker.internal:host-gateway"
     entrypoint:

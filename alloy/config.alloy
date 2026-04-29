@@ -1,5 +1,5 @@
 // This file is not meant to be edited
-// Create your own config.d/<something.alloy> file instead for additional config
+// Create your own ./<something.alloy> file instead for additional config
 
 // Discover docker containers to collect logs and metrics from
 discovery.docker "docker_containers" {

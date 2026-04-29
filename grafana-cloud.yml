@@ -1,6 +1,6 @@
 # Use ./alloy/write-loki.yml and ./alloy/write-prometheus.yml to control
 # where logs and metrics are being sent
-# ./alloy/config.d can have additional configuration files such as custom scrape targets
+# ./alloy can have additional configuration files such as custom scrape targets
 #
 # This file is called grafana-cloud.yml, as adding a remote write to Grafana Cloud is a
 # common use case. It properly is a Grafana Alloy without local Grafana, or a local metrics/log store
@@ -125,7 +125,6 @@ services:
       - ./alloy:/etc/alloy
       - /etc/localtime:/etc/localtime:ro
       - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro
-      - ${DOCKER_ROOT:-/var/lib/docker}/containers:/var/lib/docker/containers:ro,rslave
     extra_hosts:  # So we can scrape targets on the host
       - "host.docker.internal:host-gateway"
     entrypoint:
