@@ -17,7 +17,7 @@ jobs:
       matrix:
         client:
           - env: |-
-              COMPOSE_FILE=deposit-cli.yml
+              CORE_FILES=deposit-cli.yml
               DEPCLI_DOCKERFILE=Dockerfile.source
             test_cl: false
             test_el: false
@@ -29,143 +29,141 @@ jobs:
             test_el: false
             test_vc: false
           - env: |-
-              COMPOSE_FILE=nimbus-vp.yml
+              CORE_FILES=nimbus-vp.yml
               NIMVP_DOCKERFILE=Dockerfile.source
             test_cl: false
             test_el: false
             test_vc: false
           - env: |-
-              COMPOSE_FILE=prysm.yml:geth.yml:mev-boost.yml
+              CORE_FILES=prysm.yml:geth.yml:mev-boost.yml
               MEV_DOCKERFILE=Dockerfile.source
-              CL_NODE=consensus:4000
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=teku.yml:besu.yml
+              CORE_FILES=teku.yml:besu.yml
               BESU_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=lodestar.yml:erigon.yml
+              CORE_FILES=lodestar.yml:erigon.yml
               ERIGON_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=caplin.yml:erigon.yml:lighthouse-vc-only.yml
+              CORE_FILES=caplin.yml:erigon.yml:lighthouse-vc-only.yml
               ERIGON_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: false
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=lighthouse.yml:ethrex.yml
+              CORE_FILES=lighthouse.yml:ethrex.yml
               ETHREX_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=nimbus.yml:nethermind.yml
+              CORE_FILES=nimbus.yml:nethermind.yml
               NM_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=nimbus.yml:nimbus-el.yml
+              CORE_FILES=nimbus.yml:nimbus-el.yml
               NIMEL_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=prysm.yml:geth.yml
+              CORE_FILES=prysm.yml:geth.yml
               GETH_DOCKERFILE=Dockerfile.source
-              CL_NODE=consensus:4000
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=lighthouse.yml:reth.yml
+              CORE_FILES=lighthouse.yml:reth.yml
               RETH_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=grandine-allin1.yml:reth.yml
+              CORE_FILES=grandine-allin1.yml:reth.yml
               GRANDINE_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: false
           - env: |-
-              COMPOSE_FILE=grandine-cl-only.yml:lighthouse-vc-only.yml:reth.yml
+              CORE_FILES=grandine-cl-only.yml:lighthouse-vc-only.yml:reth.yml
               GRANDINE_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=lighthouse.yml:reth.yml
+              CORE_FILES=lighthouse.yml:reth.yml
               LH_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             vc-env: |-
-              COMPOSE_FILE=lighthouse-cl-only.yml:lighthouse-vc-only.yml:reth.yml
+              CORE_FILES=lighthouse-cl-only.yml:lighthouse-vc-only.yml:reth.yml
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=lodestar.yml:erigon.yml
+              CORE_FILES=lodestar.yml:erigon.yml
               LS_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             vc-env: |-
-              COMPOSE_FILE=lodestar-cl-only.yml:lodestar-vc-only.yml:erigon.yml
+              CORE_FILES=lodestar-cl-only.yml:lodestar-vc-only.yml:erigon.yml
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=nimbus.yml:nethermind.yml
+              CORE_FILES=nimbus.yml:nethermind.yml
               NIM_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             vc-env: |-
-              COMPOSE_FILE=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml
+              CORE_FILES=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=nimbus.yml:nethermind.yml
+              CORE_FILES=nimbus.yml:nethermind.yml
               NIM_DOCKERFILE=Dockerfile.sourcegnosis
               NETWORK=gnosis
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             vc-env: |-
-              COMPOSE_FILE=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml
+              CORE_FILES=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=prysm.yml:geth.yml
+              CORE_FILES=prysm.yml:geth.yml
               PRYSM_DOCKERFILE=Dockerfile.source
-              CL_NODE=consensus:4000
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             vc-env: |-
-              COMPOSE_FILE=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml
+              CORE_FILES=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml
             test_cl: true
             test_el: true
             test_vc: true
           - env: |-
-              COMPOSE_FILE=teku.yml:besu.yml
+              CORE_FILES=teku.yml:besu.yml
               TEKU_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             vc-env: |-
-              COMPOSE_FILE=teku-cl-only.yml:teku-vc-only.yml:besu.yml
+              CL_NODE=consensus:4000
+              CORE_FILES=teku-cl-only.yml:teku-vc-only.yml:besu.yml
             test_cl: true
             test_el: true
             test_vc: true

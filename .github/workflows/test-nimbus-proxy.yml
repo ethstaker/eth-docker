@@ -35,8 +35,8 @@ jobs:
           NETWORK=mainnet
           var=NETWORK
           set_value_in_env
-          COMPOSE_FILE=nimbus-vp.yml
-          var=COMPOSE_FILE
+          CORE_FILES=nimbus-vp.yml
+          var=CORE_FILES
           set_value_in_env
           RPC_URL=wss://ethereum-rpc.publicnode.com
           var=RPC_URL
@@ -50,3 +50,5 @@ jobs:
         run: sleep 30
       - name: Test Nimbus Verified Proxy
         run: ./.github/check-service.sh rpc-proxy
+      - name: Test version
+        run: ./ethd version

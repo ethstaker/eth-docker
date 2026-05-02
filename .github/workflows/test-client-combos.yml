@@ -51,7 +51,7 @@ jobs:
           - label1: test-vero
             label2: na
             env: |-
-              COMPOSE_FILE=nimbus-cl-only.yml:vero-vc-only.yml:nethermind.yml:web3signer.yml
+              CORE_FILES=nimbus-cl-only.yml:vero-vc-only.yml:nethermind.yml:web3signer.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
               WEB3SIGNER=true
             test_cl: true
@@ -60,7 +60,7 @@ jobs:
           - label1: test-caplin
             label2: na
             env: |-
-              COMPOSE_FILE=caplin.yml:erigon.yml:lodestar-vc-only.yml:mev-boost.yml
+              CORE_FILES=caplin.yml:erigon.yml:lodestar-vc-only.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
               CL_NODE=http://execution:5052
               EL_EXTRAS=--torrent.download.rate 1mb
@@ -70,7 +70,7 @@ jobs:
           - label1: test-grandine
             label2: test-nimbus-el
             env: |-
-              COMPOSE_FILE=grandine-allin1.yml:nimbus-el.yml:mev-boost.yml
+              CORE_FILES=grandine-allin1.yml:nimbus-el.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -78,7 +78,7 @@ jobs:
           - label1: test-grandine
             label2: na
             env: |-
-              COMPOSE_FILE=grandine-cl-only.yml:lighthouse-vc-only.yml:nimbus-el.yml:mev-boost.yml
+              CORE_FILES=grandine-cl-only.yml:lighthouse-vc-only.yml:nimbus-el.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -86,7 +86,7 @@ jobs:
           - label1: test-grandine-plugin
             label2: na
             env: |-
-              COMPOSE_FILE=grandine-plugin.yml:lighthouse-vc-only.yml:nethermind.yml:mev-boost.yml
+              CORE_FILES=grandine-plugin.yml:lighthouse-vc-only.yml:nethermind.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
               NM_DOCKER_REPO=sifrai/grandine
               NM_DOCKER_TAG=unstable-nethermind
@@ -96,7 +96,7 @@ jobs:
           - label1: test-grandine-plugin
             label2: na
             env: |-
-              COMPOSE_FILE=grandine-plugin-allin1.yml:nethermind.yml:mev-boost.yml
+              CORE_FILES=grandine-plugin-allin1.yml:nethermind.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
               NM_DOCKER_REPO=sifrai/grandine
               NM_DOCKER_TAG=unstable-nethermind
@@ -106,7 +106,7 @@ jobs:
           - label1: test-ethrex
             label2: na
             env: |-
-              COMPOSE_FILE=lighthouse.yml:ethrex.yml:mev-boost.yml
+              CORE_FILES=lighthouse.yml:ethrex.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -114,7 +114,7 @@ jobs:
           - label1: test-lighthouse
             label2: test-reth
             env: |-
-              COMPOSE_FILE=lighthouse.yml:reth.yml:mev-boost.yml
+              CORE_FILES=lighthouse.yml:reth.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -122,7 +122,7 @@ jobs:
           - label1: test-lighthouse
             label2: na
             env: |-
-              COMPOSE_FILE=lighthouse-cl-only.yml:lighthouse-vc-only.yml:reth.yml:mev-boost.yml
+              CORE_FILES=lighthouse-cl-only.yml:lighthouse-vc-only.yml:reth.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -130,7 +130,7 @@ jobs:
           - label1: test-lodestar
             label2: test-erigon
             env: |-
-              COMPOSE_FILE=lodestar.yml:erigon.yml:mev-boost.yml
+              CORE_FILES=lodestar.yml:erigon.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -138,7 +138,7 @@ jobs:
           - label1: test-lodestar
             label2: na
             env: |-
-              COMPOSE_FILE=lodestar-cl-only.yml:lodestar-vc-only.yml:erigon.yml:mev-boost.yml
+              CORE_FILES=lodestar-cl-only.yml:lodestar-vc-only.yml:erigon.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -146,7 +146,7 @@ jobs:
           - label1: test-nimbus
             label2: test-nethermind
             env: |-
-              COMPOSE_FILE=nimbus.yml:nethermind.yml:mev-boost.yml
+              CORE_FILES=nimbus.yml:nethermind.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -154,7 +154,7 @@ jobs:
           - label1: test-nimbus
             label2: na
             env: |-
-              COMPOSE_FILE=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml:mev-boost.yml
+              CORE_FILES=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -162,8 +162,7 @@ jobs:
           - label1: test-prysm
             label2: test-geth
             env: |-
-              COMPOSE_FILE=prysm.yml:geth.yml:mev-boost.yml
-              CL_NODE=consensus:4000
+              CORE_FILES=prysm.yml:geth.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -171,7 +170,7 @@ jobs:
           - label1: test-prysm
             label2: na
             env: |-
-              COMPOSE_FILE=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml:mev-boost.yml
+              CORE_FILES=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml:mev-boost.yml
               CL_NODE=consensus:4000
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
@@ -180,7 +179,7 @@ jobs:
           - label1: test-teku
             label2: test-besu
             env: |-
-              COMPOSE_FILE=teku.yml:besu.yml:mev-boost.yml
+              CORE_FILES=teku.yml:besu.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -188,7 +187,7 @@ jobs:
           - label1: test-teku
             label2: na
             env: |-
-              COMPOSE_FILE=teku-cl-only.yml:teku-vc-only.yml:besu.yml:mev-boost.yml
+              CORE_FILES=teku-cl-only.yml:teku-vc-only.yml:besu.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true

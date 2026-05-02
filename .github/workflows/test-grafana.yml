@@ -32,8 +32,11 @@ jobs:
       - name: Set Lighthouse/Geth/Grafana
         run: |
           source ./.github/helper.sh
-          COMPOSE_FILE=lighthouse.yml:geth.yml:grafana.yml
-          var=COMPOSE_FILE
+          CORE_FILES=lighthouse.yml:geth.yml:grafana.yml
+          var=CORE_FILES
+          set_value_in_env
+          FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+          var=FEE_RECIPIENT
           set_value_in_env
       - name: Start Lighthouse/Geth/Grafana
         run: ./ethd up
@@ -57,3 +60,5 @@ jobs:
         run: ./.github/check-service.sh loki
       - name: Test Grafana
         run: ./.github/check-service.sh grafana
+      - name: Test version
+        run: ./ethd version

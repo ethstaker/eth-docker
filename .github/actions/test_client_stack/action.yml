@@ -33,3 +33,6 @@ runs:
       if: ${{ inputs.test_el == 'true' }}
       run: ./.github/check-service.sh execution
       shell: bash
+    - name: Test version
+      run: ./ethd version
+      shell: bash
