@@ -166,15 +166,15 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
     echo "Creating password for Grandine key wallet"
     head -c 32 /dev/urandom | sha256sum | cut -d' ' -f1 > /var/lib/grandine/wallet-password.txt
   fi
-  __grandine="--grandine-disableupnp --grandine-datadir /var/lib/grandine --grandine-httpaddress 0.0.0.0 --grandine-httpport ${CL_REST_PORT:-5052}"
-  __grandine+=" --grandine-httpallowedorigins=* --grandine-listenaddress 0.0.0.0 --grandine-libp2pport ${CL_P2P_PORT:-9000} --grandine-discoveryport ${CL_P2P_PORT:-9000}"
-  __grandine+=" --grandine-quicport ${CL_QUIC_PORT:-9001} ${CL_MAX_PEER_COUNT:+--grandine-targetpeers} ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}"
-  __grandine+=" --grandine-metrics --grandine-metricsaddress 0.0.0.0 --grandine-metricsport 8008 --grandine-suggestedfeerecipient ${FEE_RECIPIENT}"
-  __grandine+=" --grandine-trackliveness"
+  __grandine="--grandine-disable-upnp --grandine-data-dir /var/lib/grandine --grandine-http-address 0.0.0.0 --grandine-http-port ${CL_REST_PORT:-5052}"
+  __grandine+=" --grandine-http-allowed-origins=* --grandine-listen-address 0.0.0.0 --grandine-libp2p-port ${CL_P2P_PORT:-9000} --grandine-discovery-port ${CL_P2P_PORT:-9000}"
+  __grandine+=" --grandine-quic-port ${CL_QUIC_PORT:-9001} ${CL_MAX_PEER_COUNT:+--grandine-target-peers} ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}"
+  __grandine+=" --grandine-metrics --grandine-metrics-address 0.0.0.0 --grandine-metrics-port 8008 --grandine-suggested-fee-recipient ${FEE_RECIPIENT}"
+  __grandine+=" --grandine-track-liveness"
 
   if [[ "${EMBEDDED_VC}" = "true" ]]; then
-    __grandine+=" --grandine-keystorestoragepasswordfile /var/lib/grandine/wallet-password.txt  --grandine-enablevalidatorapi"
-    __grandine+=" --grandine-validatorapiaddress 0.0.0.0 --grandine-validatorapiport ${KEY_API_PORT:-7500} --grandine-validatorapiallowedorigins=*"
+    __grandine+=" --grandine-keystore-storage-password-file /var/lib/grandine/wallet-password.txt  --grandine-enable-validator-api"
+    __grandine+=" --grandine-validator-api-address 0.0.0.0 --grandine-validator-api-port ${KEY_API_PORT:-7500} --grandine-validator-api-allowed-origins=*"
   fi
 
   if [[ "${NETWORK}" =~ ^https?:// ]]; then
@@ -196,7 +196,7 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
     fi
     bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/grandine/testnet/${config_dir}/bootstrap_nodes.yaml" | paste -sd ",")"
     set +e
-    __grandine+=" --grandine-configurationdirectory=/var/lib/grandine/testnet/${config_dir} --grandine-bootnodes=${bootnodes}"
+    __grandine+=" --grandine-configuration-directory=/var/lib/grandine/testnet/${config_dir} --grandine-boot-nodes=${bootnodes}"
   else
     __grandine+=" --grandine-network=${NETWORK}"
   fi
@@ -204,15 +204,15 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
   case "${CL_NODE_TYPE}" in
     archive)
       echo "Grandine archive node without pruning"
-      __grandine+=" --grandine-backsync --grandine-archivestorage"
+      __grandine+=" --grandine-back-sync --grandine-archive-storage"
       ;;
     pruned)
       ;;
     aggressive-pruned)
-      __grandine+=" --grandine-prunestorage"
+      __grandine+=" --grandine-prune-storage"
       ;;
     full)
-      __grandine+=" --grandine-backsync"
+      __grandine+=" --grandine-back-sync"
       ;;
     *)
       echo "ERROR: The node type ${CL_NODE_TYPE} is not known to Eth Docker's Grandine implementation."
@@ -223,19 +223,19 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
 
 # Check whether we should rapid sync
   if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
-    __grandine+=" --grandine-checkpointsyncurl=${CHECKPOINT_SYNC_URL}"
+    __grandine+=" --grandine-checkpoint-sync-url=${CHECKPOINT_SYNC_URL}"
     echo "Grandine checkpoint sync enabled"
   fi
 
 # Check whether we should send stats to beaconcha.in
   if [[ -n "${BEACON_STATS_API}" ]]; then
-    __grandine+=" --grandine-remotemetricsurl https://beaconcha.in/api/v1/client/metrics?apikey=${BEACON_STATS_API}&machine=${BEACON_STATS_MACHINE}"
+    __grandine+=" --grandine-remote-metrics-url https://beaconcha.in/api/v1/client/metrics?apikey=${BEACON_STATS_API}&machine=${BEACON_STATS_MACHINE}"
     echo "Grandine beacon stats API enabled"
   fi
 
 # Check whether we should use MEV Boost
   if [[ "${MEV_BOOST}" = "true" ]]; then
-    __mev_boost=" --grandine-builderurl ${MEV_NODE:-http://mev-boost:18550}"
+    __mev_boost=" --grandine-builder-url ${MEV_NODE:-http://mev-boost:18550}"
     echo "Grandine MEV Boost enabled"
     if [[ "${EMBEDDED_VC}" = "true" ]]; then
       build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
@@ -247,16 +247,16 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
           echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
           ;;
         [1-9]|[1-9][0-9])
-          __mev_factor=" --grandine-defaultbuilderboostfactor ${build_factor}"
+          __mev_factor=" --grandine-default-builder-boost-factor ${build_factor}"
           echo "Enabled MEV Build Factor of ${build_factor}"
           ;;
         100)
-          __mev_factor=" --grandine-defaultbuilderboostfactor 18446744073709551615"
+          __mev_factor=" --grandine-default-builder-boost-factor 18446744073709551615"
           echo "Always prefer MEV builder blocks, MEV_BUILD_FACTOR 100"
           ;;
         "")
           __mev_factor=""
-          echo "Use default --grandine-defaultbuilderboostfactor"
+          echo "Use default --grandine-default-builder-boost-factor"
           ;;
         *)
           __mev_factor=""
@@ -270,19 +270,19 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
 
   if [[ "${IPV6}" = "true" ]]; then
     echo "Configuring Grandine to listen on IPv6 ports"
-    __grandine+=" --grandine-listenaddressipv6 :: --grandine-libp2pportipv6 ${CL_P2P_PORT:-9000} --grandine-discoveryportipv6 ${CL_P2P_PORT:-9000} \
-  --grandine-quicportipv6 ${CL_QUIC_PORT:-9001}"
+    __grandine+=" --grandine-listen-address-ipv6 :: --grandine-libp2p-port-ipv6 ${CL_P2P_PORT:-9000} --grandine-discovery-port-ipv6 ${CL_P2P_PORT:-9000} \
+  --grandine-quic-port-ipv6 ${CL_QUIC_PORT:-9001}"
   fi
 
 # Check whether we should enable doppelganger protection
   if [[ "${EMBEDDED_VC}" = "true" && "${DOPPELGANGER}" = "true" ]]; then
-    __grandine+=" --grandine-detectdoppelgangers"
+    __grandine+=" --grandine-detect-doppelgangers"
     echo "Grandine Doppelganger protection enabled"
   fi
 
 # Web3signer URL
   if [[ "${EMBEDDED_VC}" = "true" && "${WEB3SIGNER}" = "true" ]]; then
-    __grandine+=" --grandine-web3signerurls ${W3S_NODE}"
+    __grandine+=" --grandine-web3signer-urls ${W3S_NODE}"
     while true; do
       if curl -s -m 5 "${W3S_NODE}" &> /dev/null; then
           echo "web3signer is up, starting Grandine"
@@ -300,7 +300,7 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
 
 # Traces
   if [[ "${COMPOSE_FILE}" =~ (grafana\.yml|grafana-rootless\.yml) ]]; then
-    __grandine+=" --grandine-telemetrymetricsurl http://tempo:4317 --grandine-telemetryservicename grandine --grandine-telemetrylevel ${LOG_LEVEL:-info}"
+    __grandine+=" --grandine-telemetry-metrics-url http://tempo:4317 --grandine-telemetry-service-name grandine --grandine-telemetry-level ${LOG_LEVEL:-info}"
   # These may become default in future. Here so Grandine doesn't murder itself in the meantime
     export OTEL_TRACES_SAMPLER=parentbased_traceidratio
     export OTEL_TRACES_SAMPLER_ARG=0.01
