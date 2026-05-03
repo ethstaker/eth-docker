@@ -16,8 +16,8 @@ services:
       dockerfile: ${NM_DOCKERFILE}
       args:
         - >-
-          BUILD_TARGET=${NM_SRC_BUILD_TARGET:-'$(git tag --sort=-committerdate |
-          grep -E "^[0-9]+[.][0-9]+[.][0-9]+$" | head -1)'}
+          BUILD_TARGET=${NM_SRC_BUILD_TARGET:-$$(git tag --sort=-committerdate |
+          grep -E "^[0-9]+[.][0-9]+[.][0-9]+$$" | head -1)}
         - SRC_REPO=${NM_SRC_REPO:-https://github.com/NethermindEth/nethermind}
         - DOCKER_TAG=${NM_DOCKER_TAG:-latest}
         - DOCKER_REPO=${NM_DOCKER_REPO:-nethermind/nethermind}

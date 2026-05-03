@@ -10,7 +10,7 @@ x-build: &nimbus-build
   context: ./nimbus
   dockerfile: ${NIM_DOCKERFILE}
   args:
-    - BUILD_TARGET=${NIM_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+    - BUILD_TARGET=${NIM_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
     - SRC_REPO=${NIM_SRC_REPO:-https://github.com/status-im/nimbus-eth2}
     - DOCKER_TAG=${NIM_DOCKER_TAG:-multiarch-latest}
     - DOCKER_VC_TAG=${NIM_DOCKER_VC_TAG:-multiarch-latest}

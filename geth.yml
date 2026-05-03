@@ -13,7 +13,7 @@ services:
       context: ./geth
       dockerfile: ${GETH_DOCKERFILE}
       args:
-        - BUILD_TARGET=${GETH_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+        - BUILD_TARGET=${GETH_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
         - SRC_REPO=${GETH_SRC_REPO:-https://github.com/ethereum/go-ethereum}
         - DOCKER_TAG=${GETH_DOCKER_TAG:-stable}
         - DOCKER_REPO=${GETH_DOCKER_REPO:-ethereum/client-go}

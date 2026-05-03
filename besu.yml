@@ -14,7 +14,7 @@ services:
       context: ./besu
       dockerfile: ${BESU_DOCKERFILE}
       args:
-        - BUILD_TARGET=${BESU_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+        - BUILD_TARGET=${BESU_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
         - SRC_REPO=${BESU_SRC_REPO:-https://github.com/hyperledger/besu}
         - DOCKER_TAG=${BESU_DOCKER_TAG:-latest}
         - DOCKER_REPO=${BESU_DOCKER_REPO:-hyperledger/besu}

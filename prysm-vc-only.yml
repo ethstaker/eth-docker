@@ -10,7 +10,7 @@ x-build: &prysm-build
   context: ./prysm
   dockerfile: ${PRYSM_DOCKERFILE}
   args:
-    - BUILD_TARGET=${PRYSM_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+    - BUILD_TARGET=${PRYSM_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
     - SRC_REPO=${PRYSM_SRC_REPO:-https://github.com/offchainlabs/prysm}
     - DOCKER_TAG=${PRYSM_DOCKER_TAG:-stable}
     - DOCKER_VC_TAG=${PRYSM_DOCKER_VC_TAG:-stable}

@@ -10,7 +10,7 @@ x-build: &ls-build
   context: ./lodestar
   dockerfile: ${LS_DOCKERFILE}
   args:
-    - BUILD_TARGET=${LS_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+    - BUILD_TARGET=${LS_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
     - SRC_REPO=${LS_SRC_REPO:-https://github.com/ChainSafe/lodestar}
     - DOCKER_TAG=${LS_DOCKER_TAG:-latest}
     - DOCKER_REPO=${LS_DOCKER_REPO:-chainsafe/lodestar}

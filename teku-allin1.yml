@@ -11,7 +11,7 @@ x-build: &teku-build
   context: ./teku
   dockerfile: ${TEKU_DOCKERFILE}
   args:
-    - BUILD_TARGET=${TEKU_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+    - BUILD_TARGET=${TEKU_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
     - SRC_REPO=${TEKU_SRC_REPO:-https://github.com/ConsenSys/teku}
     - DOCKER_TAG=${TEKU_DOCKER_TAG:-latest}
     - DOCKER_REPO=${TEKU_DOCKER_REPO:-consensys/teku}

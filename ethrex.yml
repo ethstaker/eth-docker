@@ -13,7 +13,7 @@ services:
       context: ./ethrex
       dockerfile: ${ETHREX_DOCKERFILE}
       args:
-        - BUILD_TARGET=${ETHREX_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+        - BUILD_TARGET=${ETHREX_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
         - SRC_REPO=${ETHREX_SRC_REPO:-https://github.com/lambdaclass/ethrex}
         - DOCKER_TAG=${ETHREX_DOCKER_TAG:-latest}
         - DOCKER_REPO=${ETHREX_DOCKER_REPO:-ghcr.io/lambdaclass/ethrex}

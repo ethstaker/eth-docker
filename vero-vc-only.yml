@@ -10,7 +10,7 @@ x-build: &vero-build
   context: ./vero
   dockerfile: ${VERO_DOCKERFILE}
   args:
-    - BUILD_TARGET=${VERO_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+    - BUILD_TARGET=${VERO_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
     - SRC_REPO=${VERO_SRC_REPO:-https://github.com/serenita-org/vero}
     - DOCKER_TAG=${VERO_DOCKER_TAG:-latest}
     - DOCKER_REPO=${VERO_DOCKER_REPO:-ghcr.io/serenita-org/vero}

@@ -13,7 +13,7 @@ services:
       context: ./erigon
       dockerfile: ${ERIGON_DOCKERFILE}
       args:
-        - BUILD_TARGET=${ERIGON_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+        - BUILD_TARGET=${ERIGON_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
         - SRC_REPO=${ERIGON_SRC_REPO:-https://github.com/ledgerwatch/erigon}
         - DOCKER_TAG=${ERIGON_DOCKER_TAG:-latest}
         - DOCKER_REPO=${ERIGON_DOCKER_REPO:-erigontech/erigon}

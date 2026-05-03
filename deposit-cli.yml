@@ -5,7 +5,7 @@ services:
       context: ./ethstaker-deposit-cli
       dockerfile: ${DEPCLI_DOCKERFILE}
       args:
-        - BUILD_TARGET=${DEPCLI_SRC_BUILD_TARGET:-'$(git describe --tags $(git rev-list --tags --max-count=1))'}
+        - BUILD_TARGET=${DEPCLI_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
         - SRC_REPO=${DEPCLI_SRC_REPO:-https://github.com/ethstaker/ethstaker-deposit-cli}
         - DOCKER_TAG=${DEPCLI_DOCKER_TAG:-latest}
         - DOCKER_REPO=${DEPCLI_DOCKER_REPO:-ghcr.io/ethstaker/ethstaker-deposit-cli}
