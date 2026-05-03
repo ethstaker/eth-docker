@@ -61,6 +61,9 @@ fi
 # Check whether we should rapid sync
 if [[ -n "${CHECKPOINT_SYNC_URL:+x}" ]]; then
   __checkpoint_sync="--checkpoint-sync-url=${CHECKPOINT_SYNC_URL} --enable-backfill"
+  if [[ "${NODE_TYPE}" = "archive" ]]; then
+    __checkpoint_sync+=" --backfill-oldest-slot 0"
+  fi
   echo "Checkpoint sync enabled"
 else
   __checkpoint_sync=""
