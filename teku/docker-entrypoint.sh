@@ -203,7 +203,7 @@ if [[ "${IPV6}" = "true" ]]; then
   if [[ "${public_v4}" =~ ${ipv4_pattern} ]]; then
     valid_v4=1
   fi
-  if [[ "a{$public_v6}" =~ ${ipv6_pattern} ]]; then
+  if [[ "${public_v6}" =~ ${ipv6_pattern} ]]; then
     if [[ "${valid_v4}" -eq 1 ]]; then
       __ipv6+=" --p2p-advertised-ips ${public_v4},${public_v6}"
     else
