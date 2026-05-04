@@ -929,7 +929,9 @@ install() {
     if [[ ! -f ./.motd ]]; then  # Also in __prep_conffiles, be doubly sure
       ${__as_owner} cp ./.motd.sample ./.motd
     fi
-    ${__as_owner} sed -i'.original' "s|~/eth-docker|${project_dir//&/\\&}|" ./.motd
+    local escaped="${project_dir//\\/\\\\}"
+    escaped="${escaped//&/\\&}"
+    ${__as_owner} sed -i'.original' $'s\x01~/eth-docker\x01'"${escaped}"$'\x01' ./.motd
     ${__as_owner} rm -f ./.motd.original
     echo "Go ahead and 'source ~/.profile' or log out and back in."
     echo "After that, you can use the command 'ethd'."
