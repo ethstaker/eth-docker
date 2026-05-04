@@ -948,8 +948,8 @@ and secrets directories into .eth/validator_keys instead."
 # Using file descriptor 3 so this doesn't conflict with the "different passwords" read
 # Could also use dialog, but would need to make sure it exists
   while IFS= read -r -u 3 keyfile; do
-    (( i+=1 ))
-    [[ -f "${keyfile}" ]] || continue
+    (( i+=1 ))  # Deliberately up here: Users can see skipped files in the sequence, and it always ends at N/N
+    [[ -f "${keyfile}" ]] || { (( skipped+=1 )); continue; }
     keydir=$(dirname "${keyfile}")
     __pubkey=0x$(jq -r '.pubkey' "${keyfile}")
     if [[ "${__pubkey}" = "0xnull" ]]; then
@@ -1035,7 +1035,7 @@ and secrets directories into .eth/validator_keys instead."
       jq --arg keystore_value "${keystore_json}" --arg password_value "${password}" --slurpfile protect_value /tmp/protect.json '. | .keystores += [$keystore_value] | .passwords += [$password_value] | . += {slashing_protection: $protect_value[0]}' <<< '{}' >/tmp/apidata.txt
     fi
 
-    echo "Importing key ${i} of ${num_files}"
+    echo "Processing file ${i} of ${num_files} for key import. ${skipped} skipped files so far."
     if [[ "${WEB3SIGNER}" = "true" ]]; then
       __token=NIL
       vc_api_container=${__api_container}
