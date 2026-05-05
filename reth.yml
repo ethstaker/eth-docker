@@ -31,7 +31,7 @@ services:
       - STATIC_DIR=${ANCIENT_DIR}
       - COMPOSE_FILE=${COMPOSE_FILE}
       - IPV6=${IPV6:-false}
-      - EL_P2P_PORT_2=${EL_P2P_PORT_2:-30304}
+      - EL_P2P_PORT=${EL_P2P_PORT:-30303}
       - RETH_SNAPSHOT=${RETH_SNAPSHOT:-}
       # Make this RUST_LOG=${LOG_LEVEL:-info},engine=trace when requiring deep debug
       # RPC debug can be done with jsonrpsee=trace or jsonrpsee::target=trace for a specific target
@@ -45,7 +45,6 @@ services:
     ports:
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/tcp
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/udp
-      - ${HOST_IP:-}:${EL_P2P_PORT_2:-30304}:${EL_P2P_PORT_2:-30304}/udp
     networks:
       default:
         aliases:
@@ -65,9 +64,8 @@ services:
       - ${EL_P2P_PORT:-30303}
       - --discovery.port
       - ${EL_P2P_PORT:-30303}
-      - --enable-discv5-discovery
       - --discovery.v5.port
-      - ${EL_P2P_PORT_2:-30304}
+      - ${EL_P2P_PORT:-30303}
       - --nat
       - publicip
       - --http

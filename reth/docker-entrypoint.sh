@@ -208,7 +208,7 @@ fi
 # IPV6
 if [[ "${IPV6:-false}" = "true" ]]; then
   echo "Configuring Reth's discv5 for IPv6 advertisements"
-  __ipv6="--addr :: --discovery.v5.addr 0.0.0.0 --discovery.v5.port.ipv6 ${EL_P2P_PORT_2}"
+  __ipv6="--addr :: --discovery.v5.addr 0.0.0.0 --discovery.v5.port.ipv6 ${EL_P2P_PORT}"
 else
   __ipv6=""
 fi
