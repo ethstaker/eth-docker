@@ -4,15 +4,15 @@
 #
 #    pip-compile --generate-hashes --output-file=requirements.txt requirements.in
 #
-boto3==1.42.97 \
-    --hash=sha256:2833dbeda3670ea610ad48dff7d27cdc829dbbfcdfbc6b750b673948e949b6f0 \
-    --hash=sha256:2833dbeda3670ea610ad48dff7d27cdc829dbbfcdfbc6b750b673948e949b6f0 \
-    --hash=sha256:966e49f0510af9a64057a902b7df53d4348c447de0d3df4cc855dfd85e058fcd \
-    --hash=sha256:966e49f0510af9a64057a902b7df53d4348c447de0d3df4cc855dfd85e058fcd
+boto3==1.43.3 \
+    --hash=sha256:7c7777862ffc898f05efa566032bbabfe226dbb810e35ec11125817f128bc5c5 \
+    --hash=sha256:7c7777862ffc898f05efa566032bbabfe226dbb810e35ec11125817f128bc5c5 \
+    --hash=sha256:fb9fe51849ef2a78198d582756fc06f14f7de27f73e0fa90275d6aa4171eb4d0 \
+    --hash=sha256:fb9fe51849ef2a78198d582756fc06f14f7de27f73e0fa90275d6aa4171eb4d0
     # via -r app/requirements.in
-botocore==1.42.97 \
-    --hash=sha256:5c0bb00e32d16ff6d278cc8c9e10dc3672d9c1d569031635ac3c908a60de8310 \
-    --hash=sha256:77d2c8ce1bc592d3fbd7c01c35836f4a5b0cac2ca03ccdf6ffc60faa16b5fadc
+botocore==1.43.3 \
+    --hash=sha256:eac6da0fffccf87888ebf4d89f0b2378218a707efa748cd955b838995e944695 \
+    --hash=sha256:ec0769eb0f7c5034856bb406a92698dbc02a3d4be0f78a384747106b161d8ea3
     # via
     #   boto3
     #   s3transfer
@@ -119,9 +119,9 @@ requests==2.33.1 \
     --hash=sha256:18817f8c57c6263968bc123d237e3b8b08ac046f5456bd1e307ee8f4250d3517 \
     --hash=sha256:4e6d1ef462f3626a1f0a0a9c42dd93c63bad33f9f1c1937509b8c5c8718ab56a
     # via -r app/requirements.in
-s3transfer==0.16.0 \
-    --hash=sha256:18e25d66fed509e3868dc1572b3f427ff947dd2c56f844a5bf09481ad3f3b2fe \
-    --hash=sha256:8e990f13268025792229cd52fa10cb7163744bf56e719e0b9cb925ab79abf920
+s3transfer==0.17.0 \
+    --hash=sha256:9edeb6d1c3c2f89d6050348548834ad8289610d886e5bf7b7207728bd43ce33a \
+    --hash=sha256:ce3801712acf4ad3e89fb9990df97b4972e93f4b3b0004d214be5bce12814c20
     # via boto3
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
