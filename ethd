@@ -2163,6 +2163,7 @@ update() {
   local no_screen_cmd
   local dirty
   local branch
+  local latest_tag
 
   if [[ "$*" =~ --debug ]]; then
     __debug=1
@@ -2298,6 +2299,30 @@ update() {
       fi
       ${__as_owner} git pull origin main
     else
+      if [[ "${__value}" = "stable" ]]; then
+        if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
+          if ! dpkg-query -W -f='${Status}' curl 2>/dev/null | grep -q "ok installed" || ! dpkg-query -W -f='${Status}' jq 2>/dev/null | grep -q "ok installed"; then
+            if [[ "${__cannot_sudo}" -eq 0 ]]; then
+              echo "Installing curl and jq"
+              ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y --no-install-recommends curl jq
+            else
+              echo "Cannot install curl and jq, unable to check for a \"stable\" Eth Docker release"
+              echo "Please install curl and jq manually, and try again"
+              exit 1
+            fi
+          fi
+        fi
+        latest_tag=$(curl -s -m 10 https://api.github.com/repos/ethstaker/eth-docker/releases/latest 2>/dev/null| jq -r '.tag_name // empty' 2>/dev/null) || true
+        if [ -z "${latest_tag}" ]; then
+          echo "ERROR: Cannot fetch the latest release tag for ${__project_name} from Github."
+          if [[ ! "${__distro}" =~ (debian|ubuntu) ]]; then
+            echo "Make sure \"curl\" and \"jq\" are installed, and \"api.github.com\" is reachable."
+          fi
+          echo "Try again later or change to a specific pinned tag for \"ETH_DOCKER_TAG\" in \".env\""
+          exit 1
+        fi
+        __value="${latest_tag}"
+      fi
       export ETHDPINNED="${__value}"
       ${__as_owner} git fetch --tags
       ${__as_owner} git checkout -B "tag-${__value}" "tags/${__value}"
