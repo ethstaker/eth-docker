@@ -53,29 +53,26 @@ services:
       - logs.collect=true
 
   ddns:
-    image: ddns-aws:local
+    image: ddns:local
     pull_policy: never
     build:
       context: ./traefik-utils
     restart: "unless-stopped"
     environment:
+      - DNS_PROVIDER=route53
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_PROFILE=${AWS_PROFILE:-}
       - AWS_REGION=${AWS_REGION:-us-east-2}
       - AWS_HOSTED_ZONE_ID=${AWS_HOSTED_ZONE_ID}
-      - A_RECORD_NAME=${DDNS_SUBDOMAIN}.${DOMAIN}
+      - DDNS_HOST=${DDNS_HOST}
+      - DOMAIN=${DOMAIN}
       - CNAME_LIST=${CNAME_LIST:-}
+      - CF_PROXY=${CF_PROXY:-false}
       - TTL=${TTL:-300}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ~/.aws:/root/.aws:ro
-    healthcheck:
-      test: ["CMD", "python", "-c", "import boto3; boto3.client('route53').list_hosted_zones()"]
-      interval: 1m
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     <<: *logging
 
 volumes:
