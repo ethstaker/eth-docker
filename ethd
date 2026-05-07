@@ -4898,7 +4898,6 @@ __query_mev() {
   local agnostic_default="ON"
   local bloxroute_default="ON"
   local flashbots_default="ON"
-  local manifold_default="ON"
   local titan_global_default="ON"
   local titan_regional_default="ON"
   local ultrasound_default="ON"
@@ -4940,7 +4939,6 @@ https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa09
 https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net,
 https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,
 https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,
-https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com,
 https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@global.titanrelay.xyz,
 https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money
 "'
@@ -4968,9 +4966,6 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
     if [[ ! "${__value}" =~ flashbots ]]; then
       flashbots_default="OFF"
     fi
-    if [[ ! "${__value}" =~ securerpc ]]; then
-      manifold_default="OFF"
-    fi
     if [[ ! "${__value}" =~ (hoodi\.titanrelay|global.\titanrelay) ]]; then
       titan_global_default="OFF"
     fi
@@ -4994,7 +4989,6 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
           ['Agnostic']="https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net"
           ['bloXroute']="https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com"
           ['Flashbots']="https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
-          ['Manifold Finance']="https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com"
           ['Ultra Sound']="https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money"
           ['Ultra Sound Filtered']="https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay-filtered.ultrasound.money"
         )
@@ -5007,7 +5001,6 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
           "Agnostic" "(unfiltered)" "${agnostic_default}"
           "bloXroute" "" "${bloxroute_default}"
           "Flashbots" "" "${flashbots_default}"
-          "Manifold Finance" "(unfiltered)" "${manifold_default}"
           "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
           "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
           "Titan Global" "(optional, unfiltered)" "${titan_global_default}"
@@ -5086,7 +5079,6 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
           ['Agnostic']="https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net"
           ['bloXroute']="https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com"
           ['Flashbots']="https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
-          ['Manifold Finance']="https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com"
           ['Titan Global']="https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@global.titanrelay.xyz"
           ['Titan Regional']="https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@regional.titanrelay.xyz"
           ['Ultra Sound']="https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money"
@@ -5097,7 +5089,6 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
           "Agnostic" "(unfiltered)" "${agnostic_default}"
           "bloXroute" "" "${bloxroute_default}"
           "Flashbots" "" "${flashbots_default}"
-          "Manifold Finance" "(unfiltered)" "${manifold_default}"
           "Titan Global" "(unfiltered)" "${titan_global_default}"
           "Titan Regional" "" "${titan_regional_default}"
           "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
