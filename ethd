@@ -8,6 +8,13 @@ __sample_service="consensus"
 __min_env_version=57
 __target_pg=18
 __current_docker=29
+__min_ubuntu=22
+__suggest_ubuntu="24.04 or 22.04."
+__upgrade_ubuntu="24.04: https://gist.github.com/yorickdowne/94f1e5538007f4c9d3da7b22b0dc28a4"
+__min_debian=12
+__suggest_debian="13 or 12."
+__upgrade_debian="13: https://gist.github.com/yorickdowne/3cecc7b424ce241b173510e36754af47"
+__stat_mode_param=()
 __docker_exe="docker"
 __old_docker=0
 __oldish_docker=0
@@ -25,12 +32,6 @@ __compose_upgraded=0
 __distro=""
 __os_major_version=""
 __os_minor_version=""
-__min_ubuntu=22
-__suggest_ubuntu="24.04 or 22.04."
-__upgrade_ubuntu="24.04: https://gist.github.com/yorickdowne/94f1e5538007f4c9d3da7b22b0dc28a4"
-__min_debian=12
-__suggest_debian="13 or 12."
-__upgrade_debian="13: https://gist.github.com/yorickdowne/3cecc7b424ce241b173510e36754af47"
 __eol_os=0
 __non_interactive=0
 __debug=0
@@ -55,10 +56,13 @@ __command=""
 __params=""
 __me=./ethd
 __auto_sudo=""
+__chmod_sudo=""
 __cannot_sudo=0
 __as_owner=""
+__new_owner=""
 __owner=""
 __owner_group=""
+__group_can_write=0
 __value=""  # This is a global to hand a result back from __get_value_from_env
 __free_space=0
 __docker_dir="/var/lib/docker"
@@ -181,7 +185,10 @@ __handle_docker() {
   if [[ -f "${__env_file}" && "${__distro}" =~ (debian|ubuntu) ]]; then
     DOCKER_ROOT=$(__dodocker system info --format '{{.DockerRootDir}}')
     var=DOCKER_ROOT
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
+    __get_value_from_env "${var}" "${__env_file}" "__value"
+    if [[ "${DOCKER_ROOT}" != "${__value}" ]]; then
+      __update_value_in_env "${var}" "${!var}" "${__env_file}"
+    fi
 
     # on macOS, user would set this manually to Colima or Docker Desktop value
     if __dodocker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
@@ -190,7 +197,10 @@ __handle_docker() {
       DOCKER_SOCK=/var/run/docker.sock
     fi
     var=DOCKER_SOCK
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
+    __get_value_from_env "${var}" "${__env_file}" "__value"
+    if [[ "${DOCKER_SOCK}" != "${__value}" ]]; then
+      __update_value_in_env "${var}" "${!var}" "${__env_file}"
+    fi
 
     var=NODE_EXPORTER_IGNORE_MOUNT_REGEX
     __get_value_from_env "${var}" "${__env_file}" "__value"
@@ -199,32 +209,126 @@ __handle_docker() {
     regex="^'\^\/\(dev\|proc\|sys\|run\|(var\/snap\/\.\+\|)?[a-zA-Z/]+\/\.\+\)\(\\$\|\/\)'$"
     if [[ "${__value}" =~ ${regex} ]]; then
       NODE_EXPORTER_IGNORE_MOUNT_REGEX="'^/(dev|proc|sys|run|var/snap/.+|${DOCKER_ROOT#/}/.+)($|/)'"
-      __update_value_in_env "${var}" "${!var}" "${__env_file}"
+      if [[ "${NODE_EXPORTER_IGNORE_MOUNT_REGEX}" != "${__value}" ]]; then
+        __update_value_in_env "${var}" "${!var}" "${__env_file}"
+      fi
     fi
   fi
 }
 
 
-__handle_root() {
-  local g
-  local found=0
+# Allow users to set their own umask like 077, and make it x0x if we are going to rely on group write
+__adjust_umask_for_group() {
+  local current_umask
+  local new_umask
 
-  if [[ "${EUID}" != $(id -u "${__owner}") ]]; then
-    __as_owner="sudo -u ${__owner}"
+  current_umask=$(umask)
+
+  # split into 3 or 4 digits safely, set group to 0
+  case ${#current_umask} in
+    3) # ugo form
+      u=${current_umask:0:1}
+      g=0
+      o=${current_umask:2:1}
+      new_umask="${u}${g}${o}"
+      ;;
+    4) # sugo form
+      s=${current_umask:0:1}
+      u=${current_umask:1:1}
+      g=0
+      o=${current_umask:3:1}
+      new_umask="${s}${u}${g}${o}"
+      ;;
+    *)
+      echo "Umask is neither 3 nor 4 characters in length, which is unexpected. Not adjusting. Umask: ${current_umask}"
+      new_umask="${current_umask}"
+  esac
+
+  umask "${new_umask}"
+}
+
+
+# Who owns the directory, what permissions do they have, and do we need to sudo -u ${__owner} when creating files
+# Also, can we sudo
+# Assume owner has rw on everything
+# EUID is owner of directory: No umask adjustment, no sudo
+# EUID is not owner of directory, but directory is group-writeable and EUID is in the group that can write:
+#   change umask to not touch group perms
+# Neither: sudo -u ${__owner}
+# __owner and __owner_group are set at script entry and have the user:group owners of the directory
+__handle_ownership() {
+  local g
+  local can_sudo=0
+  local is_in_group=0
+  local perms
+  local group_w
+  local sudo_group
+  local reason_msg=""
+  local action_msg=""
+
+# shellcheck disable=SC2012
+  perms=$(ls -ld . | awk '{print $1}')
+
+  group_w="${perms:5:1}"
+  if [[ "${group_w}" != "-" ]]; then
+    __group_can_write=1
   fi
 
+  for g in $(id -nG); do
+    if [[ "${g}" = "${__owner_group}" ]]; then
+      is_in_group=1
+      break
+    fi
+  done
+
+  if [[ "$OSTYPE" = "darwin"* ]]; then
+    sudo_group="admin"
+    __stat_mode_param=("-f" "%Lp")
+  else
+    sudo_group="sudo"
+    __stat_mode_param=("-c" "%a")
+  fi
+# Figure out whether the user can sudo
+  __cannot_sudo=1
   if [[ "${EUID}" -ne 0 ]]; then
     for g in $(id -nG); do
-      if [[ "${g}" =~ ^(sudo|admin)$ ]]; then
+      if [[ "${g}" = "${sudo_group}" ]]; then
         __auto_sudo="sudo"
-        found=1
+        __cannot_sudo=0
         break
       fi
     done
+  else  # root always can
+    __cannot_sudo=0
   fi
 
-  if [[ "${EUID}" -ne 0 && "${found}" -eq 0 ]]; then
-    __cannot_sudo=1
+  if [[ "${EUID}" = $(id -u "${__owner}") ]]; then  # No adjustments needed
+    __as_owner=""
+    __new_owner="${__owner}"
+  elif [[ "${__group_can_write}" -eq 1 && "${is_in_group}" -eq 1 ]]; then
+    __adjust_umask_for_group  # Adjust umask to make sure files are group-writable
+    __as_owner=""
+    __new_owner="$(id -nu ${EUID})"
+    if [[ "${__cannot_sudo}" -eq 0 ]]; then
+      __chmod_sudo="sudo"
+    fi
+  else
+    __as_owner="sudo -u ${__owner}"
+    __new_owner="${__owner}"
+    __chmod_sudo="sudo"
+  fi
+
+  if [[ -n "${__as_owner}" && "${__cannot_sudo}" -eq 1 ]]; then  # Have to sudo but can't
+    if [[ "${is_in_group}" -eq 1 ]]; then
+      reason_msg="and all of its groups "
+      action_msg="or give write permissions to ${__owner_group}, "
+    fi
+    echo "The $(dirname "$(realpath "${BASH_SOURCE[0]}")") directory is owned by ${__owner}, the script runs as $(id -nu), and that user ${reason_msg}cannot write files in \
+this directory, nor run \"sudo\"."
+    echo "This means ${__me} cannot modify or create files, which keeps it from working."
+    echo "Please run ${__me} as ${__owner}, ${action_msg}or make $(id -nu) part of the ${sudo_group} group."
+    echo "Aborting."
+    exit 1
   fi
 }
 
@@ -482,131 +586,80 @@ __check_compose_version() {
 
 
 __prep_conffiles() {
-# Create .motd if it doesn't exist
-  if [[ ! -f ./.motd ]]; then
-    ${__as_owner} cp ./.motd.sample ./.motd
-  fi
-# Create prometheus.yml if it doesn't exist
-  if [[ ! -f ./prometheus/prometheus.yml ]]; then
-    ${__as_owner} cp ./prometheus/prometheus.yml.sample ./prometheus/prometheus.yml
-  fi
-# Make sure all yml under prometheus dir are readable
-  if find prometheus -maxdepth 0 \! -perm -o+rx | grep -q .; then
-    ${__as_owner} chmod o+rx prometheus
-  fi
-  if find prometheus -type f -name '*.yml' \! -perm -o+r | grep -q .; then
-    ${__as_owner} chmod o+r prometheus/*.yml
-  fi
+  local env
+  local file
+  local dir
+  local mode
+  local -A create_files=(
+    [./prometheus/prometheus.yml]="./prometheus/prometheus.yml.sample"
+    [./alloy/loki-write.alloy]="./alloy/loki-write.alloy.sample"
+    [./alloy/prometheus-write.alloy]="./alloy/prometheus-write.alloy.sample"
+    [./alloy/alloy-logs.alloy]="./alloy/alloy-logs.alloy.sample"
+    [./ssv-config/config.yaml]="./ssv-config/config.yaml.sample"
+    [./ssv-config/dkg-config.yaml]="./ssv-config/dkg-config.yaml.sample"
+    [./commit-boost/cb-config.toml]="./commit-boost/cb-config.toml.sample"
+    [./tempo/tempo.yaml]="./tempo/tempo.yaml.sample"
+    [./tempo/overrides.yaml]="./tempo/overrides.yaml.sample"
+    [./.motd]="./.motd.sample"
+  )
+  local -A chmod_dirs=(
+    [./prometheus]="*.yml"
+    [./alloy]="*.alloy"
+    [./alloy-obol]="*.alloy"
+    [./ssv-config]="*.yaml"
+    [./.eth/dkg_output]="*"
+    [./commit-boost]="cb-config.toml"
+    [./tempo]="*.yaml"
+    [./loki]="*.yml"
+    [./siren]="*.sh"
+  )
 
-# Create alloy files if they do not exist
-  if [[ ! -f "alloy/loki-write.alloy" ]]; then
-    ${__as_owner} cp alloy/loki-write.alloy.sample alloy/loki-write.alloy
-  fi
-  if [[ ! -f "alloy/prometheus-write.alloy" ]]; then
-    ${__as_owner} cp alloy/prometheus-write.alloy.sample alloy/prometheus-write.alloy
-  fi
-  if [[ ! -f "alloy/alloy-logs.alloy" ]]; then
-    ${__as_owner} cp alloy/alloy-logs.alloy.sample alloy/alloy-logs.alloy
-  fi
-# Make sure alloy files are readable
-  if find alloy -maxdepth 0 \! -perm -o+rx | grep -q .; then
-    ${__as_owner} chmod o+rx alloy
-  fi
-  if find alloy -type f -name '*.alloy' \! -perm -o+r | grep -q .; then
-    ${__as_owner} chmod o+r alloy/*.alloy
-  fi
-# Make sure alloy-obol files are readable
-  if find alloy-obol -maxdepth 0 \! -perm -o+rx | grep -q .; then
-    ${__as_owner} chmod o+rx alloy-obol
-  fi
-  if find alloy-obol -type f -name '*.alloy' \! -perm -o+r | grep -q .; then
-    ${__as_owner} chmod o+r alloy-obol/*.alloy
-  fi
+# Create configuration files if they do not exist
+  for file in "${!create_files[@]}"; do
+    if [[ ! -f "${file}" ]]; then
+      mode=$(${__as_owner} stat "${__stat_mode_param[@]}" "${create_files[${file}]}")
+      ${__as_owner} install -g "${__owner_group}" -o "${__new_owner}" -m "${mode}" "${create_files[${file}]}" "${file}"
+    fi
+  done
 
-# Create SSV config.yaml if it doesn't exist
-  if [[ ! -f "ssv-config/config.yaml" ]]; then
-    ${__as_owner} cp ssv-config/config.yaml.sample ssv-config/config.yaml
-  fi
-  if [[ ! -f "ssv-config/dkg-config.yaml" ]]; then
-    ${__as_owner} cp ssv-config/dkg-config.yaml.sample ssv-config/dkg-config.yaml
-  fi
-# Make sure ssv-config yaml files are readable
-  if find ssv-config -maxdepth 0 \! -perm -o+rx | grep -q .; then
-    ${__as_owner} chmod o+rx ssv-config
-  fi
-  if find ssv-config -type f -name '*.yaml' \! -perm -o+r | grep -q .; then
-    ${__as_owner} chmod o+r ssv-config/*.yaml
-  fi
-# Make sure local user owns the dkg output dir and everything in it
-if find .eth/dkg_output \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q .; then
+# Make sure directory owner owns the SSV dkg output dir and everything in it. ssvlabs/ssv-dkg runs as root
+  if ${__as_owner} find ./.eth/dkg_output \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q .; then
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
       echo "Fixing ownership of .eth/dkg_output"
       ${__auto_sudo} chown -R "${__owner}:${__owner_group}" .eth/dkg_output
-      ${__as_owner} chmod u=rwx,go=rx .eth/dkg_output
+      ${__chmod_sudo} chmod u+rwx,o+rx .eth/dkg_output
     else
       echo "Ownership of .eth/dkg_output should be fixed, but this user can't sudo"
     fi
   fi
-# Make sure the dkg output dir and its subdirs are readable
-  if find .eth/dkg_output -type d \! -perm -o+rx | grep -q .; then
+
+# Adjust "other" read permissions for files that are bind-mounted
+  for dir in "${!chmod_dirs[@]}"; do
 # shellcheck disable=SC2086
-    find .eth/dkg_output -type d -exec ${__as_owner} chmod o+rx {} \;
-  fi
-# Make sure the contents of the dkg output dir are readable
-  if find .eth/dkg_output -type f \! -perm -o+rx | grep -q .; then
+     ${__chmod_sudo} find "${dir}" -type d \! -perm -o+rx -exec chmod o+rx {} +
 # shellcheck disable=SC2086
-    find .eth/dkg_output -type f -exec ${__as_owner} chmod o+rx {} \;
-  fi
+     ${__chmod_sudo} find "${dir}" -type f -name "${chmod_dirs[${dir}]}" \! -perm -o+r -exec chmod o+r {} +
+  done
 
-# Create cb-config.toml if it doesn't exist
-  if [[ ! -f "commit-boost/cb-config.toml" ]]; then
-    ${__as_owner} cp commit-boost/cb-config.toml.sample commit-boost/cb-config.toml
-  fi
-# Make sure cb-config.toml is readable
-  if find commit-boost -type f -name 'cb-config.toml' \! -perm -o+r | grep -q .; then
-    ${__as_owner} chmod o+r commit-boost/cb-config.toml
-  fi
-
-# Create tempo.yaml if it doesn't exist
-  if [[ ! -f "tempo/tempo.yaml" ]]; then
-    ${__as_owner} cp tempo/tempo.yaml.sample tempo/tempo.yaml
-  fi
-  if [[ ! -f "tempo/overrides.yaml" ]]; then
-    ${__as_owner} cp tempo/overrides.yaml.sample tempo/overrides.yaml
-  fi
-# Make sure tempo files are readable
-  if find tempo -maxdepth 0 \! -perm -o+rx | grep -q .; then
-    ${__as_owner} chmod o+rx tempo
-  fi
-  if find tempo -type f -name '*.yaml' \! -perm -o+r | grep -q .; then
-    ${__as_owner} chmod o+r tempo/*.yaml
-  fi
-# Make sure loki files are readable
-  if find loki -maxdepth 0 \! -perm -o+rx | grep -q .; then
-    ${__as_owner} chmod o+rx loki
-  fi
-  if find loki -type f -name '*.yml' \! -perm -o+r | grep -q .; then
-    ${__as_owner} chmod o+r loki/*.yml
-  fi
-# Make sure Siren entrypoint is executable
-  if find siren -maxdepth 0 \! -perm -o+rx | grep -q .; then
-    ${__as_owner} chmod o+rx siren
-  fi
-  if find siren -type f -name '*.sh' \! -perm -o+r | grep -q .; then
-    ${__as_owner} chmod o+rx siren/*.sh
-  fi
-
-# Make sure local user owns .env
-  if find . -name .env \( \! -user "${__owner}" -o \! -group "${__owner_group}" \) -print -quit | grep -q ./.env; then
+# Make sure directory owner owns .env, or it's owned by directory group and group is writable
+  if ! ${__as_owner} test -f "${__env_file}" || ${__as_owner} find . -maxdepth 1 -name "${__env_file}" -user "${__owner}" -print -quit | grep -q "${__env_file}" \
+    || { ${__as_owner} find . -maxdepth 1 -name "${__env_file}" -group "${__owner_group}" -print -quit | grep -q "${__env_file}" \
+          && [[ "${__group_can_write}" -eq 1 ]]; }; then
+    true  # Nothing to do
+  else
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
-      echo "Fixing ownership of .env"
-      ${__auto_sudo} chown -R "${__owner}:${__owner_group}" .env
-      ${__auto_sudo} chmod -R 644 .env
-      if [[ -f .env.tmp ]]; then
-        ${__auto_sudo} rm -f .env.tmp
+      echo "Fixing ownership of ${__env_file}"
+      ${__auto_sudo} chown -R "${__owner}:${__owner_group}" "${__env_file}"
+      if [[ ${__group_can_write} -eq 1 ]]; then
+        ${__chmod_sudo} chmod ug+rw "${__env_file}"
+      else
+        ${__chmod_sudo} chmod u+rw "${__env_file}"
+      fi
+      if [[ -f ${__env_file}.tmp ]]; then
+        ${__auto_sudo} rm -f "${__env_file}".tmp
       fi
     else
-      echo "Ownership of .env should be fixed, but this user can't sudo"
+      echo "Ownership of ${__env_file} should be fixed, but this user can't sudo"
     fi
   fi
 }
@@ -876,7 +929,7 @@ EOF
 }
 
 
-install() {
+install_command() {
   local yn
   local project_dir
 
@@ -1682,6 +1735,7 @@ __update_value_in_env() {
   local env_file="$3"
   local escaped_value
   local awk_exe
+  local mode
 
   if [[ "$OSTYPE" = "darwin"* ]]; then
     awk_exe="gawk"  # Built-in awk can't handle multi-line. Does require brew install gawk
@@ -1753,7 +1807,9 @@ __update_value_in_env() {
       # Print all lines if not in the target variable block
       { print }
     ' "${env_file}" | ${__as_owner} tee "${env_file}.tmp" >/dev/null
-    ${__as_owner} mv "${env_file}.tmp" "${env_file}"
+    mode=$(${__as_owner} stat "${__stat_mode_param[@]}" "${env_file}")
+    ${__as_owner} install -g "${__owner_group}" -o "${__new_owner}" -m "${mode}" "${env_file}.tmp" "${env_file}"
+    ${__as_owner} rm -f "${env_file}.tmp"
   else
     # Variable does not exist, append it
     printf "%s=%s\n" "${var_name}" "${escaped_value}" | ${__as_owner} tee -a "${env_file}" >/dev/null
@@ -3797,7 +3853,7 @@ __get_github_release() {
       | cut -d : -f 2,3 \
       | tr -d \" \
       | ${__as_owner} wget -qi- -O "${dirname}/${targetname}" \
-      && ${__as_owner} chmod +x "${dirname}/${targetname}" \
+      && ${__chmod_sudo} chmod +x "${dirname}/${targetname}" \
       || echo "-> Could not download the latest version of '${suffix}' from github '${repo}'."
   fi
 }
@@ -5429,12 +5485,15 @@ __query_dkg() {
 
 
 __handle_error() {
+  local exitstatus=$1
+  local line=$2
+  local calling_line=$3
+
   if [[ ! $- =~ e ]]; then
 # set +e, do nothing
     return 0
   fi
 
-  local exitstatus=$1
   if [[ "${exitstatus}" -eq 0 ]]; then
     return 0
   fi
@@ -5450,7 +5509,7 @@ __handle_error() {
   elif [[ "${__during_config}" -eq 1 && "${exitstatus}" -eq 1 ]]; then
     echo "Canceled config wizard."
   else
-    echo "${__me} terminated with exit code ${exitstatus} on line $2"
+    echo "${__me} terminated with exit code ${exitstatus} on line $line, called from $calling_line"
     if [[ -n "${__command}" ]]; then
       echo "This happened during ${__me} ${__command} ${__params}"
     fi
@@ -6241,8 +6300,7 @@ if [[ ! -f ~/.profile ]] || ! grep -q "alias ethd" ~/.profile; then
   __me="./${__me}"
 fi
 
-trap '__handle_error $? $LINENO' ERR
-trap '__handle_error $? $LINENO' EXIT
+trap '__handle_error $? $LINENO ${BASH_LINENO[0]}' ERR EXIT
 
 if [[ "$#" -eq 0 || "$*" = "--help" || "$*" = "-h" || "$*" = "update --help" || "$*" = "update -h" ]]; then
   help "$@"
@@ -6270,7 +6328,7 @@ __command="$1"
 shift
 __params=$*
 
-__handle_root
+__handle_ownership
 __determine_distro
 __prep_conffiles
 
@@ -6278,7 +6336,7 @@ __check_for_snap
 
 # Don't check for Docker before it's installed
 if [[ "${__command}" = "install" ]]; then
-  ${__command} "$@"
+  install_command "$@"
   exit "$?"
 fi
 
