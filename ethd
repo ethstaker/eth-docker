@@ -3399,7 +3399,7 @@ prune-history() {
   fi
 
   if [[ "${__non_interactive}" -eq 0 ]]; then
-    warning="WARNING - this will stop ${client} and remove pre-merge history. Do you wish to continue? (No/Yes) "
+    warning="WARNING - this will stop ${client} and remove ${target} history. Do you wish to continue? (No/Yes) "
     while true; do
       read -rp "${warning}" yn
       case "${yn}" in

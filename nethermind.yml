@@ -97,6 +97,16 @@ services:
       - metrics.network=${NETWORK}
       - logs.collect=true
 
+  set-prune-marker:
+    profiles: ["tools"]
+    image: alpine:3
+    user: "10001:10001"
+    restart: "no"
+    volumes:
+      - nethermind-el-data:/var/lib/nethermind
+    entrypoint: ["/bin/sh", "-c"]
+    command: /bin/sh
+
 volumes:
   nethermind-el-data:
   nm-eth1-data:
