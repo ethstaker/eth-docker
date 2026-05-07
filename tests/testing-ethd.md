@@ -83,3 +83,34 @@ Test that on Hoodi and Mainnet, verify that `deposit-cli.yml` is added to `CORE_
 Lido Obol can't be tested without a live Obol cluster, but run through it as far as possible to rule out obvious issues
 
 Lido SSV is identical to SSV
+
+## Multi-user test paths
+
+tests/test-multiuser.sh encodes the below tests
+
+Tests the code with directory ownership `eve:test-ethd-admins`; `eve`, `alice` and `bob` part of the `test-ethd-admins` group, `alice` part
+of the `sudo` group and `bob` not, and setgid set or not on the directory, `g+s` and `g-s`. `charlie` is not in `test-ethd-admins`, and should fail
+before `ethd` can sudo because the user cannot enter the directory.
+
+Also test a regular `alice:alice` setup of eth-docker, and that the code works well in that case.
+
+Test scenarios
+- dir `alice:alice` `g-s` and 775/664 permissions, `alice` umask 022
+- dir `alice:alice` `g-s` and 700/600 permissions, `alice` with umask 077
+- dir `alice:alice` `g-s` and 775/664 permissions, `root` umask 022
+- dir `eve:test-ethd-admins` `g-s` and 775/664 permissions, `alice` with umask 022
+- dir `eve:test-ethd-admins` `g+s` and 775/664 permissions, `alice` with umask 022
+- dir `eve:test-ethd-admins` `g-s` and 770/660 permissions, `alice` with umask 077
+- dir `eve:test-ethd-admins` `g+s` and 770/660 permissions, `alice` with umask 077
+- dir `eve:test-ethd-admins` `g-s` and 775/664 permissions, `bob` umask 022 (can't sudo)
+- dir `eve:test-ethd-admins` `g+s` and 775/664 permissions, `bob` umask 022 (can't sudo)
+- dir `eve:test-ethd-admins` `g-s` and 770/660 permissions, `bob` umask 077 (can't sudo) after `alice` first runs
+- dir `eve:test-ethd-admins` `g+s` and 770/660 permissions, `bob` umask 077 (can't sudo) after `alice` first runs
+- dir `eve:test-ethd-admins` `g-s` and 775/664 permissions, `root` umask 022
+- dir `eve:test-ethd-admins` `g-s` and 770/660 permissions, `bob` umask 077 (can't sudo) without `alice` first run, should fail
+- dir `eve:test-ethd-admins` `g-s` and 775/664 permissions, `charlie` (can sudo), should fail because user can't cd in
+
+- `./ethd space` and check `.env` ownership and permissions. Should be `user:user` when solo, `user:owner-group` when the running user creates or updates it in a group-writable directory, `previous-user:owner-group` when another group member can already write it, and `owner:owner-group` when the running user's group doesn't have write rights (invoke sudo)
+- Likewise config files, same ownership expectations, and o+r permissions
+- `./ethd space` a second time, no message that `.env` permissions are being fixed should be seen
+- Ditto check ownership and permissions of bind-mounted files in alloy, alloy-obol, prometheus, loki, tempo, ssv-config. They need to be `other` readable.
