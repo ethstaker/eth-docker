@@ -18,8 +18,7 @@ ARG SRC_REPO=https://github.com/serenita-org/vero
 ARG VENV_LOCATION
 
 ENV PATH="$VENV_LOCATION/bin:$PATH"
-# Pin uv to 0.6 until https://github.com/serenita-org/vero/pull/193 is in a release
-RUN pip install --no-cache-dir uv~=0.6.17 && uv venv ${VENV_LOCATION}
+RUN pip install --no-cache-dir uv~=0.11.8 && uv venv ${VENV_LOCATION}
 
 ARG SRC_DIR=vero
 RUN bash -eo pipefail <<'EOF'
