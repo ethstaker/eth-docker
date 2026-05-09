@@ -89,8 +89,8 @@ Lido SSV is identical to SSV
 tests/test-multiuser.sh encodes the below tests
 
 Tests the code with directory ownership `eve:test-ethd-admins`; `eve`, `alice` and `bob` part of the `test-ethd-admins` group, `alice` part
-of the `sudo` group and `bob` not, and setgid set or not on the directory, `g+s` and `g-s`. `charlie` is not in `node-admins`, and should be able
-to succeed via `sudo -u eve`
+of the `sudo` group and `bob` not, and setgid set or not on the directory, `g+s` and `g-s`. `charlie` is not in `test-ethd-admins`, and should fail
+before `ethd` can sudo because the user cannot enter the directory.
 
 Also test a regular `alice:alice` setup of eth-docker, and that the code works well in that case.
 
@@ -110,7 +110,7 @@ Test scenarios
 - dir `eve:test-ethd-admins` `g-s` and 770/660 permissions, `bob` umask 077 (can't sudo) without `alice` first run, should fail
 - dir `eve:test-ethd-admins` `g-s` and 775/664 permissions, `charlie` (can sudo), should fail because user can't cd in
 
-- `./ethd space` and check `.env` ownership and permissions. Should be `user:user` when solo, `user:owner-group` when running user's group does have write rights, with group write rights kept even with umask 077 on the user, `owner:owner-group` when running user's group doesn't have write rights (invoke sudo)
+- `./ethd space` and check `.env` ownership and permissions. Should be `user:user` when solo, `user:owner-group` when the running user creates or updates it in a group-writable directory, `previous-user:owner-group` when another group member can already write it, and `owner:owner-group` when the running user's group doesn't have write rights (invoke sudo)
 - Likewise config files, same ownership expectations, and o+r permissions
 - `./ethd space` a second time, no message that `.env` permissions are being fixed should be seen
 - Ditto check ownership and permissions of bind-mounted files in alloy, alloy-obol, prometheus, loki, tempo, ssv-config. They need to be `other` readable.

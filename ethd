@@ -248,6 +248,24 @@ __adjust_umask_for_group() {
 }
 
 
+__mode_after_umask() {
+  local mode="$1"
+  local mask
+  local adjusted
+
+  mask=$(umask)
+  adjusted=$(( 8#${mode} & (07777 ^ 8#${mask}) ))
+
+  if [[ "${__group_can_write}" -eq 1 ]]; then
+    (( adjusted & 0400 )) && adjusted=$(( adjusted | 0040 ))
+    (( adjusted & 0200 )) && adjusted=$(( adjusted | 0020 ))
+    (( adjusted & 0100 )) && adjusted=$(( adjusted | 0010 ))
+  fi
+
+  printf "%03o" "${adjusted}"
+}
+
+
 # Who owns the directory, what permissions do they have, and do we need to sudo -u ${__owner} when creating files
 # Also, can we sudo
 # Assume owner has rw on everything
@@ -618,6 +636,7 @@ __prep_conffiles() {
   for file in "${!create_files[@]}"; do
     if [[ ! -f "${file}" ]]; then
       mode=$(${__as_owner} stat "${__stat_mode_param[@]}" "${create_files[${file}]}")
+      mode=$(__mode_after_umask "${mode}")
       ${__as_owner} install -g "${__owner_group}" -o "${__new_owner}" -m "${mode}" "${create_files[${file}]}" "${file}"
     fi
   done
@@ -661,6 +680,9 @@ __prep_conffiles() {
     else
       echo "Ownership of ${__env_file} should be fixed, but this user can't sudo"
     fi
+  fi
+  if [[ "${__group_can_write}" -eq 1 ]] && find . -maxdepth 1 -name "${__env_file}" \! -perm -g+rw -print -quit | grep -q "${__env_file}"; then
+    ${__chmod_sudo} chmod g+rw "${__env_file}"
   fi
 }
 
@@ -1808,6 +1830,7 @@ __update_value_in_env() {
       { print }
     ' "${env_file}" | ${__as_owner} tee "${env_file}.tmp" >/dev/null
     mode=$(${__as_owner} stat "${__stat_mode_param[@]}" "${env_file}")
+    mode=$(__mode_after_umask "${mode}")
     ${__as_owner} install -g "${__owner_group}" -o "${__new_owner}" -m "${mode}" "${env_file}.tmp" "${env_file}"
     ${__as_owner} rm -f "${env_file}.tmp"
   else
@@ -5916,10 +5939,13 @@ __config_lido_obol() {
 
 config() {
   local var
+  local mode
 
   # Create ENV file if needed
   if [[ ! -f "${__env_file}" ]]; then
-    ${__as_owner} cp default.env "${__env_file}"
+    mode=$(${__as_owner} stat "${__stat_mode_param[@]}" default.env)
+    mode=$(__mode_after_umask "${mode}")
+    ${__as_owner} install -g "${__owner_group}" -o "${__new_owner}" -m "${mode}" default.env "${__env_file}"
     __minty_fresh=1
   else
     __minty_fresh=0

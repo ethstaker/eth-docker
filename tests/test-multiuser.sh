@@ -180,7 +180,7 @@ __test_parameters='[
     "dir_permissions": "u=rwx,g=rwx,o=",
     "setgid": "g-s",
     "expected_file_owner": "alice:test-ethd-admins",
-    "expected_env_owner": "bob:test-ethd-admins",
+    "expected_env_owner": "alice:test-ethd-admins",
     "expected_config_permissions": "664",
     "expected_env_permissions": "660",
     "should_succeed": "true"
@@ -195,7 +195,7 @@ __test_parameters='[
     "dir_permissions": "u=rwx,g=rwx,o=",
     "setgid": "g+s",
     "expected_file_owner": "alice:test-ethd-admins",
-    "expected_env_owner": "bob:test-ethd-admins",
+    "expected_env_owner": "alice:test-ethd-admins",
     "expected_config_permissions": "664",
     "expected_env_permissions": "660",
     "should_succeed": "true"
@@ -400,6 +400,7 @@ __prep_temp_directory() {
   sudo chmod "$setgid" "$__temp_dir"
   sudo find "$__temp_dir" -type d -exec chmod "$dir_permissions" {} +
   sudo find "$__temp_dir" -type f -perm /111 -exec chmod "$exec_file_permissions" {} +
+  sudo test -f "$__temp_dir/.env" && sudo chmod "$file_permissions" "$__temp_dir/.env"
 }
 
 
