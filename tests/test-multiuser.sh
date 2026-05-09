@@ -400,7 +400,6 @@ __prep_temp_directory() {
   sudo chmod "$setgid" "$__temp_dir"
   sudo find "$__temp_dir" -type d -exec chmod "$dir_permissions" {} +
   sudo find "$__temp_dir" -type f -perm /111 -exec chmod "$exec_file_permissions" {} +
-  sudo find "$__temp_dir" -type f ! -perm /111 -exec chmod "$file_permissions" {} +
 }
 
 
