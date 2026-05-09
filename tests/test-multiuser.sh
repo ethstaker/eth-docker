@@ -357,6 +357,31 @@ __check_prereqs() {
 }
 
 
+__check_test_accounts_absent() {
+  local user
+  local found=0
+
+  if getent group "$__admin_group" >/dev/null; then
+    echo "ERROR: Test group $__admin_group already exists"
+    found=1
+  fi
+
+  for user in $(jq -r 'keys[]' <<< "$__users"); do
+    if id -u "$user" >/dev/null 2>&1; then
+      echo "ERROR: Test user $user already exists"
+      found=1
+    fi
+  done
+
+  if [[ "$found" -eq 1 ]]; then
+    echo
+    echo "Refusing to continue so this script does not modify or delete pre-existing users/groups."
+    echo "Run this test in a fresh container/VM, or remove/rename the conflicting test accounts first."
+    exit 1
+  fi
+}
+
+
 __warn_creation() {
   local yn
 
@@ -607,6 +632,7 @@ trap '__handle_error $? ${BASH_LINENO[0]}' ERR
 __check_os
 __check_workdir
 __check_prereqs jq
+__check_test_accounts_absent
 __warn_creation
 __create_users
 __run_tests
