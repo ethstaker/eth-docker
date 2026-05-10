@@ -50,31 +50,23 @@ services:
       - logs.collect=true
 
   ddns:
-    image: qmcgaw/ddns-updater:${DDNS_TAG}
-    restart: "unless-stopped"
-    environment:
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      CONFIG: >-
-        {"settings": [
-        {"provider": "cloudflare", "zone_identifier": "${CF_ZONE_ID}",
-        "domain": "${DDNS_SUBDOMAIN}.${DOMAIN}", "ttl": 1, "token": "${CF_DNS_API_TOKEN}",
-        "proxied": ${DDNS_PROXY}, "ip_version": "ipv4"},
-        {"provider": "cloudflare", "zone_identifier": "${CF_ZONE_ID}",
-        "domain": "${DDNS_SUBDOMAIN}.${DOMAIN}", "ttl": 1, "token": "${CF_DNS_API_TOKEN}",
-        "proxied": ${DDNS_PROXY}, "ip_version": "ipv6"}
-        ]}
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-    <<: *logging
-
-  curl-jq:
-    image: curl-jq:local
+    image: ddns:local
     pull_policy: never
     build:
       context: ./traefik-utils
-      dockerfile: Dockerfile.jq
-    restart: "no"
-    profiles: ["tools"]
+    restart: "unless-stopped"
+    environment:
+      - DNS_PROVIDER=cloudflare
+      - CF_ZONE_ID=${CF_ZONE_ID}
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+      - CF_ZONE_API_TOKEN=${CF_ZONE_API_TOKEN:-}
+      - DDNS_HOST=${DDNS_HOST}
+      - DOMAIN=${DOMAIN}
+      - CNAME_LIST=${CNAME_LIST:-}
+      - CF_PROXY=${CF_PROXY:-false}
+      - TTL=${TTL:-300}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    <<: *logging
 
 volumes:
   certs:

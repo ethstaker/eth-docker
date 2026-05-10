@@ -1761,9 +1761,9 @@ __update_value_in_env() {
 }
 
 
-__env_migrate() {
-  local old_vars=( )
-  local new_vars=( )
+__migrate_env() {
+  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN )
+  local new_vars=( CF_PROXY DDNS_HOST )
   local error
   local line
   local index
@@ -2380,7 +2380,7 @@ update() {
     __non_interactive=1
   fi
 
-  __env_migrate
+  __migrate_env
   if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
     ${__as_owner} cp "${__env_file}".source "${__env_file}".bak
   fi

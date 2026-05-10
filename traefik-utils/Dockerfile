@@ -1,4 +1,4 @@
-FROM python:3.13-alpine
+FROM python:3.14-alpine
 
 WORKDIR /app
 
@@ -17,6 +17,11 @@ RUN adduser \
     "${USER}"
 
 COPY --chown=${USER}:${USER} app/updater.py .
+COPY --chown=${USER}:${USER} app/base.py .
+COPY --chown=${USER}:${USER} app/route53_provider.py .
+COPY --chown=${USER}:${USER} app/cf_provider.py .
+COPY --chown=${USER}:${USER} app/provider_registry.py .
+COPY --chown=${USER}:${USER} app/privilege.py .
 COPY --chown=${USER}:${USER} app/requirements.txt .
 RUN chmod 555 ./updater.py
 
