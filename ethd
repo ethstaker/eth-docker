@@ -3287,13 +3287,8 @@ prune-history() {
         exit 1
       fi
       min_ver="v1.35.2"
-      if [[ "${must_resync}" -eq 0 ]]; then
-        extra_msg="${target} expiry does not require a resync and should be immediate."
-        prune_marker="/var/lib/nethermind/minimal-node"
-      else
-        extra_msg="To move from ${EL_NODE_TYPE} to ${target} expiry requires a full resync, which should take 1-2 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
-        prune_marker=""
-      fi
+      extra_msg="To switch to ${target} expiry requires a full resync, which should take 1-2 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
+      prune_marker=""
       ;;
     *besu.yml*)
       client="Besu"
