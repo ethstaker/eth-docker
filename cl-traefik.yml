@@ -1,6 +1,7 @@
 # To be used in conjunction with lodestar.yml, nimbus.yml, teku.yml, lighthouse.yml or prysm.yml, ditto their
 # -cl-only.yml versions
-# For remote validator setups only. Please be very cautious when exposing your consensus API port
+# For remote validator setups only.
+# Please be extremely cautious when exposing your consensus API port, source-firewall access
 services:
   consensus:
     labels:
