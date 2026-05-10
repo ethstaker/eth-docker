@@ -3688,7 +3688,7 @@ __prep-keyimport() {
           echo "KEYSTORE_PASSWORD not set or empty, aborting"
           exit 1
         fi
-        __keys_args+="${__keys_args:+ }--interactive"
+        __keys_args+="${__keys_args:+ }--non-interactive"
         shift
         ;;
       --debug)
