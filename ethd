@@ -5,7 +5,6 @@ set -Eeuo pipefail
 __project_name="Eth Docker"
 __app_name="Ethereum node"
 __sample_service="consensus"
-__min_env_version=57
 __target_pg=18
 __current_docker=29
 __min_ubuntu=22
@@ -5973,7 +5972,7 @@ config() {
   fi
 
   __get_compose_file
-  __verify_env_file "${__min_env_version}"
+  __verify_env_file --enforce-min
 
   __during_config=1
   __final_msg=""
@@ -6236,11 +6235,12 @@ __verify_env_file() {
     exit 1
   fi
 
-  if [[ -n "${1+x}" ]]; then
+  if [[ "${1:-}" = "--enforce-min" ]]; then
     var=ENV_VERSION
+    __get_value_from_env "${var}" "./default.env" "${var}"
     __get_value_from_env "${var}" "${__env_file}" "__value"
-    if [[ "${__value}" -lt "$1" ]]; then
-      echo "Error: ${var} version ${__value} in ${__env_file} is less than required version $1."
+    if [[ "${__value}" -lt "${ENV_VERSION}" ]]; then
+      echo "Error: ${var} version ${__value} in ${__env_file} is less than required version ${ENV_VERSION}."
       echo "Please run \"${__me} update\", or manually adjust ${__env_file} from default.env."
       exit 1
     fi
@@ -6463,7 +6463,7 @@ case "${__command}" in
   keys|up|start|down|stop|restart|version|logs|prune-nethermind\
 |prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
 |repair-reth|migrate-reth|keyimport|space)
-    __verify_env_file "${__min_env_version}"
+    __verify_env_file --enforce-min
     __get_compose_file
     ${__command} "$@"
     ;;
