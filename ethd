@@ -784,8 +784,17 @@ __optimize_chrony() {
   if [[ -f /etc/chrony/chrony.conf && -d /etc/chrony/sources.d ]]; then
     echo
     echo "Configuring chrony to use Google's time-smearing servers"
-    if ! ${__auto_sudo} sed -Ei.bak '/^\s*(pool|server|leapsectz)\b/ s/^/#/' "/etc/chrony/chrony.conf"; then
+    if ! ${__auto_sudo} sed -Ei.bak '/^\s*(pool|server|leapsectz|leapseclist|leapsecmode)\b/ s/^/#/' "/etc/chrony/chrony.conf"; then
       echo "Failed to alter /etc/chrony/chrony.conf"
+      echo "Manual intervention is required to use Google's time-smearing servers with chrony"
+      return 0
+    fi
+    if ! ${__auto_sudo} tee "/etc/chrony/conf.d/ignore-leapsec.conf" >/dev/null <<EOF
+# Ignore any leap seconds. Meant to be used with Google's time smearing servers, see sources.d
+leapsecmode ignore
+EOF
+    then
+      echo "Failed to write to /etc/chrony/conf.d/ignore-leapsec.conf"
       echo "Manual intervention is required to use Google's time-smearing servers with chrony"
       return 0
     fi
@@ -799,11 +808,12 @@ __optimize_chrony() {
     done < <(find "/etc/chrony/sources.d" -maxdepth 1 -type f -name '*.sources' -print0)
     if ! ${__auto_sudo} tee "/etc/chrony/sources.d/google-ntp.sources" >/dev/null <<EOF
 # Google's time-smearing NTP servers
-# Requires leapsectz in chrony.conf to be commented out or not exist
+# Requires leapsectz and leapseclist in chrony.conf to be commented out or not exist
 pool time.google.com iburst minpoll 4 maxpoll 6 polltarget 16
 EOF
     then
-      printf "Failed to write Google servers to %s\n" "/etc/chrony/sources.d/google-ntp.sources"
+      echo "Failed to write Google servers to /etc/chrony/sources.d/google-ntp.sources"
+      echo "Manual intervention is required to use Google's time-smearing servers with chrony"
       return 0
     fi
     if ! ${__auto_sudo} systemctl restart chrony; then
