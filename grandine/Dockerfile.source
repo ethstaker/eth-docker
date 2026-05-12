@@ -13,22 +13,28 @@ ARG SRC_REPO
 
 WORKDIR /usr/src
 
+COPY ./src-built-binary /tmp/
 ARG SRC_DIR=grandine
 RUN bash -eo pipefail <<'EOF'
-  git clone "$SRC_REPO" "$SRC_DIR"
-  cd "$SRC_DIR"
-  git config advice.detachedHead false
-  git fetch --all --tags
-  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
-  TARGET=$(eval echo "$CLEANED")
-  if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
-    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
-    git checkout build-pr
+  if [[ -f "/tmp/grandine" ]]; then  # User provided a binary and we'll trust it
+    mkdir -p /usr/src/grandine/target/compact/
+    cp -f "/tmp/grandine" /usr/src/grandine/target/compact/
   else
-    git checkout "$TARGET"
+    git clone "$SRC_REPO" "$SRC_DIR"
+    cd "$SRC_DIR"
+    git config advice.detachedHead false
+    git fetch --all --tags
+    CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+    TARGET=$(eval echo "$CLEANED")
+    if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
+      git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+      git checkout build-pr
+    else
+      git checkout "$TARGET"
+    fi
+    git submodule update --init --jobs $(nproc) dedicated_executor eth2_libp2p
+    make release
   fi
-  git submodule update --init --jobs $(nproc) dedicated_executor eth2_libp2p
-  make release
 EOF
 
 
