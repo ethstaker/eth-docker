@@ -17,6 +17,7 @@ __stat_mode_param=()
 __docker_exe="docker"
 __old_docker=0
 __oldish_docker=0
+__old_rootless_docker=0
 __docker_sudo=""
 __docker_version=""
 __docker_major_version=""
@@ -141,20 +142,51 @@ __handle_docker() {
   local var
   local regex
 
-  set +e
   if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
-    systemctl status docker >/dev/null
-    exitstatus=$?
-    if [[ ! "${exitstatus}" -eq 0 ]] && ! docker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
+    set +e
+    if ! ${__docker_exe} images >/dev/null 2>&1; then
+      if [[ "${__cannot_sudo}" -eq 1 ]]; then
+        echo "Cannot call Docker and cannot use sudo. Please make your user part of the docker group"
+        exit 1
+      fi
+      echo "Will use sudo to access Docker"
+      __docker_sudo="sudo"
+    fi
+
+    if __dodocker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
+      systemctl --user status docker >/dev/null 2>&1
+      exitstatus=$?
+      message="\"systemctl --user status docker\" and \"journalctl --user -fu docker\" will be helpful."
+    else
+      systemctl status docker >/dev/null 2>&1
+      exitstatus=$?
+      message="\"systemctl status docker\" and \"sudo journalctl -fu docker\" will be helpful."
+    fi
+    if [[ ! "${exitstatus}" -eq 0 ]]; then
       echo "The Docker daemon is not running. Please check Docker installation."
-      echo "\"sudo systemctl status docker\" and \"sudo journalctl -fu docker\" will be helpful."
+      echo "${message}"
       echo "Aborting."
       exit 1
     fi
+    set -e
+    if ! dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed" \
+         && ! dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
+      echo "WARNING: Neither docker-ce nor docker.io appear to be installed via apt."
+      echo "The docker daemon is running. A non-packaged install is highly unusual and hard to maintain."
+      echo "Please switch to docker-ce installed via the official Docker repo."
+    fi
+  else
+    if ! ${__docker_exe} images >/dev/null 2>&1; then
+      if [[ "${__cannot_sudo}" -eq 1 ]]; then
+        echo "Cannot call Docker and cannot use sudo. Please make your user part of the docker group"
+        exit 1
+      fi
+      echo "Will use sudo to access Docker"
+      __docker_sudo="sudo"
+    fi
   fi
-  set -e
 
-  __docker_version=$(docker --version | awk '{ gsub(/,/, "", $3); print $3 }')
+  __docker_version=$(${__docker_exe} --version | awk '{ gsub(/,/, "", $3); print $3 }')
   __docker_major_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[1]; }')
   __docker_minor_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[2]; }')
   __docker_patch_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[3]; }')
@@ -174,14 +206,6 @@ __handle_docker() {
     __oldish_docker=1
   fi
 
-  if ! docker images >/dev/null 2>&1; then
-    if [[ "${__cannot_sudo}" -eq 1 ]]; then
-      echo "Cannot call Docker and cannot use sudo. Please make your user part of the docker group"
-      exit 1
-    fi
-    echo "Will use sudo to access Docker"
-    __docker_sudo="sudo"
-  fi
   if [[ -f "${__env_file}" && "${__distro}" =~ (debian|ubuntu) ]]; then
     DOCKER_ROOT=$(__dodocker system info --format '{{.DockerRootDir}}')
     var=DOCKER_ROOT
@@ -191,8 +215,12 @@ __handle_docker() {
     fi
 
     # on macOS, user would set this manually to Colima or Docker Desktop value
-    if __dodocker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
+    if __dodocker system info --format '{{.SecurityOptions}}' | grep -qi rootless; then
       DOCKER_SOCK=/run/user/$(id -u)/docker.sock
+      if [[ "${__distro}" =~ (debian|ubuntu) && "${__docker_exe}" = "docker" && ( "${__docker_major_version}" -lt 29 \
+            || ( "${__docker_major_version}" -eq 29 && "${__docker_minor_version}" -lt 5 ) ) ]]; then
+        __old_rootless_docker=1
+      fi
     else
       DOCKER_SOCK=/var/run/docker.sock
     fi
@@ -531,6 +559,7 @@ EOF
 }
 
 
+# Always called after __handle_docker, so that ${__docker_sudo} is set
 __check_compose_version() {
   local yn
 
@@ -538,8 +567,8 @@ __check_compose_version() {
 # Compose V1 is in Ubuntu 22.04 and 24.04. The Compose version check can be removed when Ubuntu 24.04 goes EOL in 2029.
 
 # Check for Compose V2+ (docker compose) vs Compose V1 (docker-compose)
-  if docker compose version >/dev/null 2>&1; then
-    __compose_version=$(${__docker_sudo} docker compose version | sed -n -E -e "s/.*version [v]?([0-9.-]*).*/\1/ip")
+  if __dodocker compose version >/dev/null 2>&1; then
+    __compose_version=$(__dodocker compose version | sed -n -E -e "s/.*version [v]?([0-9.-]*).*/\1/ip")
     __compose_major=${__compose_version%%.*}
     __compose_minor=${__compose_version#*.}
     __compose_minor=${__compose_minor%%.*}
@@ -548,13 +577,18 @@ __check_compose_version() {
    elif [[ "${__compose_major}" -eq 2 && "${__compose_minor}" -lt 18 ]]; then
      __old_compose=1
    fi
-  else
+  elif ${__docker_sudo} docker-compose --version >/dev/null 2>&1; then
     __old_compose=1
     __compose_version=$(${__docker_sudo} docker-compose --version | sed -n -E -e "s/.*version [v]?([0-9.-]*).*/\1/ip")
     __compose_major=${__compose_version%%.*}
     __compose_minor=${__compose_version#*.}
     __compose_minor=${__compose_minor%%.*}
+  else
+    echo "Unable to find ${__docker_exe} compose. Please be sure it's installed"
+    echo "Aborting"
+    exit 1
   fi
+
   if [[ "${__compose_major}" -gt 1 ]]; then
     return
   fi
@@ -4820,7 +4854,7 @@ __query_web3signer() {
 __query_grafana() {
   if whiptail --title "Grafana" --yesno "Do you want to use Grafana dashboards?" 10 65; then
       if [[ "$OSTYPE" = "darwin"* ]] || __dodocker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
-      # macOS doesn't do well with / bind mount - leave node-exporter and cadvisor off by default
+      # macOS doesn't do well with / bind mount - leave node-exporter and cadvisor off by default. Also detect rootless Docker
         CORE_FILES+=":grafana-rootless.yml:grafana-shared.yml"
       else
         CORE_FILES+=":grafana.yml:grafana-shared.yml"
@@ -6268,7 +6302,7 @@ __update_help() {
   echo "Updates ${__project_name} itself, as required the contents of \".env\", and the clients."
   echo
   echo "A combination of \"git pull\" for ${__project_name}, some bash scripting to bring new variables from \"default.env\","
-  echo "and \"docker compose pull\" as well as \"docker compose build\" for the clients."
+  echo "and \"${__compose_exe} pull\" as well as \"${__compose_exe} build\" for the clients."
   echo
   echo "If warranted, will also offer resync when clients require it, or upgrade of PostgreSQL version."
   echo
@@ -6518,4 +6552,10 @@ if [[ "${__oldish_docker}" -eq 1 ]]; then
   echo "its repo file may have become disabled during an OS upgrade. Check \"/etc/apt/sources.list.d\" for"
   echo "your Docker repo \".list\" or \".sources\", and if it's been disabled, recreate it or re-enable it."
   echo "See https://docs.docker.com/engine/install/ for instructions."
+fi
+
+if [[ "${__old_rootless_docker}" -eq 1 ]]; then
+  echo "You are using Docker version ${__docker_version} in rootless mode."
+  echo "Rootless support has been greatly improved since version \"29.5.0\"."
+  echo "Consider upgrading Docker, and reinstalling the rootless support after the upgrade."
 fi
