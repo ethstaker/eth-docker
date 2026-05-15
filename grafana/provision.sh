@@ -395,21 +395,22 @@ case "${CLIENT}" in
         | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${tmp}" || status=1
     fi
     handle_replacement "${status}" "${tmp}" "${file}"
-    # Log file dashboard (via loki)
-    id=20223
-    status=0
-    revision=$(wget -t 3 -T 10 -qO - https://grafana.com/api/dashboards/${id} | jq -r .revision) || status=1
-    url="https://grafana.com/api/dashboards/${id}/revisions/${revision}/download"
-    file='/etc/grafana/provisioning/dashboards/eth-docker-logs.json'
-    if [[ "${status}" -eq 0 ]]; then
-      tmp=$(mktemp)
-      wget -t 3 -T 10 -qcO - "${url}" | jq 'walk(if . == "${DS_LOKI}" then "Loki" else . end)' >"${tmp}" || status=1
-    fi
-    handle_replacement "${status}" "${tmp}" "${file}"
     ;;
 esac
 
 # Always provision a few basics
+# Log file dashboard (via loki)
+id=20223
+status=0
+revision=$(wget -t 3 -T 10 -qO - https://grafana.com/api/dashboards/${id} | jq -r .revision) || status=1
+url="https://grafana.com/api/dashboards/${id}/revisions/${revision}/download"
+file='/etc/grafana/provisioning/dashboards/eth-docker-logs.json'
+if [[ "${status}" -eq 0 ]]; then
+  tmp=$(mktemp)
+  wget -t 3 -T 10 -qcO - "${url}" | jq 'walk(if . == "${DS_LOKI}" then "Loki" else . end)' >"${tmp}" || status=1
+fi
+handle_replacement "${status}" "${tmp}" "${file}"
+
 # Home staking dashboard
 id=17846
 status=0
@@ -421,6 +422,7 @@ if [[ "${status}" -eq 0 ]]; then
   wget -t 3 -T 10 -qcO - "${url}" | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${tmp}" || status=1
 fi
 handle_replacement "${status}" "${tmp}" "${file}"
+
 # Ethereum Metrics Exporter Dashboard
 id=16277
 status=0

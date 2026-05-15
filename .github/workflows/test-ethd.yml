@@ -38,7 +38,9 @@ jobs:
         uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
       - name: Prerequisites on Ubuntu
         if: ${{ startsWith(matrix.os, 'ubuntu-') }}
-        run: sudo apt-get install -y expect whiptail
+        run: |
+          sudo apt-get install -y expect whiptail
+          sudo apt-get remove -y podman
       - name: Prerequisites on macOS
         if: ${{ startsWith(matrix.os, 'macos-') }}
         run: brew install bash newt coreutils expect gawk
