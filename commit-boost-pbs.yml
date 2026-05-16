@@ -8,6 +8,7 @@ x-logging: &logging
 
 services:
   cb-pbs:
+    restart: "unless-stopped"
     image: ${CB_PBS_DOCKER_REPO:-ghcr.io/commit-boost/pbs}:${CB_PBS_DOCKER_TAG:-latest}
     environment:
       CB_CONFIG: /cb-config.toml
