@@ -1008,6 +1008,8 @@ and secrets directories into .eth/validator_keys instead."
         echo
       done
     fi
+    found_one=0
+    do_a_protec=0
     for protect_file in "${keydir}"/slashing_protection*.json; do
       [[ -f "${protect_file}" ]] || continue
       if grep -q "${__pubkey}" "${protect_file}"; then
