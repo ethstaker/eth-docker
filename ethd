@@ -6199,8 +6199,6 @@ version() {
   # Grafana version
   case "${__value}" in
     *grafana.yml*)
-      __docompose exec prometheus /bin/prometheus --version
-      echo
       echo -n "Grafana "
       __docompose exec grafana /run.sh -v
       echo
