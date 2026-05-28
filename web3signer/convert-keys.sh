@@ -31,7 +31,7 @@ fi
 while true; do
   echo "WARNING: This function will reduce the security of validator keys loaded into Web3signer."
   echo "Web3signer startup time for thousands of keys will reduce to seconds."
-  echo "Conversion can take 30 minutes for 15,000 keys. Running in screen or tmux is recommended."
+  echo "Conversion can take an hour for 15,000 keys. Running in screen or tmux is recommended."
   read -rp "Are you sure you want to convert keystores to lower security? (No/yes) " yn
   case "${yn}" in
     [Yy][Ee][Ss]) echo; break;;
@@ -40,7 +40,7 @@ while true; do
 done
 
 mkdir -p -m 700 "${base_dir}"/keys-backup."${ts}"
-cp -rp "${base_dir}"/keys/* "${base_dir}"/keys-backup."${ts}"/
+find "${base_dir}"/keys/ -maxdepth 1 -mindepth 1 -exec cp -rp -t "${base_dir}"/keys-backup."${ts}"/ {} +
 
 for file in "${base_dir}"/keys-backup."${ts}"/*.password; do
   [ -e "$file" ] || continue
@@ -48,7 +48,7 @@ for file in "${base_dir}"/keys-backup."${ts}"/*.password; do
 done
 
 /opt/converter/bin/converter --src="${base_dir}"/keys-backup."${ts}" --password-src="${base_dir}"/keys-backup."${ts}" --dest="${base_dir}"/converted-keys
-cp "${base_dir}"/converted-keys/*.json "${base_dir}"/keys/
+find "${base_dir}"/converted-keys/ -maxdepth 1 -name '*.json' -type f -exec cp -t "${base_dir}"/keys/ {} +
 
 echo
 echo "Original keys have been backed up to keys-backup.${ts}, inside the \"web3signer-keys\" Docker volume"
