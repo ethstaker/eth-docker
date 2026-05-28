@@ -6484,6 +6484,7 @@ case "${__command}" in
   *)
     echo "Unrecognized command ${__command}"
     help
+    exit 1
     ;;
 esac
 
