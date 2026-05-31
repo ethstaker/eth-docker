@@ -617,7 +617,6 @@ __prep_conffiles() {
     [./ssv-config/dkg-config.yaml]="./ssv-config/dkg-config.yaml.sample"
     [./commit-boost/cb-config.toml]="./commit-boost/cb-config.toml.sample"
     [./tempo/tempo.yaml]="./tempo/tempo.yaml.sample"
-    [./tempo/overrides.yaml]="./tempo/overrides.yaml.sample"
     [./.motd]="./.motd.sample"
   )
   local -A chmod_dirs=(
@@ -2279,6 +2278,7 @@ update() {
   local dirty
   local branch
   local latest_tag
+  local ts
 
   if [[ "$*" =~ --debug ]]; then
     __debug=1
@@ -2502,6 +2502,16 @@ update() {
   if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
     ${__as_owner} cp "${__env_file}".source "${__env_file}".bak
   fi
+
+  # Remove after Glamsterdam
+  if [[ ${__source_ver} -lt 58 ]]; then
+    if [[ -f ./tempo/tempo.yaml ]]; then
+      ts=$(date +%s)
+      mv ./tempo/tempo.yaml "./tempo/tempo.yaml.bak.${ts}"
+      __final_msg+="\nGrafana Tempo has been updated to v3; old tempo/tempo.yaml has been saved as tempo/tempo.yaml.bak.${ts}"
+    fi
+  fi
+
   # Remove after Glamsterdam
   __migrate_alloy_obol
   __pull_and_build

@@ -75,12 +75,11 @@ services:
       - logs.collect=true
 
   tempo:
-    image: grafana/tempo:2.10.4
+    image: grafana/tempo:3.0.0
     command:
       - '-config.file=/etc/tempo.yaml'
     volumes:
       - ./tempo/tempo.yaml:/etc/tempo.yaml
-      - ./tempo/overrides.yaml:/etc/overrides.yaml
       - tempo-data:/var/tempo
     restart: "unless-stopped"
     <<: *logging

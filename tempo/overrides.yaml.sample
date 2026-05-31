@@ -1,5 +1,0 @@
-overrides:
-  default:
-    metrics_generator_processors:
-      - local-blocks
-      - span-metrics

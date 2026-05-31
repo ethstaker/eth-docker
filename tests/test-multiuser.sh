@@ -26,7 +26,6 @@ declare -a __config_files=(
   "ssv-config/dkg-config.yaml"
   "commit-boost/cb-config.toml"
   "tempo/tempo.yaml"
-  "tempo/overrides.yaml"
 )
 
 __initial_owner=""
