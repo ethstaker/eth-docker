@@ -18,6 +18,7 @@ eth1:
   ETH1Addr: ws://execution:8546
 MetricsAPIPort: 15000
 SSVAPIPort: 16000
+SSVAPIAddress: 0.0.0.0
 EnableDoppelgangerProtection: false
 Graffiti: ssv.network
 global:
