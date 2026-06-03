@@ -29,7 +29,7 @@ services:
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
       - ANCIENT_DIR=${ANCIENT_DIR:-}
-      - ERA_URL=${ERA_URL:-}
+      - ERE_URL=${ERE_URL:-}
       - COMPOSE_FILE=${COMPOSE_FILE}
     volumes:
       - geth-eth1-data:/var/lib/goethereum

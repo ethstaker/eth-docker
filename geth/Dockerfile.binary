@@ -13,7 +13,7 @@ ARG UID=10001
 # GID 10002 is deliberate so it can exchange secret with CL
 ARG GID=10002
 
-RUN apk update && apk add --no-cache ca-certificates tzdata bash su-exec git git-lfs jq
+RUN apk update && apk add --no-cache ca-certificates tzdata bash su-exec git git-lfs jq curl aria2 coreutils
 
 RUN addgroup \
     --gid "${GID}" \

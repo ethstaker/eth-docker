@@ -19,6 +19,81 @@ __strip_empty_args() {
 }
 
 
+__download_ere_files() {
+# Copyright (c) 2025 Status Research & Development GmbH and 2026 Eth Docker maintainers.
+# Licensed under either of:
+# - Apache License, version 2.0
+# - MIT license
+# at your option. This file may not be copied, modified, or distributed except
+# according to those terms.
+
+# Usage: __download_ere_files <download_url> <download_path>
+
+  local download_url
+  local download_dir
+  local base_url
+  local completed
+  local percent
+  local total_files
+  local aria_pid
+
+  if [[ $# -ne 2 ]]; then
+    echo "__download_ere_files called without <download_url> <download_path>. This is a bug."
+    exit 70
+  fi
+
+  download_url="$1"
+  download_dir="$2"
+
+  mkdir -p "${download_dir}"
+  cd "${download_dir}" || { echo "Could not change directory to ${download_dir}. This is a bug."; exit 70; }
+
+  # 🔧 Normalize base URL (handle trailing slash)
+  case "${download_url}" in
+    */)           base_url="${download_url%/}" ;;
+    *)            base_url="${download_url}" ;;
+  esac
+
+  curl -sS -O "${base_url}/urls.txt"
+  total_files=$(wc -l < urls.txt)
+  aria2c -x 8 -j 5 -c -i urls.txt \
+    --dir="." \
+    --console-log-level=warn \
+    --quiet=true \
+    --summary-interval=0 \
+    --continue=true \
+    > /dev/null 2>&1 &
+
+  aria_pid=$!
+
+  echo "Downloading EraE history files"
+  echo "📥 Starting download of ${total_files} files..."
+  while kill -0 "${aria_pid}" 2> /dev/null; do
+    completed=$(find . -type f \( -name '*.erae' -o -name '*.ere' \) | wc -l)
+    percent=$(awk "BEGIN { printf \"%.1f\", (${completed}/${total_files})*100 }")
+    echo "📦 Download Progress: ${percent}% complete (${completed} / ${total_files} files)"
+    sleep 10
+  done
+
+  wait "${aria_pid}" && exitstatus=0 || exitstatus=$?
+  if [[ "${exitstatus}" -ne 0 ]]; then
+    echo "EraE download failed with exit code ${exitstatus}"
+    exit "${exitstatus}"
+  fi
+
+  completed=$(find . -type f \( -name '*.erae'  -o -name '*.ere' \) | wc -l)
+  echo "📦 Download Progress: 100% complete (${completed} / ${total_files} files)"
+
+  echo "✅ All files downloaded to: ${download_dir}"
+
+  echo "Verifying checksums"
+  curl -sS -O "${base_url}/checksums.txt"
+  curl -sS -O "${base_url}/checksums_sha256.txt"
+  sha256sum -c checksums_sha256.txt --ignore-missing
+  echo "✅ All checksums verified"
+}
+
+
 if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/geth/ee-secret/jwtsecret
   echo "JWT secret was supplied in .env"
@@ -152,9 +227,27 @@ case "${NODE_TYPE}" in
     ;;
 esac
 
-if [[ -n "${ERA_URL}" && ! -d /var/lib/geth/geth/chaindata && ! -d /var/lib/goethereum/geth/chaindata && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
-  echo "Starting EraE history import from ${ERA_URL}"
-  geth --datadir /var/lib/geth "--${NETWORK}" --era.format erae --remotedb "${ERA_URL}"
+# EraE import
+if [[ -n "${ERE_URL}" && ! -f /var/lib/geth/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+  if [[ "${NODE_TYPE}" =~ ^(full|archive)$ ]]; then
+    echo "Starting EraE history import from ${ERE_URL}"
+    if [[ ! -f /var/lib/geth/ere-download-complete ]]; then
+      __download_ere_files "${ERE_URL}" /var/lib/geth/ere
+      touch /var/lib/geth/ere-download-complete
+    fi
+    # Rename legacy erae files. This can be removed once pandaops publishes .ere
+    find /var/lib/geth/ere -type f -name '*.erae' -exec sh -c '
+      for f; do
+        mv -- "$f" "${f%.erae}-noproofs.ere"
+      done
+    ' sh {} +
+    # shellcheck disable=SC2086
+    geth --datadir /var/lib/geth ${__ancient} ${__network} import-history --era.format ere /var/lib/geth/ere
+    touch /var/lib/geth/ere-import-complete
+    rm -rf /var/lib/geth/ere
+  else
+    echo "Geth is neither a full nor archive node, it uses ${NODE_TYPE}. Skipping EraE import."
+  fi
 fi
 
 # Traces

@@ -35,7 +35,7 @@ EOF
 # Pull all binaries into a second stage deploy container
 FROM alpine:3
 
-RUN apk add --no-cache ca-certificates tzdata bash su-exec git git-lfs jq
+RUN apk add --no-cache ca-certificates tzdata bash su-exec git git-lfs jq curl aria2 coreutils
 
 ARG USER=geth
 ARG UID=10001

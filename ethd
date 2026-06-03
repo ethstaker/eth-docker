@@ -1884,8 +1884,8 @@ __update_value_in_env() {
 
 
 __migrate_env() {
-  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN )
-  local new_vars=( CF_PROXY DDNS_HOST )
+  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL )
+  local new_vars=( CF_PROXY DDNS_HOST ERE_URL )
   local error
   local line
   local index

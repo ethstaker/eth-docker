@@ -185,8 +185,8 @@ fi
 
 # EraE import
 # Not supported in Nimbus EL yet. Adjust parameters to ACTUAL behavior once it is
-#if [[ -n "${ERA_URL}" && ! -d /var/lib/nimbus/nimbus && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
-#  __download_era_files "${ERA_URL}" /var/lib/nimbus/era
+#if [[ -n "${ERE_URL}" && ! -d /var/lib/nimbus/nimbus && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+#  __download_era_files "${ERE_URL}" /var/lib/nimbus/era
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
