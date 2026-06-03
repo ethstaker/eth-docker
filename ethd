@@ -1851,8 +1851,8 @@ __update_value_in_env() {
 
 
 __env_migrate() {
-  local old_vars=( )
-  local new_vars=( )
+  local old_vars=( ERA_URL )
+  local new_vars=( ERE_URL )
   local error
   local line
   local index
