@@ -31,6 +31,7 @@ services:
       - AUTOPRUNE_NM=${AUTOPRUNE_NM:-true}
       - NM_FLATDB=${NETHERMIND_FLATDB:-}
       - NETWORK=${NETWORK}
+      - ERE_URL=${ERE_URL:-}
       # For Grandine plugin
       - COMPOSE_FILE=${COMPOSE_FILE}
       - LOG_LEVEL=${LOG_LEVEL}

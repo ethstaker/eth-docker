@@ -127,23 +127,28 @@ case "${NODE_TYPE}" in
   archive)
     echo "Nethermind archive node without pruning"
     __prune="--Sync.DownloadBodiesInFastSync=false --Sync.DownloadReceiptsInFastSync=false --Sync.FastSync=false --Sync.SnapSync=false --Sync.FastBlocks=false --Pruning.Mode=None --Sync.PivotNumber=0"
+    __ere_from=0
     ;;
   full)
     echo "Nethermind full node without history expiry"
     __prune+=" --Sync.AncientBodiesBarrier=0 --Sync.AncientReceiptsBarrier=0"
+    __ere_from=0
     ;;
   pre-merge-expiry)
     case "${NETWORK}" in
       mainnet)
         echo "Nethermind minimal node with pre-merge history expiry"
         __prune+=" --Sync.AncientBodiesBarrier=15537394 --Sync.AncientReceiptsBarrier=15537394 --History.Pruning=UseAncientBarriers"
+        __ere_from=15537394
         ;;
       sepolia)
         echo "Nethermind minimal node with pre-merge history expiry"
         __prune+=" --Sync.AncientBodiesBarrier=1450408 --Sync.AncientReceiptsBarrier=1450408 --History.Pruning=UseAncientBarriers"
+        __ere_from=1450408
         ;;
       *)
         echo "There is no pre-merge history for ${NETWORK} network, \"pre-merge-expiry\" has no effect."
+        __ere_from=0
         ;;
     esac
     ;;
@@ -152,17 +157,21 @@ case "${NODE_TYPE}" in
       mainnet)
         echo "Nethermind minimal node with pre-Prague history expiry"
         __prune+=" --Sync.AncientBodiesBarrier=22431084 --Sync.AncientReceiptsBarrier=22431084 --History.Pruning=UseAncientBarriers"
+        __ere_from=22431084
         ;;
       sepolia)
         echo "Nethermind minimal node with pre-Prague history expiry"
         __prune+=" --Sync.AncientBodiesBarrier=7836331 --Sync.AncientReceiptsBarrier=7836331 --History.Pruning=UseAncientBarriers"
+        __ere_from=7836331
         ;;
       hoodi)
         echo "Nethermind minimal node with pre-Prague history expiry"
         __prune+=" --Sync.AncientBodiesBarrier=60412 --Sync.AncientReceiptsBarrier=60412 --History.Pruning=UseAncientBarriers"
+        __ere_from=60412
         ;;
       *)
         echo "There is no pre-Prague history for ${NETWORK} network, \"pre-prague-expiry\" has no effect."
+        __ere_from=0
         ;;
     esac
     ;;
@@ -178,18 +187,33 @@ case "${NODE_TYPE}" in
     ;;
 esac
 
-echo "Using pruning parameters:"
-echo "${__prune}"
-if [[ -n "${__flat}" ]]; then
-  echo "Using FlatDB parameters:"
-  echo "${__flat}"
-fi
-
 # New or old datadir
 if [[ -d /var/lib/nethermind-og/nethermind_db ]]; then
   __datadir="--data-dir /var/lib/nethermind-og"
 else
   __datadir="--data-dir /var/lib/nethermind"
+fi
+
+# EraE import
+__ere=""
+if [[ -n "${ERE_URL}" && ! "${NETWORK}" =~ ^https?:// ]]; then  # Named network
+  if [[ "${NODE_TYPE}" = "rolling-expiry" ]]; then
+    echo "Nethermind is configured for ${NODE_TYPE}, skipping EraE import."
+  else
+    __ere="--erae-importdirectory /var/lib/nethermind/ere --erae-remotebaseurl ${ERE_URL} --erae-from ${__ere_from}"
+    __prune=${__prune//--History.Pruning=UseAncientBarriers/}  # Not compatible with EraE import
+  fi
+fi
+
+echo "Using pruning parameters:"
+echo "${__prune}"
+if [[ -n "${__ere}" ]]; then
+  echo "Using EraE import parameters:"
+  echo "${__ere}"
+fi
+if [[ -n "${__flat}" ]]; then
+  echo "Using FlatDB parameters:"
+  echo "${__flat}"
 fi
 
 if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
@@ -349,4 +373,4 @@ set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__datadir} ${__network} ${__prune} ${__flat} ${__grandine} ${EL_EXTRAS}
+exec "$@" ${__datadir} ${__network} ${__prune} ${__ere} ${__flat} ${__grandine} ${EL_EXTRAS}
