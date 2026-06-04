@@ -6476,7 +6476,7 @@ case "${__command}" in
     ;;
   keys|up|start|down|stop|restart|version|logs|prune-nethermind\
 |prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
-|repair-reth|migrate-reth|keyimport|space)
+|repair-reth|migrate-reth|space)
     __verify_env_file --enforce-min
     __get_compose_file
     ${__command} "$@"
