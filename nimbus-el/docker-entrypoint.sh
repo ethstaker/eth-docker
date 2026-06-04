@@ -19,28 +19,26 @@ __strip_empty_args() {
 }
 
 
-__download_era_files() {
-# Copyright (c) 2025 Status Research & Development GmbH. Licensed under
-# either of:
+__download_ere_files() {
+# Copyright (c) 2025 Status Research & Development GmbH and 2026 Eth Docker maintainers.
+# Licensed under either of:
 # - Apache License, version 2.0
 # - MIT license
 # at your option. This file may not be copied, modified, or distributed except
 # according to those terms.
 
-# Usage: __download_era_files <download_url> <download_path>
+# Usage: __download_ere_files <download_url> <download_path>
 
   local download_url
   local download_dir
   local base_url
-  local urls_raw_file
-  local urls_file
   local completed
   local percent
   local total_files
   local aria_pid
 
   if [[ $# -ne 2 ]]; then
-    echo "__download_era_files called without <download_url> <download_path>. This is a bug."
+    echo "__download_ere_files called without <download_url> <download_path>. This is a bug."
     exit 70
   fi
 
@@ -50,62 +48,48 @@ __download_era_files() {
   mkdir -p "${download_dir}"
   cd "${download_dir}" || { echo "Could not change directory to ${download_dir}. This is a bug."; exit 70; }
 
-  # Generate safe temp files for URL lists
-  urls_raw_file=$(mktemp)
-  urls_file=$(mktemp)
-
-  # Scrape and filter
-  curl -s "${download_url}" | \
-  grep -Eo 'href="[^"]+"' | \
-  cut -d'"' -f2 | \
-  grep -Ei '\.(era|era1|txt)$' | \
-  sort -u > "${urls_raw_file}"
-
-  # Remove trailing file (like index.html) to get actual base path
-  base_url=$(echo "${download_url}" | sed -E 's|/[^/]*\.[a-zA-Z0-9]+$||')
-
-  # 🔧 Normalize base URL (handle trailing slash or index.html)
+  # 🔧 Normalize base URL (handle trailing slash)
   case "${download_url}" in
-    */index.html) base_url="${download_url%/index.html}" ;;
     */)           base_url="${download_url%/}" ;;
     *)            base_url="${download_url}" ;;
   esac
 
-  # Prepend full URL
-  awk -v url="${base_url}" '{ print url "/" $0 }' "${urls_raw_file}" > "${urls_file}"
-
-  total_files=$(wc -l < "${urls_file}")
-
-  if [[ "${total_files}" -eq 0 ]]; then
-    echo "❌ No .era, .era1, or .txt files found at ${download_url}"
-    exit 1
-  fi
-
-  aria2c -x 8 -j 5 -c -i "${urls_file}" \
+  curl -sS -O "${base_url}/urls.txt"
+  total_files=$(wc -l < urls.txt)
+  aria2c -x 8 -j 5 -c -i urls.txt \
     --dir="." \
     --console-log-level=warn \
     --quiet=true \
     --summary-interval=0 \
+    --continue=true \
     > /dev/null 2>&1 &
 
   aria_pid=$!
 
-  echo "Downloading Era/Era1 history files"
+  echo "Downloading EraE history files"
   echo "📥 Starting download of ${total_files} files..."
   while kill -0 "${aria_pid}" 2> /dev/null; do
-    completed=$(find . -type f \( -name '*.era' -o -name '*.era1' -o -name '*.txt' \) | wc -l)
+    completed=$(find . -type f \( -name '*.erae' -o -name '*.ere' \) | wc -l)
     percent=$(awk "BEGIN { printf \"%.1f\", (${completed}/${total_files})*100 }")
     echo "📦 Download Progress: ${percent}% complete (${completed} / ${total_files} files)"
     sleep 10
   done
 
-  completed=$(find . -type f \( -name '*.era' -o -name '*.era1' -o -name '*.txt' \) | wc -l)
+  wait "${aria_pid}" && exitstatus=0 || exitstatus=$?
+  if [[ "${exitstatus}" -ne 0 ]]; then
+    echo "EraE download failed with exit code ${exitstatus}"
+    exit "${exitstatus}"
+  fi
+
+  completed=$(find . -type f \( -name '*.erae' -o -name '*.ere' \) | wc -l)
   echo "📦 Download Progress: 100% complete (${completed} / ${total_files} files)"
 
-  # ✅ Cleanup temp files
-  rm -f "${urls_raw_file}" "${urls_file}"
-
   echo "✅ All files downloaded to: ${download_dir}"
+
+  echo "Verifying checksums"
+  curl -sS -O "${base_url}/checksums_sha256.txt"
+  sha256sum -c checksums_sha256.txt --ignore-missing
+  echo "✅ All checksums verified"
 }
 
 
@@ -184,15 +168,27 @@ else
 fi
 
 # EraE import
-# Not supported in Nimbus EL yet. Adjust parameters to ACTUAL behavior once it is
-#if [[ -n "${ERA_URL}" && ! -d /var/lib/nimbus/nimbus && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
-#  __download_era_files "${ERA_URL}" /var/lib/nimbus/era
-
-# Word splitting is desired for the command line parameters
-# shellcheck disable=SC2086
-#  nimbus executionClient import --network=${NETWORK} --data-dir=/var/lib/nimbus --era-dir=/var/lib/nimbus/era
-#  rm -rf /var/lib/nimbus/era
-#fi
+if [[ -n "${ERE_URL}" && ! -f /var/lib/nimbus/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+  if [[ "${NODE_TYPE}" =~ ^(full|archive)$ ]]; then
+    echo "Starting EraE history import from ${ERE_URL}"
+    if [[ ! -f /var/lib/nimbus/ere-download-complete ]]; then
+      __download_ere_files "${ERE_URL}" /var/lib/nimbus/ere
+      touch /var/lib/nimbus/ere-download-complete
+    fi
+    # Rename legacy erae files. This can be removed once pandaops publishes .ere
+    find /var/lib/nimbus/ere -type f -name '*.erae' -exec sh -c '
+      for f; do
+        mv -- "$f" "${f%.erae}-noproofs.ere"
+      done
+    ' sh {} +
+    # shellcheck disable=SC2086
+    nimbus import --network=${NETWORK} --data-dir=/var/lib/nimbus --ere-dir=/var/lib/nimbus/ere
+    touch /var/lib/nimbus/ere-import-complete
+    rm -rf /var/lib/nimbus/ere
+  else
+    echo "Nimbus is neither a full nor archive node, it uses ${NODE_TYPE}. Skipping EraE import."
+  fi
+fi
 
 __strip_empty_args "$@"
 set -- "${__args[@]}"

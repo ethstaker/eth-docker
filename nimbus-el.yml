@@ -27,7 +27,7 @@ services:
       - EL_EXTRAS=${EL_EXTRAS:-}
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - NETWORK=${NETWORK}
-      - ERA_URL=${ERA_URL:-}
+      - ERE_URL=${ERE_URL:-}
     volumes:
       - nimbus-el-data:/var/lib/nimbus
       - /etc/localtime:/etc/localtime:ro
