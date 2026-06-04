@@ -140,26 +140,86 @@ __handle_docker() {
   local exitstatus
   local var
   local regex
+  local message
+  local use_podman=0
+  local use_docker=0
 
   set +e
   if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
-    systemctl status docker >/dev/null
-    exitstatus=$?
-    if [[ ! "${exitstatus}" -eq 0 ]] && ! docker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
-      echo "The Docker daemon is not running. Please check Docker installation."
-      echo "\"sudo systemctl status docker\" and \"sudo journalctl -fu docker\" will be helpful."
+    if dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed" \
+         || dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
+      use_docker=1
+    fi
+    if dpkg-query -W -f='${Status}' podman 2>/dev/null | grep -q "ok installed"; then
+      use_podman=1
+    fi
+
+    # If both are installed:
+    # If DOCKER_SOCK is set to podman.sock, assume the user prefers podman
+    # If service podman.socket is running, assume the user prefers podman
+    # Otherwise, default to Docker
+    if [[ "${use_docker}" -eq 1 && "${use_podman}" -eq 1 ]]; then
+      echo "Both Docker and Podman are installed"
+      echo "Guessing at user preference by \"DOCKER_SOCK\" in \".env\" and status of service podman.socket"
+      var=DOCKER_SOCK
+      __get_value_from_env "${var}" "${__env_file}" "__value"
+      if [[ "${__value}" =~ podman.sock ]] || systemctl --user status podman.socket >/dev/null 2>&1 || systemctl status podman.socket >/dev/null 2>&1; then
+        echo "Preferring Podman"
+        echo
+        use_docker=0
+      else
+        echo "Preferring Docker"
+        echo
+        use_podman=0
+      fi
+    fi
+
+    if [[ "${use_docker}" -eq 1 ]]; then
+      if ${__docker_exe} system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
+        systemctl --user status docker >/dev/null 2>&1
+        exitstatus=$?
+        message="\"systemctl --user status docker\" and \"journalctl --user -fu docker\" will be helpful."
+      else
+        systemctl status docker >/dev/null 2>&1
+        exitstatus=$?
+        message="\"systemctl status docker\" and \"sudo journalctl -fu docker\" will be helpful."
+      fi
+      if [[ ! "${exitstatus}" -eq 0 ]]; then
+        echo "The Docker daemon is not running. Please check Docker installation."
+        echo "${message}"
+        echo "Aborting."
+        exit 1
+      fi
+    elif [[ "${use_podman}" -eq 1 ]]; then
+      __docker_exe=podman
+      __compose_exe="podman compose"
+      if systemctl status podman.socket >/dev/null 2>&1; then  # User has enabled system socket, run podman with sudo.
+        __docker_sudo="sudo"
+      else
+        systemctl --user status podman.socket >/dev/null 2>&1
+        exitstatus=$?
+        if [[ ! "${exitstatus}" -eq 0 ]]; then
+          echo "The Podman socket service is not running. Please check Podman installation."
+          echo "\"systemctl --user status podman.socket\" and \"journalctl --user -fu podman.socket\" will be helpful."
+          echo "Aborting."
+          exit 1
+        fi
+      fi
+    else
+      echo "Neither docker-ce, docker.io nor podman appear to be installed."
+      echo "One of those is required to run ${__project_name}."
       echo "Aborting."
       exit 1
     fi
   fi
   set -e
 
-  __docker_version=$(docker --version | awk '{ gsub(/,/, "", $3); print $3 }')
+  __docker_version=$(${__docker_exe} --version | awk '{ gsub(/,/, "", $3); print $3 }')
   __docker_major_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[1]; }')
   __docker_minor_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[2]; }')
   __docker_patch_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[3]; }')
 
-  if [[ "${__docker_major_version}" -lt 23 ]]; then
+  if [[ "${use_docker}" -eq 1 && "${__docker_major_version}" -lt 23 ]]; then
   # Debian 11 and Debian 12 have docker.io 20.10. From Debian 13, it's >= 26
   # Ubuntu has docker.io>= 27 from 22.04
   # The code to detect old docker.io can be removed when Debian 12 goes EOL in 2028
@@ -174,7 +234,7 @@ __handle_docker() {
     __oldish_docker=1
   fi
 
-  if ! docker images >/dev/null 2>&1; then
+  if ! ${__docker_exe} images >/dev/null 2>&1; then
     if [[ "${__cannot_sudo}" -eq 1 ]]; then
       echo "Cannot call Docker and cannot use sudo. Please make your user part of the docker group"
       exit 1
@@ -182,8 +242,13 @@ __handle_docker() {
     echo "Will use sudo to access Docker"
     __docker_sudo="sudo"
   fi
+
   if [[ -f "${__env_file}" && "${__distro}" =~ (debian|ubuntu) ]]; then
-    DOCKER_ROOT=$(__dodocker system info --format '{{.DockerRootDir}}')
+    if [[ "${__docker_exe}" = "podman" ]]; then
+      DOCKER_ROOT=$(__dodocker system info --format '{{.Store.GraphRoot}}')
+    else
+      DOCKER_ROOT=$(__dodocker system info --format '{{.DockerRootDir}}')
+    fi
     var=DOCKER_ROOT
     __get_value_from_env "${var}" "${__env_file}" "__value"
     if [[ "${DOCKER_ROOT}" != "${__value}" ]]; then
@@ -191,10 +256,18 @@ __handle_docker() {
     fi
 
     # on macOS, user would set this manually to Colima or Docker Desktop value
-    if __dodocker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
-      DOCKER_SOCK=/run/user/$(id -u)/docker.sock
+    if [[ "${__docker_exe}" = "podman" ]]; then
+      if [[ "$(__dodocker system info --format '{{.Host.Security.Rootless}}')" = "true" ]]; then
+        DOCKER_SOCK=/run/user/$(id -u)/podman/podman.sock
+      else
+        DOCKER_SOCK=/run/podman/podman.sock
+      fi
     else
-      DOCKER_SOCK=/var/run/docker.sock
+      if __dodocker system info --format '{{.SecurityOptions}}' | grep -qi rootless; then
+        DOCKER_SOCK=/run/user/$(id -u)/docker.sock
+      else
+        DOCKER_SOCK=/var/run/docker.sock
+      fi
     fi
     var=DOCKER_SOCK
     __get_value_from_env "${var}" "${__env_file}" "__value"
@@ -538,8 +611,8 @@ __check_compose_version() {
 # Compose V1 is in Ubuntu 22.04 and 24.04. The Compose version check can be removed when Ubuntu 24.04 goes EOL in 2029.
 
 # Check for Compose V2+ (docker compose) vs Compose V1 (docker-compose)
-  if docker compose version >/dev/null 2>&1; then
-    __compose_version=$(${__docker_sudo} docker compose version | sed -n -E -e "s/.*version [v]?([0-9.-]*).*/\1/ip")
+  if ${__docker_sudo} ${__docker_exe} compose version >/dev/null 2>&1; then
+    __compose_version=$(${__docker_sudo} ${__docker_exe} compose version | sed -n -E -e "s/.*version [v]?([0-9.-]*).*/\1/ip")
     __compose_major=${__compose_version%%.*}
     __compose_minor=${__compose_version#*.}
     __compose_minor=${__compose_minor%%.*}
@@ -548,12 +621,16 @@ __check_compose_version() {
    elif [[ "${__compose_major}" -eq 2 && "${__compose_minor}" -lt 18 ]]; then
      __old_compose=1
    fi
-  else
+  elif ${__docker_sudo} docker-compose --version >/dev/null 2>&1; then
     __old_compose=1
     __compose_version=$(${__docker_sudo} docker-compose --version | sed -n -E -e "s/.*version [v]?([0-9.-]*).*/\1/ip")
     __compose_major=${__compose_version%%.*}
     __compose_minor=${__compose_version#*.}
     __compose_minor=${__compose_minor%%.*}
+  else
+    echo "Unable to find ${__docker_exe} compose. Please be sure it's installed"
+    echo "Aborting"
+    exit 1
   fi
   if [[ "${__compose_major}" -gt 1 ]]; then
     return
@@ -836,7 +913,11 @@ __optimize_host() {
   local memtotal
 
   echo
-  docker_root=$(__dodocker system info --format '{{.DockerRootDir}}')
+  if dpkg-query -W -f='${Status}' podman 2>/dev/null | grep -q "ok installed"; then
+    docker_root=$(__dodocker system info --format '{{.Store.GraphRoot}}')
+  else
+    docker_root=$(__dodocker system info --format '{{.DockerRootDir}}')
+  fi
   if command -v findmnt >/dev/null; then
     docker_mount=$(findmnt -T "${docker_root}" -o TARGET -n)
     docker_mount_opts=$(findmnt -T "${docker_root}" -o OPTIONS -n 2>/dev/null)
@@ -925,6 +1006,11 @@ __install_docker() {
     echo "__install_docker() was called on ${__distro}, which is neither Debian nor Ubuntu."
     echo "This is a bug."
     exit 70
+  fi
+
+  if dpkg-query -W -f='${Status}' podman 2>/dev/null | grep -q "ok installed"; then
+    echo "Found podman. Will not install Docker, as it would conflict."
+    return
   fi
 
   if [[ -z "$(command -v docker)" ]]; then
@@ -1042,8 +1128,12 @@ __get_docker_free_space() {
   if [[ "$OSTYPE" = "darwin"* ]]; then  # macOS doesn't expose docker root dir to the OS
     __free_space=$(__dodocker run --rm -v macos-space-check:/dummy busybox df -P /dummy | awk '/[0-9]%/{print $(NF-2)}')
   else
-    __docker_dir=$(__dodocker system info --format '{{.DockerRootDir}}')
-    __free_space=$(df -P "${__docker_dir}" | awk '/[0-9]%/{print $(NF-2)}')
+    if [[ "${__docker_exe}" = "podman" ]]; then
+      __docker_dir=$(__dodocker system info --format '{{.Store.GraphRoot}}')
+    else
+      __docker_dir=$(__dodocker system info --format '{{.DockerRootDir}}')
+    fi
+    __free_space=$(${__docker_sudo} df -P "${__docker_dir}" | awk '/[0-9]%/{print $(NF-2)}')  # Allow for rootful podman
   fi
 
   regex='^[0-9]+$'
@@ -1052,7 +1142,7 @@ __get_docker_free_space() {
     if [[ "$OSTYPE" = "darwin"* ]]; then
       echo "df reports $(__dodocker run --rm -v macos-space-check:/dummy busybox df -P /dummy) and __free_space is ${__free_space}"
     else
-      echo "df reports $(df -P "${__docker_dir}") and __free_space is ${__free_space}"
+      echo "df reports $(${__docker_sudo} df -P "${__docker_dir}") and __free_space is ${__free_space}"  # Allow for rootful podman
     fi
     exit 70
   fi
@@ -1065,7 +1155,7 @@ __display_docker_dir() {
     __dodocker run --rm -v macos-space-check:/dummy busybox df -h /dummy
   else
     echo "Here's total and used space on ${__docker_dir}"
-    df -h "${__docker_dir}"
+    ${__docker_sudo} df -h "${__docker_dir}"  # Allow for rootful podman
   fi
 }
 
@@ -4819,8 +4909,8 @@ __query_web3signer() {
 
 __query_grafana() {
   if whiptail --title "Grafana" --yesno "Do you want to use Grafana dashboards?" 10 65; then
-      if [[ "$OSTYPE" = "darwin"* ]] || __dodocker system info --format '{{json .SecurityOptions}}' | grep -qi rootless; then
-      # macOS doesn't do well with / bind mount - leave node-exporter and cadvisor off by default
+      if [[ "$OSTYPE" = "darwin"* ]] || { [[ "${__docker_exe}" = "podman" ]] && ! systemctl status podman.socket >/dev/null 2>&1 ;} || __dodocker system info --format '{{json .SecurityOptions}}' 2>/dev/null | grep -qi rootless; then
+      # macOS doesn't do well with / bind mount - leave node-exporter and cadvisor off by default. Also detect rootless Docker/Podman
         CORE_FILES+=":grafana-rootless.yml:grafana-shared.yml"
       else
         CORE_FILES+=":grafana.yml:grafana-shared.yml"
@@ -6268,7 +6358,7 @@ __update_help() {
   echo "Updates ${__project_name} itself, as required the contents of \".env\", and the clients."
   echo
   echo "A combination of \"git pull\" for ${__project_name}, some bash scripting to bring new variables from \"default.env\","
-  echo "and \"docker compose pull\" as well as \"docker compose build\" for the clients."
+  echo "and \"${__compose_exe} pull\" as well as \"${__compose_exe} build\" for the clients."
   echo
   echo "If warranted, will also offer resync when clients require it, or upgrade of PostgreSQL version."
   echo
