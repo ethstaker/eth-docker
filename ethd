@@ -2358,7 +2358,8 @@ update() {
   local dirty
   local branch
   local latest_tag
-  local ts
+  local env_ts
+  local tempo_ts  # Remove after Glamsterdam
 
   if [[ "$*" =~ --debug ]]; then
     __debug=1
@@ -2580,15 +2581,16 @@ update() {
 
   __migrate_env
   if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
-    ${__as_owner} cp "${__env_file}".source "${__env_file}".bak
+    env_ts=$(date +%s)
+    ${__as_owner} cp "${__env_file}.source" "${__env_file}.bak.${env_ts}"
   fi
 
   # Remove after Glamsterdam
   if [[ ${__source_ver} -lt 58 ]]; then
     if [[ -f ./tempo/tempo.yaml ]]; then
-      ts=$(date +%s)
-      mv ./tempo/tempo.yaml "./tempo/tempo.yaml.bak.${ts}"
-      __final_msg+="\nGrafana Tempo has been updated to v3; old tempo/tempo.yaml has been saved as tempo/tempo.yaml.bak.${ts}"
+      tempo_ts=$(date +%s)
+      mv ./tempo/tempo.yaml "./tempo/tempo.yaml.bak.${tempo_ts}"
+      __final_msg+="\nGrafana Tempo has been updated to v3; old tempo/tempo.yaml has been saved as tempo/tempo.yaml.bak.${tempo_ts}"
     fi
   fi
 
@@ -2602,7 +2604,7 @@ update() {
   if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then
     ${__as_owner} rm "${__env_file}".source  # .bak was created earlier
     echo "Your ${__env_file} configuration settings have been migrated to a fresh copy. You can \
-find the original contents in ${__env_file}.bak."
+find the original contents in ${__env_file}.bak.${env_ts}"
     if [[ "${__keep_targets}" -eq 0 ]]; then
       echo "NB: If you made changes to the source or binary build targets, these have been \
 reset to defaults."
