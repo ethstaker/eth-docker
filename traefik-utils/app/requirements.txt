@@ -14,15 +14,15 @@ anyio==4.13.0 \
     # via
     #   cloudflare
     #   httpx
-boto3==1.43.21 \
-    --hash=sha256:6dfeb70bf4f9a3514b91c7199f475f71f939199d62f9c63cd555b033fb283f89 \
-    --hash=sha256:6dfeb70bf4f9a3514b91c7199f475f71f939199d62f9c63cd555b033fb283f89 \
-    --hash=sha256:8bb863b32dabe5baa4f2e3701778c259243ba117e4811a595411819958c4fb1b \
-    --hash=sha256:8bb863b32dabe5baa4f2e3701778c259243ba117e4811a595411819958c4fb1b
+boto3==1.43.25 \
+    --hash=sha256:91f3deb0dfc32403a187f57c19a78dc8e38d25ee2967a511fa8905acf00cc074 \
+    --hash=sha256:91f3deb0dfc32403a187f57c19a78dc8e38d25ee2967a511fa8905acf00cc074 \
+    --hash=sha256:e4e2515533a1593eb2302e9eda5baf4e1510abb219b41dd0db4696cc21bc5039 \
+    --hash=sha256:e4e2515533a1593eb2302e9eda5baf4e1510abb219b41dd0db4696cc21bc5039
     # via -r app/requirements.in
-botocore==1.43.21 \
-    --hash=sha256:17604607efe28894e947401379e569cc8f0fe2d69337ece98bd0c82d1bcfaf92 \
-    --hash=sha256:f021ba3e844c36031106fc531ec90259ef005ba5d04f691df53bc4ecbd08f0dd
+botocore==1.43.25 \
+    --hash=sha256:ef1d210ac9085ea0e5fc6ad2e63f0c7e97103c74f52156bf944289aaf6278d1b \
+    --hash=sha256:faab543ca6ae6f8fdc5f6318240bebfb8c05cd25823715fe02aad7edf0c4b383
     # via
     #   boto3
     #   s3transfer
@@ -114,10 +114,10 @@ charset-normalizer==3.4.3 \
     --hash=sha256:fd10de089bcdcd1be95a2f73dbe6254798ec1bda9f450d5828c96f93e2536b9c \
     --hash=sha256:fdabf8315679312cfa71302f9bd509ded4f2f263fb5b765cf1433b39106c3cc9
     # via requests
-cloudflare==5.0.0 \
-    --hash=sha256:51a27cb954512d1bc7e5f452ad1850f734a74af6925c38339d675bf9f58866cc \
-    --hash=sha256:ba21e454287dabd4cc8ba23421328627dcffd833e6c3a8661a3d5b062411e7c0
-    # via -r requirements.in
+cloudflare==5.2.0 \
+    --hash=sha256:9268c67e76eef84734680d6c322d115ab6613ec9096f9b8d4389e858c4e12549 \
+    --hash=sha256:dcf5cb4b54f543b000a68095297bcc16a9c618b98c09747d7b78e59e3d865292
+    # via -r app/requirements.in
 distro==1.9.0 \
     --hash=sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed \
     --hash=sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2
@@ -296,7 +296,7 @@ sniffio==1.3.1 \
 tenacity==9.1.4 \
     --hash=sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55 \
     --hash=sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a
-    # via -r requirements.in
+    # via -r app/requirements.in
 typing-extensions==4.15.0 \
     --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \
     --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548
