@@ -2612,7 +2612,7 @@ reset to defaults."
     echo
     echo "List of changes made to ${__env_file} during migration - current on left, original on right:"
     echo
-    diff -y --suppress-common-lines "${__env_file}" "${__env_file}".bak || true
+    diff -y --suppress-common-lines "${__env_file}" "${__env_file}.bak.${env_ts}" || true
   else
     echo "No changes made to ${__env_file} during update"
     if [[ -f "${__env_file}".source ]]; then
