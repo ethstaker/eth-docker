@@ -1,0 +1,45 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  aztec-sequencer:
+    restart: "unless-stopped"
+    image: "aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}"
+    environment:
+      - KEY_STORE_DIRECTORY=/var/lib/keystore
+      - DATA_DIRECTORY=/var/lib/data
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - ETHEREUM_HOSTS=http://execution:${EL_RPC_PORT:-8545}
+      - L1_CONSENSUS_HOST_URLS=http://consensus:${CL_REST_PORT:-5052}
+      - P2P_IP=${AZTEC_P2P_IP:-0.0.0.0}
+      - P2P_PORT=${AZTEC_P2P_PORT:-40400}
+      - AZTEC_PORT=${AZTEC_PORT:-8080}
+      - AZTEC_ADMIN_PORT=${AZTEC_ADMIN_PORT:-8880}
+    ports:
+      - "${AZTEC_PORT:-8080}:${AZTEC_PORT:-8080}"
+      - "${AZTEC_P2P_PORT:-40400}:${AZTEC_P2P_PORT:-40400}"
+      - "${AZTEC_P2P_PORT:-40400}:${AZTEC_P2P_PORT:-40400}/udp"
+    volumes:
+      - aztec-data:/var/lib/data
+      - ./aztec/keys:/var/lib/keystore:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - web3signer
+      - execution
+      - consensus
+    <<: *logging
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=8080
+      - metrics.instance=aztec-sequencer
+      - metrics.network=${NETWORK}
+      - logs.collect=true
+
+volumes:
+  aztec-data:
