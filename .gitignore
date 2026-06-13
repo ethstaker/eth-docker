@@ -13,3 +13,6 @@ blox-ssv-config.yaml.bak
 .motd
 post-ethd-update.sh
 pre-ethd-update.sh
+
+# Aztec Sequencer Keys
+/aztec/keys/keystore.json
