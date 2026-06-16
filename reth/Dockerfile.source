@@ -6,7 +6,14 @@ FROM rust:trixie AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
-RUN apt-get update && apt-get install -y --no-install-recommends libclang-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    lsb-release wget gnupg ca-certificates libclang-dev && \
+    wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && \
+    chmod +x /tmp/llvm.sh && /tmp/llvm.sh 22 all && \
+    for bin in clang llvm-config lld ld.lld FileCheck; do \
+      ln -fs "$(which "$bin-22")" "/usr/bin/$bin"; \
+    done && \
+    rm /tmp/llvm.sh
 
 ARG BUILD_TARGET
 ARG SRC_REPO

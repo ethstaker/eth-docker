@@ -215,10 +215,25 @@ fi
 
 # Download snapshot if this is a fresh sync
 if [[ -n "${__snap}" && ! -d /var/lib/reth/db ]]; then
+  if [[ -n "${ERE_URL}" ]]; then
+    echo "WARNING: Both EraE URL ${ERE_URL} and Reth snapshot URL found. Preferring snapshot."
+  fi
   echo "Downloading Reth snapshot with parameters: ${__snap}"
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
   exec reth download --chain "${NETWORK}" --datadir /var/lib/reth ${__static} ${__snap}
+fi
+
+# EraE import
+if [[ -n "${ERE_URL}" && ! -f /var/lib/reth/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+  if [[ "${NODE_TYPE}" =~ ^(full|archive)$ ]]; then
+    echo "Starting EraE history import from ${ERE_URL}"
+# shellcheck disable=SC2086
+    reth import-era --datadir /var/lib/reth ${__static} ${__network} --url "${ERE_URL}"
+    touch /var/lib/reth/ere-import-complete
+  else
+    echo "Reth is neither a full nor archive node, it uses ${NODE_TYPE}. Skipping EraE import."
+  fi
 fi
 
 __strip_empty_args "$@"

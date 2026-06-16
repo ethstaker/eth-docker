@@ -33,6 +33,7 @@ services:
       - IPV6=${IPV6:-false}
       - EL_P2P_PORT=${EL_P2P_PORT:-30303}
       - RETH_SNAPSHOT=${RETH_SNAPSHOT:-}
+      - ERE_URL=${ERE_URL:-}
       # Make this RUST_LOG=${LOG_LEVEL:-info},engine=trace when requiring deep debug
       # RPC debug can be done with jsonrpsee=trace or jsonrpsee::target=trace for a specific target
       # - RUST_LOG=${LOG_LEVEL:-info},engine=trace
