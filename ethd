@@ -3480,7 +3480,7 @@ prune-history() {
       ;;
     *nimbus-el.yml*)
       client="Nimbus"
-      if [[ "${target}" =~ ^(pre-prague|rolling|aggressive)$ ]]; then
+      if [[ "${target}" =~ ^(pre-prague|aggressive)$ ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
