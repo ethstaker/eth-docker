@@ -1,0 +1,87 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: Provisioned Alerts
+    folder: Eth Docker
+    interval: 5m
+    rules:
+      - uid: time_sync_failed
+        title: Time Sync Failed
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: node_timex_maxerror_seconds
+              intervalMs: 15000
+              maxDataPoints: 43200
+              queryType: ""
+              refId: A
+              type: query
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: avg
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              settings:
+                mode: dropNN
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: avg
+                  type: query
+              datasource:
+                name: Expression
+                type: __expr__
+                uid: __expr__
+              expression: $B > 2
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+        noDataState: OK
+        execErrState: OK
+        for: 10m
+        annotations:
+          summary: Time sync max error is {{ $values.B }}s. Time sync likely failed, either daemon or network
+        labels:
+          origin: provisioned
+          severity: warning
+        isPaused: false
