@@ -1,6 +1,6 @@
 # hadolint global ignore=DL3007,DL3008,DL3059
 # Build Web3signer in a stock Ubuntu container
-FROM eclipse-temurin:25-jdk-noble AS builder
+FROM eclipse-temurin:25-jdk-resolute AS builder
 
 # This is here to avoid build-time complaints
 ARG DOCKER_TAG
@@ -34,7 +34,7 @@ EOF
 
 
 # Pull all binaries into a second stage deploy Ubuntu container
-FROM eclipse-temurin:25-jre-noble
+FROM eclipse-temurin:25-jre-resolute
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   ca-certificates \

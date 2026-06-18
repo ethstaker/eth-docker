@@ -1,5 +1,5 @@
 # hadolint global ignore=DL3008
-FROM eclipse-temurin:25-jdk-noble AS builder
+FROM eclipse-temurin:25-jdk-resolute AS builder
 
 #ARG BUILD_TARGET=main
 ARG BUILD_TARGET=d32d6faf156b42985d6287a99e379b91d86fdb44
@@ -21,7 +21,7 @@ RUN bash -eo pipefail <<'EOF'
   ./gradlew installDist
 EOF
 
-FROM eclipse-temurin:25-jre-noble
+FROM eclipse-temurin:25-jre-resolute
 
 COPY --from=builder /usr/src/converter/converter/build/install/converter/ /opt/converter/
 COPY ./convert-keys.sh /usr/local/bin/
