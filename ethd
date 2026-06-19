@@ -688,9 +688,9 @@ __prep_conffiles() {
 # Adjust "other" read permissions for files that are bind-mounted
   for dir in "${!chmod_dirs[@]}"; do
 # shellcheck disable=SC2086
-     ${__chmod_sudo} find "${dir}" -type d \! -perm -o+rx -exec chmod o+rx {} +
+     find "${dir}" -type d \! -perm -o+rx -exec ${__chmod_sudo} chmod o+rx {} +
 # shellcheck disable=SC2086
-     ${__chmod_sudo} find "${dir}" -type f -name "${chmod_dirs[${dir}]}" \! -perm -o+r -exec chmod o+r {} +
+     find "${dir}" -type f -name "${chmod_dirs[${dir}]}" \! -perm -o+r -exec ${__chmod_sudo} chmod o+r {} +
   done
 
 # Make sure directory owner owns .env, or it's owned by directory group and group is writable
