@@ -62,7 +62,11 @@ __engine="--execution-endpoint ${EL_NODE} --execution-jwt /var/lib/lighthouse/be
 
 case "${NODE_TYPE}" in
   archive)
-    echo "Lighthouse archive node without pruning"
+    echo "Lighthouse archive node without history pruning"
+    __prune=""
+    ;;
+  blob-archive)
+    echo "Lighthouse blob archive node without blob or history pruning"
     __prune="--prune-blobs=false"
     ;;
   full|pruned)

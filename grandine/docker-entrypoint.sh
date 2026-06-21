@@ -72,7 +72,7 @@ fi
 
 case "${NODE_TYPE}" in
   archive)
-    echo "Grandine archive node without pruning"
+    echo "Grandine archive node without history pruning"
     __prune="--back-sync --archive-storage"
     ;;
   pruned)

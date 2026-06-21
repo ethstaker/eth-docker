@@ -156,7 +156,7 @@ fi
 
 case "${NODE_TYPE}" in
   archive)
-    echo "Teku archive node without pruning"
+    echo "Teku archive node without history pruning"
     __prune="--data-storage-mode=ARCHIVE"
     ;;
   full)

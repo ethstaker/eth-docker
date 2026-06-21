@@ -79,7 +79,11 @@ fi
 
 case "${NODE_TYPE}" in
   archive)
-    echo "Lodestar archive node without pruning"
+    echo "Lodestar archive node without history pruning"
+    __prune="--serveHistoricalState"
+    ;;
+  blob-archive)
+    echo "Lodestar archive node without blob or history pruning"
     __prune="--chain.archiveBlobEpochs Infinity --serveHistoricalState"
     ;;
   full)

@@ -258,7 +258,7 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
 
   case "${CL_NODE_TYPE}" in
     archive)
-      echo "Grandine archive node without pruning"
+      echo "Grandine archive node without history pruning"
       __grandine+=" --grandine-back-sync --grandine-archive-storage"
       ;;
     pruned)

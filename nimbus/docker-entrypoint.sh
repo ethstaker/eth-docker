@@ -135,7 +135,7 @@ __log_level="--log-level=${LOG_LEVEL^^}"
 
 case "${NODE_TYPE}" in
   archive)
-    echo "Nimbus archive node without pruning"
+    echo "Nimbus archive node without history pruning"
     __prune="--history=archive"
     ;;
   full)

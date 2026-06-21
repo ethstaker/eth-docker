@@ -119,10 +119,16 @@ else
     __caplin+=" --caplin.mev-relay-url=${MEV_NODE}"
     echo "MEV Boost enabled"
   fi
-  if [[ "${CL_NODE_TYPE}" = "archive" ]]; then
-    echo "Running Caplin archive node"
-    __caplin+=" --caplin.states-archive=true --caplin.blobs-archive=true --caplin.blobs-no-pruning=true --caplin.blocks-archive=true"
-  fi
+  case "${CL_NODE_TYPE}" in
+    archive)
+      echo "Caplin archive node without history pruning"
+      __caplin+=" --caplin.states-archive=true --caplin.blocks-archive=true"
+      ;;
+    blob-archive)
+      echo "Caplin archive node without blob or history pruning"
+      __caplin+=" --caplin.states-archive=true --caplin.blobs-archive=true --caplin.blobs-no-pruning=true --caplin.blocks-archive=true"
+      ;;
+  esac
   if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
     __caplin+=" --caplin.checkpoint-sync-url=${CHECKPOINT_SYNC_URL}/eth/v2/debug/beacon/states/finalized"
     echo "Checkpoint sync enabled"
