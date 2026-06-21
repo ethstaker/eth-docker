@@ -180,6 +180,12 @@ case "${NODE_TYPE}" in
     echo "\"EL_EXTRAS=--history-retentionepochs <epochs>\" in \".env\" can override, minimum <epochs> are 82125."
     __prune+=" --History.Pruning=Rolling"
     ;;
+  use-cl-zkproofs)
+    echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
+    echo "Remove \"nethermind.yml\" from configuration, or change the node type"
+    sleep 30
+    exit 1
+    ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Nethermind implementation."
     sleep 30

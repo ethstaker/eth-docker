@@ -47,6 +47,7 @@ services:
       - BEACON_STATS_MACHINE=${BEACON_STATS_MACHINE}
       - CL_EXTRAS=${CL_EXTRAS:-}
       - NODE_TYPE=${CL_NODE_TYPE:-pruned}
+      - EL_NODE_TYPE=${EL_NODE_TYPE}
       - EL_NODE=${EL_NODE}
       - IPV6=${IPV6:-false}
       - CL_P2P_PORT=${CL_P2P_PORT:-9000}

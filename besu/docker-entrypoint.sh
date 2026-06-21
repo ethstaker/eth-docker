@@ -93,6 +93,12 @@ case "${NODE_TYPE}" in
     echo "Besu minimal node with aggressive expiry"
     __prune="--snapsync-server-enabled --Xchain-pruning-enabled=ALL --Xchain-pruning-blocks-retained=113056"
     ;;
+  use-cl-zkproofs)
+    echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
+    echo "Remove \"besu.yml\" from configuration, or change the node type"
+    sleep 30
+    exit 1
+    ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Besu implementation."
     sleep 30

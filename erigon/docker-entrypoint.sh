@@ -97,6 +97,12 @@ case "${NODE_TYPE}" in
     echo "Erigon minimal node with aggressive expiry"
     __prune="--prune.mode=minimal --persist.receipts=false"
     ;;
+  use-cl-zkproofs)
+    echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
+    echo "Remove \"erigon.yml\" from configuration, or change the node type"
+    sleep 30
+    exit 1
+    ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Erigon implementation."
     sleep 30

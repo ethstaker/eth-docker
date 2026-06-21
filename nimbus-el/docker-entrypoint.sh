@@ -139,6 +139,12 @@ case "${NODE_TYPE}" in
     echo "Nimbus EL minimal node with 33,024 epochs rolling expiry - ~5 months"
     __prune="--prune"
     ;;
+  use-cl-zkproofs)
+    echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
+    echo "Remove \"nimbus-el.yml\" from configuration, or change the node type"
+    sleep 30
+    exit 1
+    ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Nimbus EL implementation."
     sleep 30

@@ -89,6 +89,12 @@ case "${NODE_TYPE}" in
     echo "Ethrex minimal node with pre-merge history expiry and snap sync"
     __sync="--syncmode snap"
     ;;
+  use-cl-zkproofs)
+    echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
+    echo "Remove \"ethrex.yml\" from configuration, or change the node type"
+    sleep 30
+    exit 1
+    ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Ethrex implementation."
     sleep 30

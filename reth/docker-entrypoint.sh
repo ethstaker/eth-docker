@@ -152,6 +152,12 @@ case "${NODE_TYPE}" in
     __prune="--minimal"
     __snap="--minimal"
     ;;
+  use-cl-zkproofs)
+    echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
+    echo "Remove \"reth.yml\" from configuration, or change the node type"
+    sleep 30
+    exit 1
+    ;;
   *)
     echo "ERROR: The node type ${NODE_TYPE} is not known to Eth Docker's Reth implementation."
     sleep 30
