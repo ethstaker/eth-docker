@@ -14,15 +14,15 @@ anyio==4.13.0 \
     # via
     #   cloudflare
     #   httpx
-boto3==1.43.30 \
-    --hash=sha256:6b1ee360f363a457f67a8f5702f522043d8a32d67a97c362ad12075d8b5b531e \
-    --hash=sha256:6b1ee360f363a457f67a8f5702f522043d8a32d67a97c362ad12075d8b5b531e \
-    --hash=sha256:89e982463d94773136ccf69be77cccd54ff1ce351a6aadd1d3437fcb693681b5 \
-    --hash=sha256:89e982463d94773136ccf69be77cccd54ff1ce351a6aadd1d3437fcb693681b5
+boto3==1.43.35 \
+    --hash=sha256:392ba41e82629a77ad70de38c43f8fc0f5f453c965e381e4e87d6fcedc80d6c4 \
+    --hash=sha256:392ba41e82629a77ad70de38c43f8fc0f5f453c965e381e4e87d6fcedc80d6c4 \
+    --hash=sha256:461d5fb1ee1422d4a0a439666cebb29e0d5b4bf4308d3c2564449c77a1f4ae52 \
+    --hash=sha256:461d5fb1ee1422d4a0a439666cebb29e0d5b4bf4308d3c2564449c77a1f4ae52
     # via -r app/requirements.in
-botocore==1.43.30 \
-    --hash=sha256:19ed560cb35ae43bf010d37da429a553c07063bf7efea0f2cb53be8a78d3e3d5 \
-    --hash=sha256:26b1dded84d89b396180916f56900bd2ab1c0d545a66d1d2c3eeb40f772935b2
+botocore==1.43.35 \
+    --hash=sha256:51c5893b5404b74012edde03bbd9c199c4bd7ffa35ddad173d0835efa7de281b \
+    --hash=sha256:ea16aaad7db67b5af67719e9da3302474af97a7fdf27161c2ecb30adb3570d50
     # via
     #   boto3
     #   s3transfer
@@ -114,9 +114,9 @@ charset-normalizer==3.4.3 \
     --hash=sha256:fd10de089bcdcd1be95a2f73dbe6254798ec1bda9f450d5828c96f93e2536b9c \
     --hash=sha256:fdabf8315679312cfa71302f9bd509ded4f2f263fb5b765cf1433b39106c3cc9
     # via requests
-cloudflare==5.3.0 \
-    --hash=sha256:60239403ec67881f23e0b103244ee676918d07b0c830b30217951ec8b30fe97b \
-    --hash=sha256:695538d02bc57e2a3c1dbe88ba09f0d5e80fc87b41acf5cf99bb62aa13775748
+cloudflare==5.4.0 \
+    --hash=sha256:863f2a234a7d2cce9f7ff9c4ae0b7e62f39f58504494bc49d9023a213d29aceb \
+    --hash=sha256:e53e8f612ec98c5cfdd9f58db2660b729fefc30b1ccbe156000c63b2242aacae
     # via -r app/requirements.in
 distro==1.9.0 \
     --hash=sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed \
@@ -281,9 +281,9 @@ requests==2.34.2 \
     --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0 \
     --hash=sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed
     # via -r app/requirements.in
-s3transfer==0.18.0 \
-    --hash=sha256:239c13b09e65ad0346e1be7348b8a202dcad44ac7ea7c6eb858fc881dce739b6 \
-    --hash=sha256:3760b8b7ec1315da54048b2d626276732bee4300d054d492d4e1d43e20d4ecbd
+s3transfer==0.19.0 \
+    --hash=sha256:777cc2415536f1debadb5c2ef7779275d0fc0fe0e042411cdd6caebeb2685262 \
+    --hash=sha256:ce436931687addc4c1712d52d40b32f53e88315723f107ffa20ba82b05a0f685
     # via boto3
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
