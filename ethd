@@ -2658,6 +2658,8 @@ reset to defaults."
     echo "Please make sure to run compatible client versions."
   fi
 
+  __write_eth_docker_version_metric
+
   if [[ ! "$OSTYPE" = "darwin"* ]]; then
 # Release lock and remove lock file
     exec 200<&-
@@ -4281,6 +4283,29 @@ __adjust_grandine_permissions() {
 }
 
 
+# Writes the currently checked-out Eth Docker version as a node-exporter
+# textfile-collector metric (see grafana.yml), so it can be tracked the same
+# way the EL/CL client versions already are. "tag" is the latest release tag
+# reachable from HEAD rather than an exact-match, so this covers both pinned/
+# stable installs (HEAD is on a tag) and tracking "main" (HEAD is ahead of
+# the latest tag).
+__write_eth_docker_version_metric() {
+  local tag
+  local commit
+
+  tag=$(${__as_owner} git describe --tags --abbrev=0 2>/dev/null) || tag=""
+  commit=$(${__as_owner} git rev-parse --short HEAD 2>/dev/null) || commit=""
+
+  ${__as_owner} mkdir -p ./.eth
+  {
+    echo "# HELP eth_docker_version_info Currently checked out Eth Docker version"
+    echo "# TYPE eth_docker_version_info gauge"
+    echo "eth_docker_version_info{tag=\"${tag}\",commit=\"${commit}\"} 1"
+  } | ${__as_owner} tee ./.eth/eth-docker-version.prom.tmp >/dev/null
+  ${__as_owner} mv ./.eth/eth-docker-version.prom.tmp ./.eth/eth-docker-version.prom
+}
+
+
 upgrade() {
   update
 }
@@ -4288,6 +4313,7 @@ upgrade() {
 
 start() {
   __adjust_grandine_permissions
+  __write_eth_docker_version_metric
   __docompose up -d --remove-orphans "$@"
 }
 
