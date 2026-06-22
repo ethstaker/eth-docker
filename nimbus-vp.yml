@@ -23,6 +23,7 @@ services:
     user: user
     environment:
       - CL_NODE=${CL_NODE}
+      - RPC_URLS=${RPC_URLS}
       - PROXY_EXTRAS=${PROXY_EXTRAS:-}
     volumes:
       - nimbus-vp-data:/var/lib/nimbus
@@ -38,10 +39,8 @@ services:
       - nimbus_verified_proxy
       - --data-dir=/var/lib/nimbus
       - --network=${NETWORK}
-      - --execution-api-url=${RPC_URL}
       - --listen-url=http://0.0.0.0:${PROXY_RPC_PORT:-48545}
       - --listen-url=ws://0.0.0.0:${PROXY_WS_PORT:-48546}
-      - --beacon-api-url=${CL_NODE}
       - --log-level=${LOG_LEVEL}
 
 volumes:

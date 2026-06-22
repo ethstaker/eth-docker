@@ -38,10 +38,10 @@ jobs:
           CORE_FILES=nimbus-vp.yml
           var=CORE_FILES
           set_value_in_env
-          RPC_URL=wss://ethereum-rpc.publicnode.com
-          var=RPC_URL
+          RPC_URLS=wss://ethereum-rpc.publicnode.com
+          var=RPC_URLS
           set_value_in_env
-          CL_NODE=https://ethereum.operationsolarstorm.org/
+          CL_NODE=https://ethereum-beacon-api.publicnode.com
           var=CL_NODE
           set_value_in_env
       - name: Start Nimbus Verified Proxy
