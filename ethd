@@ -3680,7 +3680,7 @@ prune-lighthouse() {
   # Check for archive node
   var="CL_NODE_TYPE"
   __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "archive" ]]; then
+  if [[ "${__value}" =~ archive$ ]]; then
     echo "Lighthouse is an archive node: Aborting."
     exit 1
   fi

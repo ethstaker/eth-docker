@@ -102,7 +102,7 @@ esac
 
 # Check whether we should rapid sync
 if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
-  if [[ ! "${NODE_TYPE}" = "archive" ]]; then
+  if [[ ! "${NODE_TYPE}" =~ archive$ ]]; then
     __checkpoint_sync="--checkpointSyncUrl=${CHECKPOINT_SYNC_URL}"
     echo "Checkpoint sync enabled"
   else

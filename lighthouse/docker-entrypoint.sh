@@ -104,8 +104,8 @@ fi
 if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
   __checkpoint_sync="--checkpoint-sync-url=${CHECKPOINT_SYNC_URL}"
   echo "Checkpoint sync enabled"
-  if [[ "${NODE_TYPE}" = "archive" ]]; then
-    __prune+=" --reconstruct-historic-states --genesis-backfill --disable-backfill-rate-limiting"
+  if [[ "${NODE_TYPE}" =~ archive$ ]]; then
+    __prune+=" --archive --genesis-backfill --disable-backfill-rate-limiting"
   fi
 else
   __checkpoint_sync="--allow-insecure-genesis-sync"
@@ -169,7 +169,7 @@ done
 
 if [[ -f /var/lib/lighthouse/beacon/prune-marker ]]; then
   rm -f /var/lib/lighthouse/beacon/prune-marker
-  if [[ "${NODE_TYPE}" = "archive" ]]; then
+  if [[ "${NODE_TYPE}" =~ archive$ ]]; then
     echo "Lighthouse is an archive node. Not attempting to prune state: Aborting."
     exit 1
   fi
