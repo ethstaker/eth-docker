@@ -93,6 +93,8 @@ services:
     depends_on:
       lighthouse-builder:
         condition: service_completed_successfully
+    environment:
+      - CL_NODE=${CL_NODE}
     volumes:
       - lhvalidator-data:/var/lib/lighthouse
       - ./.eth/validator_keys:/validator_keys
@@ -103,8 +105,6 @@ services:
       - account
       - validator
       - exit
-      - --beacon-node
-      - ${CL_NODE:-http://consensus:5052}
       - --datadir
       - /var/lib/lighthouse
       - --network

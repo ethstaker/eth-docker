@@ -96,19 +96,35 @@ else
 
 __call_cl_api() {
   local exitstatus
+  local nodes
+  local node
+  local node_reachable=0
+
+  nodes=$(echo "${CL_NODE}" | tr ',' ' ')
+  for node in ${nodes}; do
+    if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}" | grep -q "^[23]"; then
+      node_reachable=1
+      break
+    fi
+  done
+
+  if [[ "${node_reachable}" -eq 0 ]]; then
+    echo "No consensus client node is reachable via any URL in ${CL_NODE}"
+    exit 1
+  fi
 
   set +e
   if [[ -z "${__api_data}" ]]; then
     __code=$(curl -m 60 -s --show-error -o /tmp/result.txt -w "%{http_code}" -X "${__http_method}" -H "Accept: application/json" \
-        "${CL_NODE}"/"${__api_path}")
+        "${node}"/"${__api_path}")
   else
     __code=$(curl -m 60 -s --show-error -o /tmp/result.txt -w "%{http_code}" -X "${__http_method}" -H "Accept: application/json" -H "Content-Type: application/json" \
-        --data "${__api_data}" "${CL_NODE}"/"${__api_path}")
+        --data "${__api_data}" "${node}"/"${__api_path}")
   fi
   exitstatus=$?
   if [[ "${exitstatus}" -ne 0 ]]; then
     echo "Error encountered while trying to call the consensus client REST API via curl."
-    echo "Please make sure the ${CL_NODE} URL is reachable."
+    echo "Please make sure the ${node} URL is reachable."
     echo "Error code ${exitstatus}"
     exit ${exitstatus}
   fi
@@ -585,6 +601,9 @@ validator-list() {
 
 
 validator-count() {
+  local nodes
+  local node
+  local node_reachable=0
   local vc_api_container
   local vc_service
   local vc_api_port
@@ -635,9 +654,22 @@ validator-count() {
     fi
   fi
 
+  nodes=$(echo "${CL_NODE}" | tr ',' ' ')
+  for node in ${nodes}; do
+    if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}" | grep -q "^[23]"; then
+      node_reachable=1
+      break
+    fi
+  done
+
+  if [[ "${node_reachable}" -eq 0 ]]; then
+    echo "No consensus client node is reachable via any URL in ${CL_NODE}"
+    exit 1
+  fi
+
   echo "Querying validator state, this may take a minute"
   for __pubkey in $(echo "${vals}" | jq -r '.data[].validating_pubkey'); do
-    val_state=$(curl -k -m 60 -s --show-error "${CL_NODE}/eth/v1/beacon/states/head/validators/${__pubkey}" | jq -r .data.status)
+    val_state=$(curl -k -m 60 -s --show-error "${node}/eth/v1/beacon/states/head/validators/${__pubkey}" | jq -r .data.status)
     case "${val_state}" in
       active_ongoing) ((vals_active++));;
       active_exiting) ((vals_exiting++));;

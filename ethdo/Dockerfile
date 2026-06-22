@@ -9,6 +9,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   adduser \
   bash \
   jq \
+  curl \
   && gosu nobody true \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*

@@ -83,8 +83,20 @@ if [[ "$*" =~ "--offline" ]]; then
     chown ethdo:ethdo /app/offline-preparation.json
   fi
 else
-  # Get just the first CL_NODE
-  __args=( "${__args[@]:0:1}" "--connection" "$(cut -d, -f1 <<<"${CL_NODE}")" "${__args[@]:1}" )
+  nodes=$(echo "${CL_NODE}" | tr ',' ' ')
+  for node in ${nodes}; do
+    if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}" | grep -q "^[23]"; then
+      node_reachable=1
+      break
+    fi
+  done
+
+  if [[ "${node_reachable}" -eq 0 ]]; then
+    echo "No consensus client node is reachable via any URL in ${CL_NODE}"
+    exit 1
+  fi
+
+  __args=( "${__args[@]:0:1}" "--connection" "${node}" "${__args[@]:1}" )
 fi
 
 set +e
