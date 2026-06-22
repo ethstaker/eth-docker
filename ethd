@@ -2698,6 +2698,7 @@ reset to defaults."
     echo "Please make sure to run compatible client versions."
   fi
 
+  __pin_compose_project_name
   __write_eth_docker_version_metric
 
   if [[ ! "$OSTYPE" = "darwin"* ]]; then
@@ -4324,26 +4325,61 @@ __adjust_grandine_permissions() {
 }
 
 
+# Pins COMPOSE_PROJECT_NAME in .env to whatever Compose already resolves it
+# to for this install, if it isn't already set there. This doesn't change
+# which project Compose uses - the value is read back from Compose's own
+# resolution (docker compose config), never computed independently - it just
+# makes that name available for interpolation into the alloy container's
+# environment (see grafana.yml), so config.alloy can scope Docker service
+# discovery to this instance's own containers. Without this, Alloy's
+# discovery.docker sees every container on the host's Docker socket, so
+# running multiple Eth Docker installs on one host causes each instance's
+# Alloy to also scrape/ship the others' metrics and logs.
+__pin_compose_project_name() {
+  local existing
+  local resolved
+
+  __get_value_from_env "COMPOSE_PROJECT_NAME" "${__env_file}" "existing"
+  if [[ -n "${existing}" ]]; then
+    return 0
+  fi
+
+  resolved=$(__docompose config 2>/dev/null | awk -F': ' '/^name:/{print $2; exit}') || resolved=""
+  if [[ -z "${resolved}" ]]; then
+    return 0
+  fi
+
+  __update_value_in_env "COMPOSE_PROJECT_NAME" "${resolved}" "${__env_file}"
+}
+
+
 # Writes the currently checked-out Eth Docker version as a node-exporter
 # textfile-collector metric (see grafana.yml), so it can be tracked the same
 # way the EL/CL client versions already are. "tag" is the latest release tag
 # reachable from HEAD rather than an exact-match, so this covers both pinned/
 # stable installs (HEAD is on a tag) and tracking "main" (HEAD is ahead of
-# the latest tag).
+# the latest tag). Writes into the same host directory node-exporter's
+# textfile collector is already mounted from (NODE_EXPORTER_COLLECTOR_MOUNT_PATH,
+# defaulting to ./.eth/node-exporter-text) - that mount is read-only inside
+# the container, so the file has to land there from the host side.
 __write_eth_docker_version_metric() {
   local tag
   local commit
+  local textfile_dir
 
   tag=$(${__as_owner} git describe --tags --abbrev=0 2>/dev/null) || tag=""
   commit=$(${__as_owner} git rev-parse --short HEAD 2>/dev/null) || commit=""
 
-  ${__as_owner} mkdir -p ./.eth
+  __get_value_from_env "NODE_EXPORTER_COLLECTOR_MOUNT_PATH" "${__env_file}" "textfile_dir"
+  textfile_dir="${textfile_dir:-./.eth/node-exporter-text}"
+
+  ${__as_owner} mkdir -p "${textfile_dir}"
   {
     echo "# HELP eth_docker_version_info Currently checked out Eth Docker version"
     echo "# TYPE eth_docker_version_info gauge"
     echo "eth_docker_version_info{tag=\"${tag}\",commit=\"${commit}\"} 1"
-  } | ${__as_owner} tee ./.eth/eth-docker-version.prom.tmp >/dev/null
-  ${__as_owner} mv ./.eth/eth-docker-version.prom.tmp ./.eth/eth-docker-version.prom
+  } | ${__as_owner} tee "${textfile_dir}/eth-docker-version.prom.tmp" >/dev/null
+  ${__as_owner} mv "${textfile_dir}/eth-docker-version.prom.tmp" "${textfile_dir}/eth-docker-version.prom"
 }
 
 
@@ -4353,6 +4389,7 @@ upgrade() {
 
 
 start() {
+  __pin_compose_project_name
   __adjust_grandine_permissions
   __write_eth_docker_version_metric
   __docompose up -d --remove-orphans "$@"
