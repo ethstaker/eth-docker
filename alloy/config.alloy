@@ -13,9 +13,9 @@ discovery.relabel "docker_logs" {
 
   // discovery.docker sees every container on the host, not just this
   // project's - keep only our own so multiple Eth Docker installs on one
-  // host don't ship each other's logs. Falls back to matching everything
-  // (today's behavior) if resolving COMPOSE_PROJECT_NAME ever fails,
-  // rather than matching nothing.
+  // host don't ship each other's logs. Falls back to matching every
+  // container on the host if resolving COMPOSE_PROJECT_NAME ever fails,
+  // rather than matching none.
   rule {
     source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
     regex         = coalesce(sys.env("COMPOSE_PROJECT_NAME"), ".*")
@@ -51,8 +51,8 @@ discovery.relabel "docker_metrics" {
   // discovery.docker sees every container on the host, not just this
   // project's - keep only our own so multiple Eth Docker installs on one
   // host don't scrape/ship each other's metrics. Falls back to matching
-  // everything (today's behavior) if resolving COMPOSE_PROJECT_NAME ever
-  // fails, rather than matching nothing.
+  // every container on the host if resolving COMPOSE_PROJECT_NAME ever
+  // fails, rather than matching none.
   rule {
     source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
     regex         = coalesce(sys.env("COMPOSE_PROJECT_NAME"), ".*")
