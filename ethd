@@ -4314,19 +4314,20 @@ __pin_compose_project_name() {
 
 # Writes the currently checked-out Eth Docker version as a node-exporter
 # textfile-collector metric (see grafana.yml), so it can be tracked the same
-# way the EL/CL client versions already are. "tag" is the latest release tag
-# reachable from HEAD rather than an exact-match, so this covers both pinned/
-# stable installs (HEAD is on a tag) and tracking "main" (HEAD is ahead of
-# the latest tag). Writes into the same host directory node-exporter's
-# textfile collector is already mounted from (NODE_EXPORTER_COLLECTOR_MOUNT_PATH,
-# defaulting to ./.eth/node-exporter-text) - that mount is read-only inside
-# the container, so the file has to land there from the host side.
+# way the EL/CL client versions already are. "tag" comes from README.md's
+# "This is Eth Docker vX.Y.Z" line (the same source `version` reads). A
+# release commit bumps that line straight to "vX.Y.Z-dev" for the next
+# version, so this stays accurate on main between releases. Writes into
+# the same host directory node-exporter's textfile collector is already
+# mounted from (NODE_EXPORTER_COLLECTOR_MOUNT_PATH, defaulting to
+# ./.eth/node-exporter-text) - that mount is read-only inside the
+# container, so the file has to land there from the host side.
 __write_eth_docker_version_metric() {
   local tag
   local commit
   local textfile_dir
 
-  tag=$(${__as_owner} git describe --tags --abbrev=0 2>/dev/null) || tag=""
+  tag=$(grep -m1 "^This is Eth Docker v" README.md 2>/dev/null | sed -E 's/^This is Eth Docker //') || tag=""
   commit=$(${__as_owner} git rev-parse --short HEAD 2>/dev/null) || commit=""
 
   __get_value_from_env "NODE_EXPORTER_COLLECTOR_MOUNT_PATH" "${__env_file}" "textfile_dir"
