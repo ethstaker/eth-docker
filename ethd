@@ -2594,7 +2594,7 @@ update() {
   if [[ ${__source_ver} -lt 58 ]]; then
     if [[ -f ./tempo/tempo.yaml ]]; then
       tempo_ts=$(date +%s)
-      mv ./tempo/tempo.yaml "./tempo/tempo.yaml.bak.${tempo_ts}"
+      ${__as_owner} mv ./tempo/tempo.yaml "./tempo/tempo.yaml.bak.${tempo_ts}"
       __final_msg+="\nGrafana Tempo has been updated to v3; old tempo/tempo.yaml has been saved as tempo/tempo.yaml.bak.${tempo_ts}"
     fi
   fi
