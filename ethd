@@ -3900,6 +3900,7 @@ __i_haz_web3signer() {
 }
 
 
+# There is a race condition somewhere. This does and does not succeed, on the same installation
 __i_haz_keys_service() {
   if ! __docompose --profile tools config --services | grep -q validator-keys; then
     echo "The validator-keys service is not defined. Are you running only a consensus layer client?"
@@ -4039,7 +4040,7 @@ keys() {
 
   owner_uid=$(id -u "${__owner}")
   if [[ "${1:-}" = "import" ]]; then
-    __i_haz_keys_service
+    #__i_haz_keys_service
     shift
     __prep-keyimport "$@"
     __docompose run --rm -e OWNER_UID="${owner_uid}" validator-keys import "${__keys_args}"
@@ -4242,7 +4243,7 @@ keys() {
       --entrypoint "keymanager.sh" \
       vc-utils:local /var/lib/lighthouse/nonesuch.txt eth2 send-exit
   else
-    __i_haz_keys_service
+    #__i_haz_keys_service
     __docompose run --rm -e OWNER_UID="${owner_uid}" validator-keys "$@"
   fi
 }
