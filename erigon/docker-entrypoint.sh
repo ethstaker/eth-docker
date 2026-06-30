@@ -80,11 +80,11 @@ case "${NODE_TYPE}" in
     case "${NETWORK}" in
       mainnet|sepolia)
         echo "Erigon minimal node with pre-merge history expiry"
-        __prune="--prune.mode=full --persist.receipts=false"
+        __prune="--prune.mode=full --persist.receipts=false --prune.distance.blocks=18446744073709551615"
         ;;
       *)
-        echo "There is no pre-merge history for ${NETWORK} network, Erigon will use \"full\" pruning."
-        __prune="--prune.mode=full --persist.receipts=false"
+        echo "There is no pre-merge history for ${NETWORK} network, Erigon will keep all blocks."
+        __prune="--prune.mode=full --persist.receipts=false --prune.distance.blocks=18446744073709551615"
         ;;
     esac
     ;;

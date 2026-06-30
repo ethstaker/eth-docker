@@ -42,10 +42,6 @@ services:
     ports:
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/tcp
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/udp
-      - ${HOST_IP:-}:${EL_P2P_PORT_2:-30304}:${EL_P2P_PORT_2:-30304}/tcp
-      - ${HOST_IP:-}:${EL_P2P_PORT_2:-30304}:${EL_P2P_PORT_2:-30304}/udp
-      - ${HOST_IP:-}:${ERIGON_P2P_PORT_3:-30305}:${ERIGON_P2P_PORT_3:-30305}/tcp
-      - ${HOST_IP:-}:${ERIGON_P2P_PORT_3:-30305}:${ERIGON_P2P_PORT_3:-30305}/udp
       # torrent ports
       - ${HOST_IP:-}:${ERIGON_TORRENT_PORT:-42069}:${ERIGON_TORRENT_PORT:-42069}/tcp
       - ${HOST_IP:-}:${ERIGON_TORRENT_PORT:-42069}:${ERIGON_TORRENT_PORT:-42069}/udp
@@ -65,8 +61,6 @@ services:
       - /var/lib/erigon
       - --port
       - ${EL_P2P_PORT:-30303}
-      - --p2p.allowed-ports
-      - ${EL_P2P_PORT:-30303},${EL_P2P_PORT_2:-30304},${ERIGON_P2P_PORT_3:-30305}
       - --torrent.port
       - ${ERIGON_TORRENT_PORT:-42069}
       - --nat
