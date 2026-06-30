@@ -61,7 +61,6 @@ RUN mkdir -p /var/lib/geth/ee-secret && chown -R ${USER}:${USER} /var/lib/geth &
 
 # Cannot assume buildkit, hence no chmod
 COPY --from=builder --chown=${USER}:${USER} /src/go-ethereum/build/bin/geth /usr/local/bin/
-COPY --from=builder --chown=${USER}:${USER} /src/go-ethereum/build/bin/clef /usr/local/bin/
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
