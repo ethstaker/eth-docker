@@ -38,7 +38,6 @@ RUN bash -eo pipefail <<'EOF'
   fi
   bazel build --config=release //cmd/beacon-chain:beacon-chain
   bazel build --config=release //cmd/validator:validator
-  bazel build --config=release //cmd/prysmctl:prysmctl
   bazel build --config=release //cmd/client-stats:client-stats
 EOF
 
