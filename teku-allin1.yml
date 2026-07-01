@@ -59,12 +59,15 @@ services:
       - NETWORK=${NETWORK}
       - ENABLE_DIST_ATTESTATION_AGGR=${ENABLE_DIST_ATTESTATION_AGGR:-false}
       - IPV6=${IPV6:-false}
-      - CL_IPV6_P2P_PORT=${CL_IPV6_P2P_PORT:-9090}
+      - CL_IPV6_P2P_PORT=${CL_IPV6_P2P_PORT:-9010}
+      - CL_IPV6_QUIC_PORT=${CL_IPV6_QUIC_PORT:-9011}
     ports:
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
-      - ${HOST_IP:-}:${CL_IPV6_P2P_PORT:-9090}:${CL_IPV6_P2P_PORT:-9090}/tcp
-      - ${HOST_IP:-}:${CL_IPV6_P2P_PORT:-9090}:${CL_IPV6_P2P_PORT:-9090}/udp
+      - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp
+      - ${HOST_IP:-}:${CL_IPV6_P2P_PORT:-9010}:${CL_IPV6_P2P_PORT:-9010}/tcp
+      - ${HOST_IP:-}:${CL_IPV6_P2P_PORT:-9010}:${CL_IPV6_P2P_PORT:-9010}/udp
+      - ${HOST_IP:-}:${CL_IPV6_QUIC_PORT:-9011}:${CL_IPV6_QUIC_PORT:-9011}/udp
     networks:
       default:
         aliases:
@@ -82,6 +85,7 @@ services:
       - /var/lib/teku/ee-secret/jwtsecret
       - --eth1-deposit-contract-max-request-size=1000
       - --p2p-port=${CL_P2P_PORT:-9000}
+      - --p2p-quic-port=${CL_QUIC_PORT:-9001}
       - ${CL_MAX_PEER_COUNT:+--p2p-peer-upper-bound=${CL_MAX_PEER_COUNT}}
       - ${CL_MIN_PEER_COUNT:+--p2p-peer-lower-bound=${CL_MIN_PEER_COUNT}}
       - --validator-keys=/var/lib/teku/validator-keys:/var/lib/teku/validator-passwords
