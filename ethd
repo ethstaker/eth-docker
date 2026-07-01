@@ -18,6 +18,8 @@ __docker_exe="docker"
 __old_docker=0
 __oldish_docker=0
 __old_rootless_docker=0
+__old_traefik=0
+__traefik_tag=""
 __docker_sudo=""
 __docker_version=""
 __docker_major_version=""
@@ -633,6 +635,44 @@ __check_compose_version() {
     fi
   else
     echo "${__project_name} does not know how to update Docker Compose on ${__distro}"
+  fi
+}
+
+
+__check_traefik_version() {
+  local traefik_major
+  local traefik_minor
+  local traefik_patch
+  local version
+
+  if [[ ! "${COMPOSE_FILE}" =~ (traefik-cf\.yml|traefik-aws\.yml) ]]; then
+    return 0
+  fi
+
+  var=TRAEFIK_TAG
+  __get_value_from_env "${var}" "${__env_file}" "__traefik_tag"
+
+  if [[ ! "${__traefik_tag}" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$  ]]; then  # Can't parse this
+    return 0
+  fi
+
+  version=${__traefik_tag#v}
+  traefik_major=${version%%.*}
+  traefik_minor=${version#*.}
+  traefik_minor=${traefik_minor%%.*}
+
+  if [[ "${traefik_major}" -lt 3 || ( "${traefik_major}" -eq 3 && "${traefik_minor}" -le 5 ) ]]; then
+    __old_traefik=1
+  fi
+
+# In the unlikely case a user pinned v3.6.0
+  if [[ "${traefik_major}" -eq 3 && "${traefik_minor}" -eq 6 ]]; then
+    if [[ "${version}" = *.*.* ]]; then
+      traefik_patch=${version##*.}
+      if [[ "${traefik_patch}" -eq 0 ]]; then
+        __old_traefik=1
+      fi
+    fi
   fi
 }
 
@@ -6585,6 +6625,7 @@ case "${__command}" in
 esac
 
 __check_disk_space
+__check_traefik_version
 
 if [[ "${__compose_upgraded}" -eq 1 ]]; then
   echo
@@ -6621,4 +6662,10 @@ if [[ "${__old_rootless_docker}" -eq 1 ]]; then
   echo "You are using Docker version ${__docker_version} in rootless mode."
   echo "Rootless support has been greatly improved since version \"29.5.0\"."
   echo "Consider upgrading Docker, and reinstalling the rootless support after the upgrade."
+fi
+
+if [[ "${__old_traefik}" -eq 1 ]]; then
+  echo "You are using the Traefik tag \"${__traefik_tag}\"."
+  echo "This version of Traefik does not support current Docker releases."
+  echo "You can run \"${__me} update --refresh-targets\" or manually change \"TRAEFIK_TAG\" in \"${__env_file}\"."
 fi
