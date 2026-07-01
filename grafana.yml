@@ -75,7 +75,7 @@ services:
       - /sys:/host/sys:ro,rslave
       - /etc/hostname:/etc/nodename:ro
       - /etc/localtime:/etc/localtime:ro
-      - ${NODE_EXPORTER_COLLECTOR_MOUNT_PATH:-/tmp/dummy-nodeexp-text}:/tmp/text-collector:ro
+      - ${NODE_EXPORTER_COLLECTOR_MOUNT_PATH:-./.eth/node-exporter-text}:/tmp/text-collector:ro
     command:
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
@@ -151,6 +151,8 @@ services:
   alloy:
     image: grafana/alloy:latest
     restart: unless-stopped
+    environment:
+      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
     volumes:
       - alloy-data:/var/lib/alloy
       - ./alloy:/etc/alloy

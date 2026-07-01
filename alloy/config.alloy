@@ -11,6 +11,17 @@ discovery.docker "docker_containers" {
 discovery.relabel "docker_logs" {
   targets = discovery.docker.docker_containers.targets
 
+  // discovery.docker sees every container on the host, not just this
+  // project's - keep only our own so multiple Eth Docker installs on one
+  // host don't ship each other's logs. Falls back to matching every
+  // container on the host if resolving COMPOSE_PROJECT_NAME ever fails,
+  // rather than matching none.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = coalesce(sys.env("COMPOSE_PROJECT_NAME"), ".*")
+    action        = "keep"
+  }
+
  rule {
     source_labels = ["__meta_docker_container_label_logs_collect"]
     regex         = "true"
@@ -36,6 +47,17 @@ loki.source.docker "docker_logs" {
 // Metrics config
 discovery.relabel "docker_metrics" {
   targets = discovery.docker.docker_containers.targets
+
+  // discovery.docker sees every container on the host, not just this
+  // project's - keep only our own so multiple Eth Docker installs on one
+  // host don't scrape/ship each other's metrics. Falls back to matching
+  // every container on the host if resolving COMPOSE_PROJECT_NAME ever
+  // fails, rather than matching none.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = coalesce(sys.env("COMPOSE_PROJECT_NAME"), ".*")
+    action        = "keep"
+  }
 
   rule {
     source_labels = ["__meta_docker_container_label_metrics_scrape"]
