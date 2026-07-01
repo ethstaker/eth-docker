@@ -22,7 +22,7 @@ done
 
 while true; do
   for node in ${nodes}; do
-    if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}" | grep -q "^[23]"; then
+    if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}/eth/v1/node/health" | grep -q "^[23]"; then
       echo "Consensus Layer node is up, fetching trusted block root"
       break 2
     fi

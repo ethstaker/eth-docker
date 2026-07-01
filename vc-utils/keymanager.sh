@@ -102,7 +102,7 @@ __call_cl_api() {
 
   nodes=$(echo "${CL_NODE}" | tr ',' ' ')
   for node in ${nodes}; do
-    if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}" | grep -q "^[23]"; then
+    if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}/eth/v1/node/health" | grep -q "^[23]"; then
       node_reachable=1
       break
     fi
@@ -656,7 +656,7 @@ validator-count() {
 
   nodes=$(echo "${CL_NODE}" | tr ',' ' ')
   for node in ${nodes}; do
-    if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}" | grep -q "^[23]"; then
+    if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}/eth/v1/node/health" | grep -q "^[23]"; then
       node_reachable=1
       break
     fi
