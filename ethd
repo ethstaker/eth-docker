@@ -4361,7 +4361,7 @@ __pin_compose_project_name() {
 # version, so this stays accurate on main between releases. Writes into
 # the same host directory node-exporter's textfile collector is already
 # mounted from (NODE_EXPORTER_COLLECTOR_MOUNT_PATH, defaulting to
-# ./.eth/node-exporter-text) - that mount is read-only inside the
+# ./prometheus/node-exporter-text) - that mount is read-only inside the
 # container, so the file has to land there from the host side.
 __write_eth_docker_version_metric() {
   local tag
@@ -4372,7 +4372,7 @@ __write_eth_docker_version_metric() {
   commit=$(${__as_owner} git rev-parse --short HEAD 2>/dev/null) || commit=""
 
   __get_value_from_env "NODE_EXPORTER_COLLECTOR_MOUNT_PATH" "${__env_file}" "textfile_dir"
-  textfile_dir="${textfile_dir:-./.eth/node-exporter-text}"
+  textfile_dir="${textfile_dir:-./prometheus/node-exporter-text}"
 
   ${__as_owner} mkdir -p "${textfile_dir}"
   {

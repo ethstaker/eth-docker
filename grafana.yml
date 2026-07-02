@@ -75,7 +75,7 @@ services:
       - /sys:/host/sys:ro,rslave
       - /etc/hostname:/etc/nodename:ro
       - /etc/localtime:/etc/localtime:ro
-      - ${NODE_EXPORTER_COLLECTOR_MOUNT_PATH:-./.eth/node-exporter-text}:/tmp/text-collector:ro
+      - ${NODE_EXPORTER_COLLECTOR_MOUNT_PATH:-./prometheus/node-exporter-text}:/tmp/text-collector:ro
     command:
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
