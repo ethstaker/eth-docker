@@ -151,7 +151,6 @@ case "${CL_NODE_TYPE}" in
     ;;
 esac
 
-# TODO - adjust for CL and EL bootnodes and network, currently not possible bcs both use the same paraneter names
 if [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
@@ -169,10 +168,12 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/nimbus/testnet/${config_dir}/enodes.yaml" | paste -sd ",")"
-  networkid="$(jq -r '.config.chainId' "/var/lib/nimbus/testnet/${config_dir}/genesis.json")"
+  el_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/nimbus/testnet/${config_dir}/enodes.yaml")"
+  cl_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/nimbus/testnet/${config_dir}/bootstrap_nodes.yaml")"
+  #networkid="$(jq -r '.config.chainId' "/var/lib/nimbus/testnet/${config_dir}/genesis.json")"
   set +e
-  __network="--bootstrap-node=${bootnodes} --network=${networkid} --network=/var/lib/nimbus/testnet/${config_dir}"
+  __network="--bootstrap-node=${cl_bootnodes} --el-bootstrap-node=${el_bootnodes} --network=/var/lib/nimbus/testnet/${config_dir}"
+  # --network=${networkid}
 else
   __network="--network=${NETWORK}"
 fi

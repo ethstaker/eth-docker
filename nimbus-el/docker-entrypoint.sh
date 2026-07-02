@@ -169,10 +169,11 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/nimbus/testnet/${config_dir}/enodes.yaml" | paste -sd ",")"
-  networkid="$(jq -r '.config.chainId' "/var/lib/nimbus/testnet/${config_dir}/genesis.json")"
+  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/nimbus/testnet/${config_dir}/enodes.yaml")"
+  #networkid="$(jq -r '.config.chainId' "/var/lib/nimbus/testnet/${config_dir}/genesis.json")"
   set +e
-  __network="--bootstrap-node=${bootnodes} --network=${networkid} --custom-network /var/lib/nimbus/testnet/${config_dir}/genesis.json"
+  __network="--bootstrap-node=${bootnodes} --network=/var/lib/nimbus/testnet/${config_dir}/genesis.json"
+  # --network=${networkid}
 else
   __network="--network=${NETWORK}"
 fi
