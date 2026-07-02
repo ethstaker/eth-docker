@@ -3007,21 +3007,21 @@ resync-consensus() {
 
   case "${__value}" in
     *lighthouse.yml*|*lighthouse-cl-only.yml*) cl_volume='lhconsensus-data'; cl_client="Lighthouse";;
-    *teku-allin1.yml*) cl_volume='wipe-db'; cl_client="Teku";;
+    *teku-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Teku";;
     *teku.yml*|*teku-cl-only.yml*) cl_volume='tekuconsensus-data'; cl_client="Teku";;
-    *nimbus-allin1.yml*) cl_volume='wipe-db'; cl_client="Nimbus";;
+    *nimbus-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Nimbus";;
     *nimbus.yml*|*nimbus-cl-only.yml*) cl_volume='nimbus-consensus-data'; cl_client="Nimbus";;
     *nimbus-unified.yml*) cl_volume='wipe-cl-db'; cl_client="Nimbus Unified";;
     *lodestar.yml*|*lodestar-cl-only.yml*) cl_volume='lsconsensus-data'; cl_client="Lodestar";;
     *prysm.yml*|*prysm-cl-only.yml*) cl_volume='prysmconsensus-data'; cl_client="Prysm";;
-    *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) cl_volume='wipe-db'; cl_client="Grandine Plugin";;
-    *grandine-allin1.yml*) cl_volume='wipe-db'; cl_client="Grandine";;
+    *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Grandine Plugin";;
+    *grandine-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Grandine";;
     *grandine.yml*|*grandine-cl-only.yml*) cl_volume='grandineconsensus-data'; cl_client="Grandine";;
-    *erigon.yml*) cl_volume='wipe-db'; cl_client="Caplin";;
+    *caplin.yml*) cl_volume='wipe-cl-db'; cl_client="Caplin";;
     *) echo "You do not appear to be running a consensus layer client. Nothing to do."; return;;
   esac
 
-  if [[ ! "${cl_volume}" =~ ^(wipe-db|wipe-cl-db)$ ]] && ! __dodocker volume ls -q \
+  if [[ ! "${cl_volume}" = "wipe-cl-db" ]] && ! __dodocker volume ls -q \
       | grep -qi "$(basename "$(realpath .)")[_-]${cl_volume}"; then
     echo "Did not find Docker volume for ${cl_client}. Nothing to do."
     return 0
@@ -3051,9 +3051,7 @@ resync-consensus() {
   else
     __docompose stop consensus && __docompose rm -f consensus
   fi
-  if [[ "${cl_volume}" = "wipe-db" ]]; then
-    __docompose run --rm wipe-db
-  elif [[ "${cl_volume}" = "wipe-cl-db" ]]; then
+  if [[ "${cl_volume}" = "wipe-cl-db" ]]; then
     __docompose run --rm wipe-cl-db
   else
     cl_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_${cl_volume}"

@@ -35,7 +35,7 @@ services:
 # No metrics scrape at present via labels.
 # Create an extra scrape target for execution:8008 in prometheus/conf.d
 
-  wipe-db:
+  wipe-cl-db:
     profiles: ["tools"]
     restart: "no"
     image: alpine:3

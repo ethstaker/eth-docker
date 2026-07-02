@@ -113,7 +113,7 @@ services:
       - metrics.network=${NETWORK}
       - logs.collect=true
 
-  wipe-db:
+  wipe-cl-db:
     profiles: ["tools"]
     restart: "no"
     image: alpine:3

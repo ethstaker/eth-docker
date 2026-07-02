@@ -102,19 +102,6 @@ services:
       - metrics.network=${NETWORK}
       - logs.collect=true
 
-  wipe-db:
-    profiles: ["tools"]
-    restart: "no"
-    image: alpine:3
-    user: "10002"
-    volumes:
-      - grandineconsensus-data:/var/lib/grandine
-      - /etc/localtime:/etc/localtime:ro
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        rm -rf /var/lib/grandine/${NETWORK}/beacon/*
-
 volumes:
   grandineconsensus-data:
   jwtsecret:

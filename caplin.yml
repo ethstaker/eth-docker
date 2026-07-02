@@ -5,3 +5,19 @@ services:
       # Caplin consensus P2P ports
       - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp"
       - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp"
+
+  wipe-cl-db:
+    profiles: ["tools"]
+    restart: "no"
+    image: alpine:3
+    user: "10001"
+    volumes:
+      - erigon-el-data:/var/lib/erigon
+      - /etc/localtime:/etc/localtime:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rm -rf /var/lib/erigon/caplin/*
+
+volumes:
+  erigon-el-data:
