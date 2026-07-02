@@ -113,7 +113,7 @@ services:
     command:
       - |
         rm -rf /var/lib/nimbus/db/*
-        rm /var/lib/nimbus/setupdone
+        rm -f /var/lib/nimbus/setupdone
 
   validator-exit:
     profiles: ["tools"]
