@@ -65,7 +65,8 @@ while true; do
        sleep 10
        ((secs -= 10)) || true  # To protect against "falsy" evaluation when secs==10, in some version of bash
       done
-      exit 1
+      echo "Restarting"
+      exit 0
     else
       echo "Waiting for Consensus Layer node to have light client bootstrap data..."
       sleep 5
