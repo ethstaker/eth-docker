@@ -3440,7 +3440,6 @@ prune-history() {
   local rpc_line
   local regex
   local client
-  local min_ver
   local extra_msg
   local prune_marker
   local warning
@@ -3632,7 +3631,6 @@ prune-history() {
         echo "Aborting."
         exit 1
       fi
-      min_ver="v1.16.0"
       if [[ "${must_resync}" -eq 0 ]]; then
         extra_msg="History can be pruned by Geth without requiring a full resync. You can observe pruning with \"./ethd logs -f execution\"."
         prune_marker="/var/lib/geth/prune-marker"
@@ -3648,7 +3646,6 @@ prune-history() {
         echo "Aborting."
         exit 1
       fi
-      min_ver="v0.10.0"
       extra_msg="To switch to ${target} expiry requires a full resync, which should take 5 days.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
@@ -3659,7 +3656,6 @@ prune-history() {
         echo "Aborting."
         exit 1
       fi
-      min_ver="v1.35.2"
       extra_msg="To switch to ${target} expiry requires a full resync, which should take 1-2 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
@@ -3670,13 +3666,11 @@ prune-history() {
         echo "Aborting."
         exit 1
       fi
-      min_ver="25.11.0"
       extra_msg="To switch to ${target} expiry requires a full resync, which should take 16-24 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
     *reth.yml*)
       client="Reth"
-      min_ver="v1.8.0"
       if [[ "${must_resync}" -eq 0 ]]; then
         extra_msg="${target} expiry does not require a resync and should be immediate.\nA resync saves more space than a prune: You can set \"EL_NODE_TYPE=${target}-expiry\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
         prune_marker="/var/lib/reth/minimal-node"
@@ -3692,7 +3686,6 @@ prune-history() {
         echo "Aborting."
         exit 1
       fi
-      min_ver="v3.0.12"
       extra_msg="To switch to ${target} expiry requires a full resync, which should take 2-3 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
@@ -3703,7 +3696,6 @@ prune-history() {
         echo "Aborting."
         exit 1
       fi
-      min_ver="v1.0.0"
       if [[ "${target}" = "pre-merge" ]]; then
         extra_msg="Ethrex always expires pre-merge history. This command will have no effect."
         prune_marker="/var/lib/ethrex/minimal-node"
@@ -3719,8 +3711,6 @@ prune-history() {
       ;;
   esac
 
-  echo "${target} history expiry requires ${client} ${min_ver} or later."
-  echo
   if [[ -n "${extra_msg:-}" ]]; then
     echo -e "${extra_msg}"
     echo
