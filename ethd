@@ -2993,18 +2993,18 @@ resync-consensus() {
   __value="${COMPOSE_FILE}"
 
   case "${__value}" in
-    *lighthouse.yml*|*lighthouse-cl-only.yml*) cl_volume='lhconsensus-data'; cl_client="lighthouse";;
-    *teku-allin1.yml*) cl_volume='wipe-db'; cl_client="teku";;
-    *teku.yml*|*teku-cl-only.yml*) cl_volume='tekuconsensus-data'; cl_client="teku";;
-    *nimbus-allin1.yml*) cl_volume='wipe-db'; cl_client="nimbus";;
-    *nimbus.yml*|*nimbus-cl-only.yml*) cl_volume='nimbus-consensus-data'; cl_client="nimbus";;
-    *nimbus-unified.yml*) cl_volume='wipe-cl-db'; cl_client="nimbus-unified";;
-    *lodestar.yml*|*lodestar-cl-only.yml*) cl_volume='lsconsensus-data'; cl_client="lodestar";;
-    *prysm.yml*|*prysm-cl-only.yml*) cl_volume='prysmconsensus-data'; cl_client="prysm";;
-    *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) cl_volume='wipe-db'; cl_client="grandine-plugin";;
-    *grandine-allin1.yml*) cl_volume='wipe-db'; cl_client="grandine";;
-    *grandine.yml*|*grandine-cl-only.yml*) cl_volume='grandineconsensus-data'; cl_client="grandine";;
-    *erigon.yml*) cl_volume='wipe-db'; cl_client="caplin";;
+    *lighthouse.yml*|*lighthouse-cl-only.yml*) cl_volume='lhconsensus-data'; cl_client="Lighthouse";;
+    *teku-allin1.yml*) cl_volume='wipe-db'; cl_client="Teku";;
+    *teku.yml*|*teku-cl-only.yml*) cl_volume='tekuconsensus-data'; cl_client="Teku";;
+    *nimbus-allin1.yml*) cl_volume='wipe-db'; cl_client="Nimbus";;
+    *nimbus.yml*|*nimbus-cl-only.yml*) cl_volume='nimbus-consensus-data'; cl_client="Nimbus";;
+    *nimbus-unified.yml*) cl_volume='wipe-cl-db'; cl_client="Nimbus Unified";;
+    *lodestar.yml*|*lodestar-cl-only.yml*) cl_volume='lsconsensus-data'; cl_client="Lodestar";;
+    *prysm.yml*|*prysm-cl-only.yml*) cl_volume='prysmconsensus-data'; cl_client="Prysm";;
+    *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) cl_volume='wipe-db'; cl_client="Grandine Plugin";;
+    *grandine-allin1.yml*) cl_volume='wipe-db'; cl_client="Grandine";;
+    *grandine.yml*|*grandine-cl-only.yml*) cl_volume='grandineconsensus-data'; cl_client="Grandine";;
+    *erigon.yml*) cl_volume='wipe-db'; cl_client="Caplin";;
     *) echo "You do not appear to be running a consensus layer client. Nothing to do."; return;;
   esac
 
@@ -3014,7 +3014,7 @@ resync-consensus() {
     return 0
   fi
 
-  if [[ "${cl_client}" =~ grandine ]]; then
+  if [[ "${cl_client}" =~ ^Grandine ]]; then
     __adjust_grandine_permissions
   fi
 
@@ -3033,7 +3033,7 @@ resync-consensus() {
   esac
 
   echo "Stopping ${cl_client} container"
-  if [[ "${cl_client}" =~ (caplin|grandine-plugin) ]]; then
+  if [[ "${cl_client}" =~ ^(Caplin|Grandine Plugin)$ ]]; then
     __docompose stop execution && __docompose rm -f execution
   else
     __docompose stop consensus && __docompose rm -f consensus
