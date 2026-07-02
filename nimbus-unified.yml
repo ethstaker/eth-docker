@@ -32,6 +32,7 @@ services:
       - NETWORK=${NETWORK}
       - CHECKPOINT_SYNC_URL=${CHECKPOINT_SYNC_URL}
       - ERE_URL=${ERE_URL:-}
+      - ERC_URL=${ERC_URL:-}
     volumes:
       - nimbus-unified-data:/var/lib/nimbus
       - /etc/localtime:/etc/localtime:ro

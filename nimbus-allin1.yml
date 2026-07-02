@@ -43,6 +43,7 @@ services:
       - jwtsecret:/var/lib/nimbus/ee-secret
     environment:
       - CHECKPOINT_SYNC_URL=${CHECKPOINT_SYNC_URL}
+      - ERC_URL=${ERC_URL:-}
       - NETWORK=${NETWORK}
       - JWT_SECRET=${JWT_SECRET}
       - MEV_BOOST=${MEV_BOOST}
@@ -51,7 +52,7 @@ services:
       - DOPPELGANGER=${DOPPELGANGER}
       - CL_EXTRAS=${CL_EXTRAS:-}
       - VC_EXTRAS=${VC_EXTRAS:-}
-      - NODE_TYPE=${CL_NODE_TYPE:-pruned}
+      - CL_NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - GRAFFITI=${GRAFFITI:-}
       - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
       - WEB3SIGNER=${WEB3SIGNER:-false}

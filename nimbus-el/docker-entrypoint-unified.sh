@@ -46,7 +46,7 @@ __download_ere_files() {
   download_dir="$2"
 
   mkdir -p "${download_dir}"
-  cd "${download_dir}" || { echo "Could not change directory to ${download_dir}. This is a bug."; exit 70; }
+  pushd "${download_dir}" > /dev/null || { echo "Could not change directory to ${download_dir}. This is a bug."; exit 70; }
 
   # 🔧 Normalize base URL (handle trailing slash)
   case "${download_url}" in
@@ -54,7 +54,7 @@ __download_ere_files() {
     *)            base_url="${download_url}" ;;
   esac
 
-  curl -sS -O "${base_url}/urls.txt"
+  curl -fsS -O "${base_url}/urls.txt"
   total_files=$(wc -l < urls.txt)
   aria2c -x 8 -j 5 -c -i urls.txt \
     --dir="." \
@@ -87,9 +87,93 @@ __download_ere_files() {
   echo "✅ All files downloaded to: ${download_dir}"
 
   echo "Verifying checksums"
-  curl -sS -O "${base_url}/checksums_sha256.txt"
+  curl -fsS -O "${base_url}/checksums_sha256.txt"
   sha256sum -c checksums_sha256.txt --ignore-missing
   echo "✅ All checksums verified"
+
+  popd > /dev/null
+}
+
+
+__download_erc_files() {
+# Copyright (c) 2025 Status Research & Development GmbH and 2026 Eth Docker maintainers.
+# Licensed under either of:
+# - Apache License, version 2.0
+# - MIT license
+# at your option. This file may not be copied, modified, or distributed except
+# according to those terms.
+
+# Usage: __download_erc_files <download_url> <download_path>
+
+  local download_url
+  local download_dir
+  local base_url
+  local completed
+  local percent
+  local total_files
+  local aria_pid
+
+  if [[ $# -ne 2 ]]; then
+    echo "__download_erc_files called without <download_url> <download_path>. This is a bug."
+    exit 70
+  fi
+
+  download_url="$1"
+  download_dir="$2"
+
+  mkdir -p "${download_dir}"
+  pushd "${download_dir}" > /dev/null || { echo "Could not change directory to ${download_dir}. This is a bug."; exit 70; }
+
+  # 🔧 Normalize base URL (handle trailing slash)
+  case "${download_url}" in
+    */)           base_url="${download_url%/}" ;;
+    *)            base_url="${download_url}" ;;
+  esac
+
+  curl -fsS "${base_url}/" | sed -n 's/.*href="\([^"]*\.\(era\|erc\)\)".*/\1/p' > erc_files.txt
+  total_files=$(wc -l < erc_files.txt)
+  sed -i "s|^|${base_url}/|" erc_files.txt
+  aria2c -x 8 -j 5 -c -i erc_files.txt \
+    --dir="." \
+    --console-log-level=warn \
+    --quiet=true \
+    --summary-interval=0 \
+    --continue=true \
+    > /dev/null 2>&1 &
+
+  aria_pid=$!
+
+  echo "Downloading EraC history files"
+  echo "📥 Starting download of ${total_files} files..."
+  while kill -0 "${aria_pid}" 2> /dev/null; do
+    completed=$(find . -type f \( -name '*.era' -o -name '*.erc' \) | wc -l)
+    percent=$(awk "BEGIN { printf \"%.1f\", (${completed}/${total_files})*100 }")
+    echo "📦 Download Progress: ${percent}% complete (${completed} / ${total_files} files)"
+    sleep 10
+  done
+
+  wait "${aria_pid}" && exitstatus=0 || exitstatus=$?
+  if [[ "${exitstatus}" -ne 0 ]]; then
+    echo "EraC download failed with exit code ${exitstatus}"
+    exit "${exitstatus}"
+  fi
+
+  completed=$(find . -type f \( -name '*.era' -o -name '*.erc' \) | wc -l)
+  echo "📦 Download Progress: 100% complete (${completed} / ${total_files} files)"
+
+  echo "✅ All files downloaded to: ${download_dir}"
+
+  rm -f erc_files.txt
+
+  echo "Verifying checksums"
+  if curl -fsS -O "${base_url}/checksums_sha256.txt" 2>/dev/null; then
+    sha256sum -c checksums_sha256.txt --ignore-missing
+    echo "✅ All checksums verified"
+  else
+    echo "No checksums file available, skipping verification"
+  fi
+
+  popd > /dev/null
 }
 
 
@@ -133,7 +217,7 @@ case "${EL_NODE_TYPE}" in
 esac
 
 case "${CL_NODE_TYPE}" in
-  archive)
+  archive|blob-archive)
     echo "Nimbus Unified archive consensus node without history pruning"
     __prune+=" --history=archive --reindex"
     ;;
@@ -197,11 +281,15 @@ if [[ -n "${ERE_URL}" && ! -f /var/lib/nimbus/ere-import-complete && ! "${NETWOR
 fi
 
 if [[ -n "${CHECKPOINT_SYNC_URL}" && ! -f /var/lib/nimbus/setupdone ]]; then
-  if [[ "${CL_NODE_TYPE}" = "archive" ]]; then
-    echo "Starting checkpoint sync with backfill and archive reindex. Nimbus will restart when done."
-# Word splitting is desired for the command line parameters
+  if [[ "${CL_NODE_TYPE}" =~ ^(archive|blob-archive)$ ]]; then
+    if [[ -z "${ERC_URL}" ]]; then
+      echo "Nimbus cannot build an archive node from only a checkpoint sync. Attempting to sync from genesis"
+      echo "It'd be much better to also use \"ERC_URL\" to download EraC files"
+    else
+      echo "Starting Checkpoint sync. EraC files will be downloaded next."
 # shellcheck disable=SC2086
-    nimbus trustedNodeSync --backfill=true --reindex ${__network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
+      nimbus trustedNodeSync --backfill=false ${__network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
+    fi
     touch /var/lib/nimbus/setupdone
   else
     echo "Starting checkpoint sync. Nimbus will restart when done."
@@ -209,6 +297,27 @@ if [[ -n "${CHECKPOINT_SYNC_URL}" && ! -f /var/lib/nimbus/setupdone ]]; then
 # shellcheck disable=SC2086
     nimbus trustedNodeSync --backfill=false ${__network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
     touch /var/lib/nimbus/setupdone
+  fi
+fi
+
+__erc_dir=""
+if [[ -n "${ERC_URL}" && ! "${NETWORK}" =~ ^https?:// ]]; then  # Named network
+  if [[ "${CL_NODE_TYPE}" =~ ^(archive|blob-archive)$ ]]; then
+    if [[ ! -f /var/lib/nimbus/erc-download-complete ]]; then
+      if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
+        echo "Starting EraC history file download from ${ERC_URL}"
+        __download_erc_files "${ERC_URL}" /var/lib/nimbus/erc
+        touch /var/lib/nimbus/erc-download-complete
+      else
+        echo "You have EraC files with \"ERC_URL\" but are also genesis syncing. Skipping EraC download."
+        echo "You can specify a \"CHECKPOINT_SYNC_URL\" and resync."
+      fi
+    fi
+    if [[ -f /var/lib/nimbus/erc-download-complete ]]; then
+      __erc_dir="--era-dir=/var/lib/nimbus/erc"
+    fi
+  else
+    echo "Nimbus is not an archive node, it uses ${CL_NODE_TYPE}. Skipping EraC download."
   fi
 fi
 
@@ -225,4 +334,4 @@ set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__prune} ${__mev_boost} ${__network} ${EL_EXTRAS} ${CL_EXTRAS}
+exec "$@" ${__prune} ${__mev_boost} ${__network} ${__erc_dir} ${EL_EXTRAS} ${CL_EXTRAS}
