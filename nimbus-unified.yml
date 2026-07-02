@@ -1,0 +1,117 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  consensus:
+    restart: "unless-stopped"
+    build:
+      context: ./nimbus-el
+      dockerfile: ${NIMUNIFIED_DOCKERFILE}
+      args:
+        - BUILD_TARGET=${NIMEL_SRC_BUILD_TARGET:-master}
+        - SRC_REPO=${NIMEL_SRC_REPO:-https://github.com/status-im/nimbus-eth1}
+        - DOCKER_TAG=${NIMEL_DOCKER_TAG:-master}
+        - DOCKER_REPO=${NIMEL_DOCKER_REPO:-statusim/nimbus-eth1}
+    stop_grace_period: 5m
+    stop_signal: SIGINT
+    image: nimbus-unified:local
+    pull_policy: never
+    user: user
+    environment:
+      - EL_EXTRAS=${EL_EXTRAS:-}
+      - CL_EXTRAS=${CL_EXTRAS:-}
+      - EL_NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
+      - CL_NODE_TYPE=${CL_NODE_TYPE:-pruned}
+      - MEV_BOOST=${MEV_BOOST}
+      - MEV_NODE=${MEV_NODE}
+      - NETWORK=${NETWORK}
+      - CHECKPOINT_SYNC_URL=${CHECKPOINT_SYNC_URL}
+      - ERE_URL=${ERE_URL:-}
+    volumes:
+      - nimbus-unified-data:/var/lib/nimbus
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
+      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
+      - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/tcp
+      - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/udp
+    networks:
+      default:
+        aliases:
+          - eth1
+          - eth2
+          - execution
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${EL_ALIAS:-default-execution}
+          - ${CL_ALIAS:-default-consensus}
+    <<: *logging
+    entrypoint:
+      - docker-entrypoint.sh
+      - nimbus
+      - --data-dir=/var/lib/nimbus
+      - --rest=true
+      - --rest-address=0.0.0.0
+      - --rest-port=${CL_REST_PORT:-5052}
+      - --rpc=true
+      - --http-address=0.0.0.0
+      - --http-port=${EL_RPC_PORT:-8545}
+      - --ws=true
+      - --execution-tcp-port=${EL_P2P_PORT:-30303}
+      - --beacon-tcp-port=${CL_P2P_PORT:-9000}
+      - --enr-auto-update=true
+      - --metrics=true
+      - --metrics-port=8008
+      - --metrics-address=0.0.0.0
+      - ${CL_MAX_PEER_COUNT:+--max-peers=${CL_MAX_PEER_COUNT}}
+      - ${MAX_BLOBS:+--max-blobs=${MAX_BLOBS}}
+      - --log-level=${LOG_LEVEL}
+      - --suggested-fee-recipient=${FEE_RECIPIENT}
+      - --non-interactive
+      - --status-bar=false
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=8008
+      - metrics.instance=consensus
+      - metrics.network=${NETWORK}
+      - logs.collect=true
+
+  wipe-cl-db:
+    profiles: ["tools"]
+    restart: "no"
+    image: alpine:3
+    user: "10002"
+    volumes:
+      - nimbus-unified-data:/var/lib/nimbus
+      - /etc/localtime:/etc/localtime:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rm -rf /var/lib/nimbus/db/*
+        rm -f /var/lib/nimbus/setupdone
+
+  wipe-el-db:
+    profiles: ["tools"]
+    restart: "no"
+    image: alpine:3
+    user: "10002"
+    volumes:
+      - nimbus-unified-data:/var/lib/nimbus
+      - /etc/localtime:/etc/localtime:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rm -rf /var/lib/nimbus/ecdb/*
+        rm -f /var/lib/nimbus/ere-import-complete
+
+volumes:
+  nimbus-unified-data:
+
+networks:
+  default:
+    enable_ipv6: ${IPV6:-false}

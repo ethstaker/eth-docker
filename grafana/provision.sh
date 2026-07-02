@@ -138,7 +138,7 @@ case "${CLIENT}" in
     fi
     handle_replacement "${status}" "${tmp}" "${file}"
     ;;
-  *nimbus* )
+  *nimbus.yml*|*nimbus-cl-only.yml*|*nimbus-allin1.yml* )
     #  nimbus_dashboard
     url='https://raw.githubusercontent.com/status-im/nimbus-eth2/master/grafana/beacon_nodes_Grafana_dashboard.json'
     file='/etc/grafana/provisioning/dashboards/nimbus_dashboard.json'

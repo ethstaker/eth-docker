@@ -1403,6 +1403,13 @@ __source_build() {
           __docompose build --pull --no-cache consensus
       fi
       ;;
+    *nimbus-unified.yml*)
+      var="NIMUNIFIED_DOCKERFILE"
+      __get_value_from_env "${var}" "${__env_file}" "__value"
+      if [[ "${__value}" = "Dockerfile-unified.source" ]]; then
+          __docompose build --pull --no-cache consensus
+      fi
+      ;;
     *prysm.yml*|*prysm-cl-only.yml*)
       var="PRYSM_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "__value"
@@ -2812,6 +2819,11 @@ resync-execution() {
       el_client="Nimbus"
       extra_msg="A full resync should take 5 days.\nYou can use https://rescuenode.com to keep attesting during resync."
       ;;
+    *nimbus-unified.yml*)
+      el_volume='wipe-el-db'
+      el_client="Nimbus Unified"
+      extra_msg="A full resync should take 5 days.\nYou can use https://rescuenode.com to keep attesting during resync."
+      ;;
     *ethrex.yml*)
       el_volume='ethrex-el-data'
       el_client="Ethrex"
@@ -2820,7 +2832,8 @@ resync-execution() {
     *) echo "You do not appear to be running an execution layer client. Nothing to do."; return 0;;
   esac
 
-  if ! __dodocker volume ls -q | grep -qi "$(basename "$(realpath .)")[_-]${el_volume}"; then
+  if [[ ! "${el_volume}" = "wipe-el-db" ]] && ! __dodocker volume ls -q \
+      | grep -qi "$(basename "$(realpath .)")[_-]${el_volume}"; then
     echo "Did not find Docker volume for ${el_client}. Nothing to do."
     return 0
   fi
@@ -2837,23 +2850,32 @@ resync-execution() {
     esac
   fi
 
-  el_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_${el_volume}"
   echo "Stopping ${el_client} container"
-  __docompose stop execution && __docompose rm -f execution
-  __dodocker volume rm "$(__dodocker volume ls -q -f "name=${el_volume}")"
-  volume_id=""
-  if [[ "${el_volume}" =~ geth-el-data ]]; then
-    legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_geth-eth1-data"
-    volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
-  elif [[ "${el_volume}" =~ besu-el-data ]]; then
-    legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_besu-eth1-data"
-    volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
-  elif [[ "${el_volume}" =~ nethermind-el-data ]]; then
-    legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_nm-eth1-data"
-    volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
+  if [[ "${el_client}" = "Nimbus Unified" ]]; then
+    __docompose stop consensus && __docompose rm -f consensus
+  else
+    __docompose stop execution && __docompose rm -f execution
   fi
-  if [[ -n "${volume_id}" ]]; then
-    __dodocker volume rm "${volume_id}"
+
+  if [[ "${el_volume}" = "wipe-el-db" ]]; then
+    __docompose run --rm wipe-el-db
+  else
+    el_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_${el_volume}"
+    __dodocker volume rm "$(__dodocker volume ls -q -f "name=${el_volume}")"
+    volume_id=""
+    if [[ "${el_volume}" =~ geth-el-data ]]; then
+      legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_geth-eth1-data"
+      volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
+    elif [[ "${el_volume}" =~ besu-el-data ]]; then
+      legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_besu-eth1-data"
+      volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
+    elif [[ "${el_volume}" =~ nethermind-el-data ]]; then
+      legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_nm-eth1-data"
+      volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
+    fi
+    if [[ -n "${volume_id}" ]]; then
+      __dodocker volume rm "${volume_id}"
+    fi
   fi
   var="ANCIENT_DIR"
   __get_value_from_env "${var}" "${__env_file}" "__value"
@@ -2885,6 +2907,7 @@ resync-consensus() {
     *teku.yml*|*teku-cl-only.yml*) cl_volume='tekuconsensus-data'; cl_client="teku";;
     *nimbus-allin1.yml*) cl_volume='wipe-db'; cl_client="nimbus";;
     *nimbus.yml*|*nimbus-cl-only.yml*) cl_volume='nimbus-consensus-data'; cl_client="nimbus";;
+    *nimbus-unified.yml*) cl_volume='wipe-cl-db'; cl_client="nimbus-unified";;
     *lodestar.yml*|*lodestar-cl-only.yml*) cl_volume='lsconsensus-data'; cl_client="lodestar";;
     *prysm.yml*|*prysm-cl-only.yml*) cl_volume='prysmconsensus-data'; cl_client="prysm";;
     *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) cl_volume='wipe-db'; cl_client="grandine-plugin";;
@@ -2894,7 +2917,7 @@ resync-consensus() {
     *) echo "You do not appear to be running a consensus layer client. Nothing to do."; return;;
   esac
 
-  if [[ ! "${cl_volume}" = "wipe-db" ]] && ! __dodocker volume ls -q \
+  if [[ ! "${cl_volume}" =~ ^(wipe-db|wipe-cl-db)$ ]] && ! __dodocker volume ls -q \
       | grep -qi "$(basename "$(realpath .)")[_-]${cl_volume}"; then
     echo "Did not find Docker volume for ${cl_client}. Nothing to do."
     return 0
@@ -2926,6 +2949,8 @@ resync-consensus() {
   fi
   if [[ "${cl_volume}" = "wipe-db" ]]; then
     __docompose run --rm wipe-db
+  elif [[ "${cl_volume}" = "wipe-cl-db" ]]; then
+    __docompose run --rm wipe-cl-db
   else
     cl_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_${cl_volume}"
     __dodocker volume rm "$(__dodocker volume ls -q -f "name=${cl_volume}")"
@@ -3525,7 +3550,7 @@ prune-history() {
         prune_marker=""
       fi
       ;;
-    *nimbus-el.yml*)
+    *nimbus-el.yml*|*nimbus-unified.yml*)
       client="Nimbus"
       if [[ "${target}" =~ ^(pre-prague|aggressive)$ ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
@@ -4710,6 +4735,9 @@ __query_consensus_client() {
     choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+    if [[ "${NETWORK}" != "mainnet" ]]; then
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+    fi
     choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
     choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
     choices+=("teku.yml" "Teku (Java) - consensus and validator client")
@@ -4718,6 +4746,9 @@ __query_consensus_client() {
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+    if [[ "${NETWORK}" != "mainnet" ]]; then
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+    fi
   elif [[ "${__deployment}" = "lido_obol" ]]; then
     choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
@@ -4729,6 +4760,9 @@ __query_consensus_client() {
     choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
     choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+    if [[ "${NETWORK}" != "mainnet" ]]; then
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+    fi
     choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
@@ -4790,6 +4824,9 @@ __query_consensus_only_client() {
     choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
+    if [[ "${NETWORK}" != "mainnet" ]]; then
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+    fi
     choices+=("grandine-cl-only.yml" "Grandine (Rust) - consensus client")
     choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
     choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
@@ -4798,11 +4835,17 @@ __query_consensus_only_client() {
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
+    if [[ "${NETWORK}" != "mainnet" ]]; then
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+    fi
   else
     choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
     choices+=("grandine-cl-only.yml" "Grandine (Rust) - consensus client")
     choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
+    if [[ "${NETWORK}" != "mainnet" ]]; then
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+    fi
     choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
     choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
@@ -4878,6 +4921,11 @@ __query_execution_client() {
   local arch
   local num_items
   local menu_height
+
+  if [[ "${CONSENSUS_CLIENT}" = "nimbus-unified.yml" ]]; then
+    EXECUTION_CLIENT="NONE"
+    return 0
+  fi
 
   __write_vars+=("EL_NODE")
 
@@ -5875,7 +5923,7 @@ __make_siren_password() {
 # Interactive configuration of a node, with CL, EL and VC
 __config_node() {
   __query_consensus_client
-  if [[ "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
+  if [[ "${CONSENSUS_CLIENT}" =~ ^(caplin.yml|nimbus-unified.yml)$ ]]; then
     __query_validator_client
   fi
   __query_web3signer
@@ -6260,6 +6308,10 @@ version() {
       ;;
     *nimbus.yml*|*nimbus-allin1.yml*|*nimbus-cl-only*)
       __docompose exec consensus nimbus_beacon_node --version
+      echo
+      ;;
+    *nimbus-unified.yml*)
+      __docompose exec consensus nimbus --version
       echo
       ;;
     *teku.yml*|*teku-allin1.yml*|*teku-cl-only*)

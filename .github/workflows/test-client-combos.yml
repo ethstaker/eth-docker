@@ -67,6 +67,14 @@ jobs:
             test_cl: false
             test_el: true
             test_vc: true
+          - label1: test-nimbus-unified
+            label2: na
+            env: |-
+              CORE_FILES=nimbus-unified.yml:nimbus-vc-only.yml:mev-boost.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: false
+            test_vc: true
           - label1: test-grandine
             label2: test-nimbus-el
             env: |-
