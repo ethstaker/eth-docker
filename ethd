@@ -2698,7 +2698,6 @@ reset to defaults."
     echo "Please make sure to run compatible client versions."
   fi
 
-  __pin_compose_project_name
   __write_eth_docker_version_metric
 
   if [[ ! "$OSTYPE" = "darwin"* ]]; then
@@ -4325,34 +4324,6 @@ __adjust_grandine_permissions() {
 }
 
 
-# Pins COMPOSE_PROJECT_NAME in .env to whatever Compose already resolves it
-# to for this install, if it isn't already set there. This doesn't change
-# which project Compose uses - the value is read back from Compose's own
-# resolution (docker compose config), never computed independently - it just
-# makes that name available for interpolation into the alloy container's
-# environment (see grafana.yml), so config.alloy can scope Docker service
-# discovery to this instance's own containers. Without this, Alloy's
-# discovery.docker sees every container on the host's Docker socket, so
-# running multiple Eth Docker installs on one host causes each instance's
-# Alloy to also scrape/ship the others' metrics and logs.
-__pin_compose_project_name() {
-  local existing
-  local resolved
-
-  __get_value_from_env "COMPOSE_PROJECT_NAME" "${__env_file}" "existing"
-  if [[ -n "${existing}" ]]; then
-    return 0
-  fi
-
-  resolved=$(__docompose config 2>/dev/null | awk -F': ' '/^name:/{print $2; exit}') || resolved=""
-  if [[ -z "${resolved}" ]]; then
-    return 0
-  fi
-
-  __update_value_in_env "COMPOSE_PROJECT_NAME" "${resolved}" "${__env_file}"
-}
-
-
 # Writes the currently checked-out Eth Docker version as a node-exporter
 # textfile-collector metric (see grafana.yml), so it can be tracked the same
 # way the EL/CL client versions already are. "tag" comes from README.md's
@@ -4384,15 +4355,36 @@ __write_eth_docker_version_metric() {
 }
 
 
+# Sets ALLOY_PROJECT_NAME in .env so config.alloy can scope Alloy's Docker
+# service discovery to this install's own containers (see grafana.yml). When
+# ALLOY_FILTER_BY_PROJECT_NAME is true, the name is read back from Compose's
+# own resolution (docker compose config), never computed independently and
+# never written to COMPOSE_PROJECT_NAME. Otherwise it is cleared, and Alloy
+# coalesces the empty value to ".*" - the scrape-all default. Runs on every
+# start so toggling ALLOY_FILTER_BY_PROJECT_NAME takes effect on the next up.
+__set_alloy_project_name() {
+  local enabled
+  local resolved
+
+  __get_value_from_env "ALLOY_FILTER_BY_PROJECT_NAME" "${__env_file}" "enabled"
+  if [[ "${enabled}" = "true" ]]; then
+    resolved=$(__docompose config 2>/dev/null | awk -F': ' '/^name:/{print $2; exit}') || resolved=""
+  else
+    resolved=""
+  fi
+
+  __update_value_in_env "ALLOY_PROJECT_NAME" "${resolved}" "${__env_file}"
+}
+
+
 upgrade() {
   update
 }
 
 
 start() {
-  __pin_compose_project_name
+  __set_alloy_project_name
   __adjust_grandine_permissions
-  __write_eth_docker_version_metric
   __docompose up -d --remove-orphans "$@"
 }
 

@@ -121,7 +121,7 @@ services:
     image: grafana/alloy:latest
     restart: unless-stopped
     environment:
-      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
+      - ALLOY_PROJECT_NAME=${ALLOY_PROJECT_NAME:-}
     volumes:
       - alloy-data:/var/lib/alloy
       - ./alloy:/etc/alloy
