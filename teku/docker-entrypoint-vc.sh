@@ -120,11 +120,11 @@ else
 fi
 
 if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
-# Word splitting is desired for the command line parameters
-# shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
+  __graffiti_args=()
 else
+  __graffiti_args=(--validators-graffiti="${GRAFFITI}")
+fi
+
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} "--validators-graffiti=${GRAFFITI}" ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
-fi
+exec "$@" ${__network} "${__graffiti_args[@]}" ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__doppel} ${__att_aggr} ${VC_EXTRAS}

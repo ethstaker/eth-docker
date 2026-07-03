@@ -105,7 +105,10 @@ fi
 if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--builder-endpoint=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
-  __mev_boost+=" --validators-builder-registration-default-enabled"
+  if [[ "${EMBEDDED_VC}" = "true" ]]; then
+    __mev_boost+=" --validators-builder-registration-default-enabled"
+  fi
+  # Teku has the build factor on the CL, which is unusual
   build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
   case "${build_factor}" in
     0)
@@ -145,7 +148,7 @@ else
 fi
 
 # Check whether we should enable doppelganger protection
-if [[ "${DOPPELGANGER}" = "true" ]]; then
+if [[ "${EMBEDDED_VC}" = "true" && "${DOPPELGANGER}" = "true" ]]; then
   __doppel="--doppelganger-detection-enabled=true"
   echo "Doppelganger protection enabled, VC will pause for 2 epochs"
 else
@@ -194,6 +197,12 @@ else
   __ipv6=""
 fi
 
+if [[ "${EMBEDDED_VC}" = "true" && "${DEFAULT_GRAFFITI}" != "true" ]]; then
+  __graffiti_args=(--validators-graffiti="${GRAFFITI}")
+else
+  __graffiti_args=()
+fi
+
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
@@ -214,12 +223,6 @@ while true; do
   fi
 done
 
-if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__doppel} ${__ipv6} ${CL_EXTRAS} ${VC_EXTRAS}
-else
-# Word splitting is desired for the command line parameters
-# shellcheck disable=SC2086
-  exec "$@" ${__network} "--validators-graffiti=${GRAFFITI}" ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__doppel} ${__ipv6} ${CL_EXTRAS} ${VC_EXTRAS}
-fi
+exec "$@" ${__network} ${__w3s_url} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__doppel} ${__ipv6} ${CL_EXTRAS} ${VC_EXTRAS}

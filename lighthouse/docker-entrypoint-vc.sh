@@ -97,11 +97,11 @@ fi
 # not use a parameter to connect the VC to Web3signer. This is unique to Lighthouse and Vero
 
 if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
-# Word splitting is desired for the command line parameters
-# shellcheck disable=SC2086
-  exec "$@" ${__network} ${__mev_boost} ${__mev_factor} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
+  __graffiti_args=()
 else
+  __graffiti_args=(--graffiti-append --graffiti "${GRAFFITI}")
+fi
+
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} --graffiti-append --graffiti "${GRAFFITI}" ${__mev_boost} ${__mev_factor} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
-fi
+exec "$@" ${__network} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}

@@ -188,6 +188,12 @@ else
   __trace=""
 fi
 
+if [[ "${EMBEDDED_VC}" = "true" && "${DEFAULT_GRAFFITI}" != "true" ]]; then
+  __graffiti_args=(--graffiti "${GRAFFITI}")
+else
+  __graffiti_args=()
+fi
+
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
@@ -208,12 +214,6 @@ while true; do
   fi
 done
 
-if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} ${__trace} ${CL_EXTRAS} ${VC_EXTRAS}
-else
-# Word splitting is desired for the command line parameters
-# shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} --graffiti "${GRAFFITI}" ${__trace} ${CL_EXTRAS} ${VC_EXTRAS}
-fi
+exec "$@" ${__network} ${__w3s_url} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} ${__trace} ${CL_EXTRAS} ${VC_EXTRAS}

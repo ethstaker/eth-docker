@@ -92,11 +92,11 @@ else
 fi
 
 if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
-# Word splitting is desired for the command line parameters
-# shellcheck disable=SC2086
-  exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} ${__doppel} ${__mev_boost} ${__mev_factor} ${__att_aggr} ${VC_EXTRAS}
+  __graffiti_args=()
 else
+  __graffiti_args=(--graffiti="${GRAFFITI}")
+fi
+
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} "--graffiti=${GRAFFITI}" ${__doppel} ${__mev_boost} ${__mev_factor} ${__att_aggr} ${VC_EXTRAS}
-fi
+exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} "${__graffiti_args[@]}" ${__doppel} ${__mev_boost} ${__mev_factor} ${__att_aggr} ${VC_EXTRAS}

@@ -227,11 +227,15 @@ else
 fi
 
 # Check whether we should enable doppelganger protection
-if [[ "${DOPPELGANGER}" = "true" ]]; then
-  __doppel=""
-  echo "Doppelganger protection enabled, VC will pause for 2 epochs"
+if [[ "${EMBEDDED_VC}" = "true" ]]; then
+  if [[ "${DOPPELGANGER}" = "true" ]]; then
+    __doppel=""
+    echo "Doppelganger protection enabled, VC will pause for 2 epochs"
+  else
+    __doppel="--doppelganger-detection=false"
+  fi
 else
-  __doppel="--doppelganger-detection=false"
+  __doppel=""
 fi
 
 case "${CL_NODE_TYPE}" in
@@ -269,6 +273,12 @@ else
   __w3s_url=""
 fi
 
+if [[ "${EMBEDDED_VC}" = "true" &&  "${DEFAULT_GRAFFITI}" != "true" ]]; then
+  __graffiti_args=(--graffiti="${GRAFFITI}")
+else
+  __graffiti_args=()
+fi
+
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
@@ -289,12 +299,6 @@ while true; do
   fi
 done
 
-if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__doppel} ${__prune} ${__erc_dir} ${CL_EXTRAS} ${VC_EXTRAS}
-else
-# Word splitting is desired for the command line parameters
-# shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} "--graffiti=${GRAFFITI}" ${__mev_boost} ${__mev_factor} ${__doppel} ${__prune} ${__erc_dir} ${CL_EXTRAS} ${VC_EXTRAS}
-fi
+exec "$@" ${__network} ${__w3s_url} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__doppel} ${__prune} ${__erc_dir} ${CL_EXTRAS} ${VC_EXTRAS}
