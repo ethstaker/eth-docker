@@ -96,6 +96,9 @@ else
   __att_aggr=""
 fi
 
+# Web3signer note: Lighthouse uses the URL given to it by the keymanager remote registration. It does
+# not use a parameter to connect the VC to Web3signer. This is unique to Lighthouse and Vero
+
 if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
