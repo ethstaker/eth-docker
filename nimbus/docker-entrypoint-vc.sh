@@ -68,8 +68,6 @@ for node in ${nodes}; do
   __beacon_nodes+=("--beacon-node=${node}")
 done
 
-__log_level="--log-level=${LOG_LEVEL^^}"
-
 # Web3signer URL
 if [[ "${WEB3SIGNER}" = "true" ]]; then
   __w3s_url="--web3-signer-url=${W3S_NODE}"
@@ -96,9 +94,9 @@ fi
 if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} ${__log_level} ${__doppel} ${__mev_boost} ${__mev_factor} ${__att_aggr} ${VC_EXTRAS}
+  exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} ${__doppel} ${__mev_boost} ${__mev_factor} ${__att_aggr} ${VC_EXTRAS}
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} "--graffiti=${GRAFFITI}" ${__log_level} ${__doppel} ${__mev_boost} ${__mev_factor} ${__att_aggr} ${VC_EXTRAS}
+  exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} "--graffiti=${GRAFFITI}" ${__doppel} ${__mev_boost} ${__mev_factor} ${__att_aggr} ${VC_EXTRAS}
 fi

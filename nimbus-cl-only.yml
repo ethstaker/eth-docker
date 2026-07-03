@@ -38,7 +38,6 @@ services:
       - MEV_BOOST=${MEV_BOOST}
       - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}  # Unused, here to avoid runtime errors in case of faulty logic
       - MEV_NODE=${MEV_NODE}
-      - LOG_LEVEL=${LOG_LEVEL}
       - DOPPELGANGER=false
       - CL_EXTRAS=${CL_EXTRAS:-}
       - VC_EXTRAS=
@@ -76,6 +75,7 @@ services:
       - --metrics-port=8008
       - --metrics-address=0.0.0.0
       - --suggested-fee-recipient=${FEE_RECIPIENT}
+      - --log-level=${LOG_LEVEL}
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics

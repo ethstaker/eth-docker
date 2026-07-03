@@ -131,8 +131,6 @@ else
   __doppel="--doppelganger-detection=false"
 fi
 
-__log_level="--log-level=${LOG_LEVEL^^}"
-
 case "${NODE_TYPE}" in
   archive)
     echo "Nimbus archive node without history pruning"
@@ -191,9 +189,9 @@ done
 if [[ "${DEFAULT_GRAFFITI}" = "true" ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__log_level} ${__doppel} ${__prune} ${CL_EXTRAS} ${VC_EXTRAS}
+  exec "$@" ${__network} ${__w3s_url} ${__mev_boost} ${__mev_factor} ${__doppel} ${__prune} ${CL_EXTRAS} ${VC_EXTRAS}
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__w3s_url} "--graffiti=${GRAFFITI}" ${__mev_boost} ${__mev_factor} ${__log_level} ${__doppel} ${__prune} ${CL_EXTRAS} ${VC_EXTRAS}
+  exec "$@" ${__network} ${__w3s_url} "--graffiti=${GRAFFITI}" ${__mev_boost} ${__mev_factor} ${__doppel} ${__prune} ${CL_EXTRAS} ${VC_EXTRAS}
 fi
