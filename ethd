@@ -4375,7 +4375,8 @@ __set_alloy_project_name() {
     ALLOY_PROJECT_NAME=""
   fi
 
-  __update_value_in_env "ALLOY_PROJECT_NAME" "${resolved}" "${__env_file}"
+  var=ALLOY_PROJECT_NAME
+  __update_value_in_env "${var}" "${!var}" "${__env_file}"
 }
 
 
