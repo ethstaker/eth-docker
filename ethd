@@ -4366,7 +4366,6 @@ __write_eth_docker_version_metric() {
 # start so toggling ALLOY_FILTER_BY_PROJECT_NAME takes effect on the next up.
 __set_alloy_project_name() {
   local var
-  local resolved
 
   var=ALLOY_FILTER_BY_PROJECT_NAME
   __get_value_from_env "${var}" "${__env_file}" "__value"
