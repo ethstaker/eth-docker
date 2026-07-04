@@ -6175,7 +6175,7 @@ version() {
   local var
   local w3s_exec=""
 
-  grep "^This is" README.md
+  grep "^This is ${__project_name} v" README.md
   echo
   __value="${COMPOSE_FILE}"
 
