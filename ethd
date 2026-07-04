@@ -4337,13 +4337,15 @@ __adjust_grandine_permissions() {
 __write_eth_docker_version_metric() {
   local tag
   local commit
+  local var
   local textfile_dir
 
   tag=$(grep -m1 "^This is ${__project_name} v" README.md 2>/dev/null | sed -E "s/^This is ${__project_name} //") || tag=""
   commit=$(${__as_owner} git rev-parse --short HEAD 2>/dev/null) || commit=""
 
-  __get_value_from_env "NODE_EXPORTER_COLLECTOR_MOUNT_PATH" "${__env_file}" "textfile_dir"
-  textfile_dir="${textfile_dir:-./prometheus/node-exporter-text}"
+  var=NODE_EXPORTER_COLLECTOR_MOUNT_PATH
+  __get_value_from_env "${var}" "${__env_file}" "__value"
+  textfile_dir="${__value:-./prometheus/node-exporter-text}"
 
   ${__as_owner} mkdir -p "${textfile_dir}"
   {
