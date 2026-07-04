@@ -4339,7 +4339,7 @@ __write_eth_docker_version_metric() {
   local commit
   local textfile_dir
 
-  tag=$(grep -m1 "^This is Eth Docker v" README.md 2>/dev/null | sed -E 's/^This is Eth Docker //') || tag=""
+  tag=$(grep -m1 "^This is ${__project_name} v" README.md 2>/dev/null | sed -E "s/^This is ${__project_name} //") || tag=""
   commit=$(${__as_owner} git rev-parse --short HEAD 2>/dev/null) || commit=""
 
   __get_value_from_env "NODE_EXPORTER_COLLECTOR_MOUNT_PATH" "${__env_file}" "textfile_dir"
@@ -4347,7 +4347,7 @@ __write_eth_docker_version_metric() {
 
   ${__as_owner} mkdir -p "${textfile_dir}"
   {
-    echo "# HELP eth_docker_version_info Currently checked out Eth Docker version"
+    echo "# HELP eth_docker_version_info Currently checked out ${__project_name} version"
     echo "# TYPE eth_docker_version_info gauge"
     echo "eth_docker_version_info{tag=\"${tag}\",commit=\"${commit}\"} 1"
   } | ${__as_owner} tee "${textfile_dir}/eth-docker-version.prom.tmp" >/dev/null
@@ -4363,11 +4363,12 @@ __write_eth_docker_version_metric() {
 # coalesces the empty value to ".*" - the scrape-all default. Runs on every
 # start so toggling ALLOY_FILTER_BY_PROJECT_NAME takes effect on the next up.
 __set_alloy_project_name() {
-  local enabled
+  local var
   local resolved
 
-  __get_value_from_env "ALLOY_FILTER_BY_PROJECT_NAME" "${__env_file}" "enabled"
-  if [[ "${enabled}" = "true" ]]; then
+  var=ALLOY_FILTER_BY_PROJECT_NAME
+  __get_value_from_env "${var}" "${__env_file}" "__value"
+  if [[ "${__value}" = "true" ]]; then
     resolved=$(__docompose config 2>/dev/null | awk -F': ' '/^name:/{print $2; exit}') || resolved=""
   else
     resolved=""
