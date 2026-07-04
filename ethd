@@ -4370,7 +4370,7 @@ __set_alloy_project_name() {
   var=ALLOY_FILTER_BY_PROJECT_NAME
   __get_value_from_env "${var}" "${__env_file}" "__value"
   if [[ "${__value}" = "true" ]]; then
-    resolved=$(__docompose config 2>/dev/null | awk -F': ' '/^name:/{print $2; exit}') || resolved=""
+    ALLOY_PROJECT_NAME=$(__docompose config 2>/dev/null | awk -F': ' '/^name:/{print $2; exit}') || ALLOY_PROJECT_NAME=""
   else
     ALLOY_PROJECT_NAME=""
   fi
