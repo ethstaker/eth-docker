@@ -4372,7 +4372,7 @@ __set_alloy_project_name() {
   if [[ "${__value}" = "true" ]]; then
     resolved=$(__docompose config 2>/dev/null | awk -F': ' '/^name:/{print $2; exit}') || resolved=""
   else
-    resolved=""
+    ALLOY_PROJECT_NAME=""
   fi
 
   __update_value_in_env "ALLOY_PROJECT_NAME" "${resolved}" "${__env_file}"
