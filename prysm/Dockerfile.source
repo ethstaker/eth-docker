@@ -11,9 +11,6 @@ ARG DOCKER_VC_REPO
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   cmake \
   libgmp-dev \
-  npm \
-  && npm install -g @bazel/bazelisk \
-  && bazel version \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -36,9 +33,9 @@ RUN bash -eo pipefail <<'EOF'
   else
     git checkout "$TARGET"
   fi
-  bazel build --config=release //cmd/beacon-chain:beacon-chain
-  bazel build --config=release //cmd/validator:validator
-  bazel build --config=release //cmd/client-stats:client-stats
+  make build beacon-chain
+  make build validator
+  make build client-stats
 EOF
 
 
@@ -75,9 +72,9 @@ RUN adduser \
 RUN mkdir -p /var/lib/prysm/ee-secret && chown -R ${USER}:${USER} /var/lib/prysm && chmod -R 700 /var/lib/prysm && chmod 777 /var/lib/prysm/ee-secret
 
 # Cannot assume buildkit, hence no chmod
-COPY --from=builder --chown=${USER}:${USER} /go/src/prysm/bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /usr/local/bin/
-COPY --from=builder --chown=${USER}:${USER} /go/src/prysm/bazel-bin/cmd/validator/validator_/validator /usr/local/bin/
-COPY --from=builder --chown=${USER}:${USER} /go/src/prysm/bazel-bin/cmd/client-stats/client-stats_/client-stats /usr/local/bin/
+COPY --from=builder --chown=${USER}:${USER} /go/src/prysm/dist/beacon-chain /usr/local/bin/
+COPY --from=builder --chown=${USER}:${USER} /go/src/prysm/dist/validator /usr/local/bin/
+COPY --from=builder --chown=${USER}:${USER} /go/src/prysm/dist/client-stats /usr/local/bin/
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
