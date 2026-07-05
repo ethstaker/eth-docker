@@ -56,10 +56,6 @@ else
   __network="--network=${NETWORK}"
 fi
 
-
-# Assume we're not zk-enabled
-__engine="--execution-endpoint ${EL_NODE} --execution-jwt /var/lib/lighthouse/beacon/ee-secret/jwtsecret"
-
 case "${NODE_TYPE}" in
   archive)
     echo "Lighthouse archive node without history pruning"
@@ -78,6 +74,9 @@ case "${NODE_TYPE}" in
     exit 1
     ;;
 esac
+
+# Assume we're not zk-enabled
+__engine="--execution-endpoint ${EL_NODE} --execution-jwt /var/lib/lighthouse/beacon/ee-secret/jwtsecret"
 
 if [[ "${EL_NODE_TYPE}" = "use-cl-zkproofs" ]]; then
   if [[ ! "${NETWORK}" = "mainnet" ]]; then
@@ -150,22 +149,24 @@ else
   __trace=""
 fi
 
-i=0
-while true; do
-  if [ -f /var/lib/lighthouse/beacon/ee-secret/jwtsecret ]; then
-    break
-  else
-    if [[ "$i" -eq 5 ]]; then
-      echo "Did not see the JWT secret file six times in a row. This is either a bug or a very slow execution layer client startup."
-      echo "Starting consensus layer client anyway: It may fail."
+if [[ "${EL_NODE_TYPE}" != "use-cl-zkproofs" ]]; then
+  i=0
+  while true; do
+    if [ -f /var/lib/lighthouse/beacon/ee-secret/jwtsecret ]; then
       break
     else
-      echo "Waiting for JWT secret file to be created by execution layer client"
-      sleep 5
-      ((++i))
+      if [[ "$i" -eq 5 ]]; then
+        echo "Did not see the JWT secret file six times in a row. This is either a bug or a very slow execution layer client startup."
+        echo "Starting consensus layer client anyway: It may fail."
+        break
+      else
+        echo "Waiting for JWT secret file to be created by execution layer client"
+        sleep 5
+        ((++i))
+      fi
     fi
-  fi
-done
+  done
+fi
 
 if [[ -f /var/lib/lighthouse/beacon/prune-marker ]]; then
   rm -f /var/lib/lighthouse/beacon/prune-marker
