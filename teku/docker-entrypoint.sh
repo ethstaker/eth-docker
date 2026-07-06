@@ -191,7 +191,7 @@ fi
 
 if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Teku to listen on IPv6 ports"
-  __ipv6="--p2p-interface 0.0.0.0,:: --p2p-port-ipv6 ${CL_IPV6_P2P_PORT:-9010} --p2p-quic-port-ipv6 ${CL_IPV6_QUIC_PORT:-9011}"
+  __ipv6="--p2p-interface 0.0.0.0,:: --p2p-port-ipv6 ${CL_P2P_PORT:-9000} --p2p-quic-port-ipv6 ${CL_QUIC_PORT:-9001}"
 else
   __ipv6=""
 fi
