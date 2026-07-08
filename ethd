@@ -237,7 +237,7 @@ __handle_docker() {
       var=LOG_TAG
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "'{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'" || \
-            "${__value}" = "'{{.ImageName}}|{{.Name}}|{{.ID}}'" ]]; then
+            "${__value}" = "'{{.ImageName}}|{{.Name}}|{{.ID}}'" ]]; then  # Leave user overrides alone
         __update_value_in_env "${var}" "${!var}" "${__env_file}"
       fi
     fi
