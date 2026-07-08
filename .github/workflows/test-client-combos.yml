@@ -227,6 +227,13 @@ jobs:
           contains(github.event.pull_request.labels.*.name, 'test-all') ||
           github.event_name == 'push'
         uses: docker/setup-buildx-action@v4
+      - name: Remove podman
+        if: >
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
+          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
+          contains(github.event.pull_request.labels.*.name, 'test-all') ||
+          github.event_name == 'push'
+        run: sudo apt-get remove -y podman
       - name: Create .env file
         if: >
           contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
