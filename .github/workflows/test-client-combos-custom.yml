@@ -1,0 +1,188 @@
+name: Test Custom Network Client Combination
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+concurrency:
+  group: customci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint sources
+    if: |
+      (
+        contains(github.event.pull_request.labels.*.name, 'test-custom')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.14
+          cache: 'pip'
+      - name: Lint sources
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: --all-files --show-diff-on-failure
+
+  test-client-combo:
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        combo:
+          - env: |-
+              CORE_FILES=caplin.yml:erigon.yml:lodestar-vc-only.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+              CL_NODE=http://execution:5052
+              EL_EXTRAS=--torrent.download.rate 1mb
+            test_cl: false
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=nimbus-unified.yml:nimbus-vc-only.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: false
+            test_vc: true
+          - env: |-
+              CORE_FILES=grandine-allin1.yml:nimbus-el.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: false
+          - env: |-
+              CORE_FILES=grandine-cl-only.yml:lighthouse-vc-only.yml:nimbus-el.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=grandine-plugin.yml:lighthouse-vc-only.yml:nethermind.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+              NM_DOCKER_REPO=sifrai/grandine
+              NM_DOCKER_TAG=unstable-nethermind
+            test_cl: false
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=grandine-plugin-allin1.yml:nethermind.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+              NM_DOCKER_REPO=sifrai/grandine
+              NM_DOCKER_TAG=unstable-nethermind
+            test_cl: false
+            test_el: true
+            test_vc: false
+          - env: |-
+              CORE_FILES=lighthouse.yml:ethrex.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=lighthouse.yml:reth.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=lighthouse-cl-only.yml:lighthouse-vc-only.yml:reth.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=lodestar.yml:erigon.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=lodestar-cl-only.yml:lodestar-vc-only.yml:erigon.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=nimbus.yml:nethermind.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=prysm.yml:geth.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml
+              CL_NODE=consensus:4000
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=teku.yml:besu.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+          - env: |-
+              CORE_FILES=teku-cl-only.yml:teku-vc-only.yml:besu.yml
+              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+            test_cl: true
+            test_el: true
+            test_vc: true
+        env-var:
+          - >-
+            NETWORK=https://github.com/eth-clients/sepolia/tree/main/metadata
+            CHECKPOINT_SYNC_URL=https://checkpoint-sync.sepolia.ethpandaops.io
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Remove podman
+        run: sudo apt-get remove -y podman
+      - name: Create .env file
+        run: cp default.env .env
+      - name: Set env variables
+        run: |
+          source ./.github/helper.sh
+          while IFS= read -r varpair; do
+            IFS='=' read var val <<< "$varpair"
+            export "$var=$val"
+            var=$var
+            set_value_in_env
+          done <<< "${{ matrix.combo.env }}"
+          for varpair in ${{ matrix.env-var }}; do
+            IFS="=" read var val <<< "$varpair"
+            export "$var=$val"
+            var=$var
+            set_value_in_env
+          done
+      - name: Test the stack
+        uses: ./.github/actions/test_client_stack
+        with:
+          test_cl: ${{ matrix.combo.test_cl }}
+          test_el: ${{ matrix.combo.test_el }}
+          test_vc: ${{ matrix.combo.test_vc }}
