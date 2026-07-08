@@ -67,7 +67,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/nethermind/testnet/${config_dir}/enodes.yaml" | paste -sd ",")"
+  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/nethermind/testnet/${config_dir}/enodes.yaml")"
   __network="--config none.cfg --Init.ChainSpecPath=/var/lib/nethermind/testnet/${config_dir}/chainspec.json --Discovery.Bootnodes=${bootnodes} --Init.IsMining=false"
   if [[ ! "${NODE_TYPE}" = "archive" ]]; then
     __prune="--Pruning.Mode=None"
@@ -250,7 +250,7 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
       echo "${config_dir}" > .git/info/sparse-checkout
       git pull origin "${branch}"
     fi
-    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/grandine/testnet/${config_dir}/bootstrap_nodes.yaml" | paste -sd ",")"
+    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/grandine/testnet/${config_dir}/bootstrap_nodes.yaml")"
     __grandine+=" --grandine-configuration-directory=/var/lib/grandine/testnet/${config_dir} --grandine-boot-nodes=${bootnodes}"
   else
     __grandine+=" --grandine-network=${NETWORK}"

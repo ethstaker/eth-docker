@@ -47,7 +47,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/prysm/testnet/${config_dir}/bootstrap_nodes.yaml" | paste -sd ",")"
+  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/prysm/testnet/${config_dir}/bootstrap_nodes.yaml")"
   deploy_block=$(cat "/var/lib/prysm/testnet/${config_dir}/deposit_contract_block.txt")
   __network="--chain-config-file=/var/lib/prysm/testnet/${config_dir}/config.yaml --genesis-state=/var/lib/prysm/testnet/${config_dir}/genesis.ssz \
 --enable-debug-rpc-endpoints --bootstrap-node=${bootnodes} --contract-deployment-block=${deploy_block}"
