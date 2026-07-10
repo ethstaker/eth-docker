@@ -6,7 +6,7 @@ FROM rust:trixie AS builder
 ARG DOCKER_TAG
 ARG DOCKER_REPO
 
-RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install-recommends cmake libclang-dev protobuf-compiler
+RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install-recommends cmake clang libclang-dev protobuf-compiler
 
 ARG BUILD_TARGET
 ARG SRC_REPO
@@ -15,6 +15,8 @@ ENV FEATURES portable,gnosis,slasher-lmdb,beacon-node-leveldb
 WORKDIR /usr/src
 
 ARG SRC_DIR=lighthouse
+ENV CC=clang
+ENV CXX=clang++
 RUN bash -eo pipefail <<'EOF'
   git clone "$SRC_REPO" "$SRC_DIR"
   cd "$SRC_DIR"
