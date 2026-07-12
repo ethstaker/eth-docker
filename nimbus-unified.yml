@@ -68,6 +68,7 @@ services:
       - --metrics-port=8008
       - --metrics-address=0.0.0.0
       - ${CL_MAX_PEER_COUNT:+--max-peers=${CL_MAX_PEER_COUNT}}
+      - ${EL_MAX_PEER_COUNT:+--el-max-peers=${EL_MAX_PEER_COUNT}}
       - ${MAX_BLOBS:+--max-blobs=${MAX_BLOBS}}
       - --log-level=${LOG_LEVEL}
       - --suggested-fee-recipient=${FEE_RECIPIENT}
