@@ -2120,6 +2120,18 @@ __migrate_env() {
         __value=""
       fi
       # Remove after Glamsterdam
+      if [[ "${var}" = "CHECKPOINT_SYNC_URL" && "${__value}" =~ ^https://beaconstate.info ]]; then
+        __value="https://sync-mainnet.beaconcha.in"
+      fi
+      # Remove after Glamsterdam
+      if [[ "${var}" = "CHECKPOINT_SYNC_URL" && "${__value}" =~ ^https://hoodi.beaconstate.info ]]; then
+        __value="https://hoodi.checkpoint.sigp.io"
+      fi
+      # Remove after Glamsterdam
+      if [[ "${var}" = "CHECKPOINT_SYNC_URL" && "${__value}" =~ ^https://sepolia.beaconstate.info ]]; then
+        __value="https://checkpoint-sync.sepolia.ethpandaops.io"
+      fi
+      # Remove after Glamsterdam
       if [[ "${__source_ver}" -lt "59" && "${var}" = "CL_NODE_TYPE" && "${__value}" = "archive"
             && ${COMPOSE_FILE} =~ (prysm\.yml|prysm-cl-only\.yml|lighthouse\.yml|lighthouse-cl-only\.yml|lodestar\.yml|lodestar-cl-only\.yml|caplin\.yml) ]]; then
         __value="blob-archive"
@@ -5190,16 +5202,16 @@ __query_checkpoint_beacon() {
   if [[ -z "${CHECKPOINT_SYNC_URL}" ]]; then
     case "${NETWORK}" in
       sepolia)
-        CHECKPOINT_SYNC_URL="https://sepolia.beaconstate.info"
+        CHECKPOINT_SYNC_URL="https://checkpoint-sync.sepolia.ethpandaops.io"
         ;;
       hoodi)
         CHECKPOINT_SYNC_URL="https://hoodi.checkpoint.sigp.io"
         ;;
       ephemery)
-        CHECKPOINT_SYNC_URL="https://ephemery.beaconstate.ethstaker.cc/"
+        CHECKPOINT_SYNC_URL="https://ephemery.beaconstate.ethstaker.cc"
         ;;
       mainnet)
-        CHECKPOINT_SYNC_URL="https://beaconstate.info"
+        CHECKPOINT_SYNC_URL="https://sync-mainnet.beaconcha.in"
         ;;
       gnosis)
         CHECKPOINT_SYNC_URL="https://checkpoint.gnosischain.com"
