@@ -46,7 +46,7 @@ __download_ere_files() {
   download_dir="$2"
 
   mkdir -p "${download_dir}"
-  cd "${download_dir}" || { echo "Could not change directory to ${download_dir}. This is a bug."; exit 70; }
+  pushd "${download_dir}" > /dev/null || { echo "Could not change directory to ${download_dir}. This is a bug."; exit 70; }
 
   # 🔧 Normalize base URL (handle trailing slash)
   case "${download_url}" in
@@ -54,7 +54,7 @@ __download_ere_files() {
     *)            base_url="${download_url}" ;;
   esac
 
-  curl -sS -O "${base_url}/urls.txt"
+  curl -fsS -O "${base_url}/urls.txt"
   total_files=$(wc -l < urls.txt)
   aria2c -x 8 -j 5 -c -i urls.txt \
     --dir="." \
@@ -87,9 +87,11 @@ __download_ere_files() {
   echo "✅ All files downloaded to: ${download_dir}"
 
   echo "Verifying checksums"
-  curl -sS -O "${base_url}/checksums_sha256.txt"
+  curl -fsS -O "${base_url}/checksums_sha256.txt"
   sha256sum -c checksums_sha256.txt --ignore-missing
   echo "✅ All checksums verified"
+
+  popd > /dev/null
 }
 
 
