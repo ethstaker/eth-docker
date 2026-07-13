@@ -45,8 +45,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
   config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
-  # For want of something more amazing, let's just fail if git fails to pull this
-  set -e
   if [[ ! -d "/var/lib/erigon/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/erigon/testnet
     cd /var/lib/erigon/testnet
@@ -58,7 +56,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   fi
   bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/erigon/testnet/${config_dir}/enodes.yaml" | paste -sd ",")"
   networkid="$(jq -r '.config.chainId' "/var/lib/erigon/testnet/${config_dir}/genesis.json")"
-  set +e
   __network="--bootnodes=${bootnodes} --networkid=${networkid}"
   if [[ ! -d /var/lib/erigon/chaindata ]]; then
     erigon init --datadir /var/lib/erigon "/var/lib/erigon/testnet/${config_dir}/genesis.json"

@@ -38,8 +38,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
   config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
-  # For want of something more amazing, let's just fail if git fails to pull this
-  set -e
   if [[ ! -d "/var/lib/prysm/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/prysm/testnet
     cd /var/lib/prysm/testnet
@@ -51,7 +49,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   fi
   bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/prysm/testnet/${config_dir}/bootstrap_nodes.yaml" | paste -sd ",")"
   deploy_block=$(cat "/var/lib/prysm/testnet/${config_dir}/deposit_contract_block.txt")
-  set +e
   __network="--chain-config-file=/var/lib/prysm/testnet/${config_dir}/config.yaml --genesis-state=/var/lib/prysm/testnet/${config_dir}/genesis.ssz \
 --enable-debug-rpc-endpoints --bootstrap-node=${bootnodes} --contract-deployment-block=${deploy_block}"
 else

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 if [[ "$(id -u)" -eq 0 ]]; then
   chown -R geth:geth /var/lib/geth
@@ -129,8 +129,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
   config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
-  # For want of something more amazing, let's just fail if git fails to pull this
-  set -e
   if [[ ! -d "/var/lib/geth/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/geth/testnet
     cd /var/lib/geth/testnet
@@ -142,7 +140,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   fi
   bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/geth/testnet/${config_dir}/enodes.yaml" | paste -sd ",")"
   networkid="$(jq -r '.config.chainId' "/var/lib/geth/testnet/${config_dir}/genesis.json")"
-  set +e
   __network="--bootnodes=${bootnodes} --networkid=${networkid}"
   if [[ ! -d /var/lib/geth/geth/chaindata/ ]]; then
     geth init --datadir /var/lib/geth "/var/lib/geth/testnet/${config_dir}/genesis.json"

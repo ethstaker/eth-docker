@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 if [[ "$(id -u)" -eq 0 ]]; then
   chown -R user:user /var/lib/nimbus
@@ -157,8 +157,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
   config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
-  # For want of something more amazing, let's just fail if git fails to pull this
-  set -e
   if [[ ! -d "/var/lib/nimbus/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/nimbus/testnet
     cd /var/lib/nimbus/testnet
@@ -170,10 +168,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   fi
   el_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/nimbus/testnet/${config_dir}/enodes.yaml")"
   cl_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/nimbus/testnet/${config_dir}/bootstrap_nodes.yaml")"
-  #networkid="$(jq -r '.config.chainId' "/var/lib/nimbus/testnet/${config_dir}/genesis.json")"
-  set +e
   __network="--bootstrap-node=${cl_bootnodes} --el-bootstrap-node=${el_bootnodes} --network=/var/lib/nimbus/testnet/${config_dir}"
-  # --network=${networkid}
 else
   __network="--network=${NETWORK}"
 fi

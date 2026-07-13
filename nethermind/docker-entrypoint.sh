@@ -59,8 +59,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
   if [[ ! -d "/var/lib/nethermind/testnet/${config_dir}" ]]; then
-    # For want of something more amazing, let's just fail if git fails to pull this
-    set -e
     mkdir -p /var/lib/nethermind/testnet
     cd /var/lib/nethermind/testnet
     git init --initial-branch="${branch}"
@@ -68,7 +66,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git config core.sparseCheckout true
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
-    set +e
   fi
   bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/nethermind/testnet/${config_dir}/enodes.yaml" | paste -sd ",")"
   __network="--config none.cfg --Init.ChainSpecPath=/var/lib/nethermind/testnet/${config_dir}/chainspec.json --Discovery.Bootnodes=${bootnodes} --Init.IsMining=false"
@@ -244,8 +241,6 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
     branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
     config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
     echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
-    # For want of something more amazing, let's just fail if git fails to pull this
-    set -e
     if [[ ! -d "/var/lib/grandine/testnet/${config_dir}" ]]; then
       mkdir -p /var/lib/grandine/testnet
       cd /var/lib/grandine/testnet
@@ -256,7 +251,6 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
       git pull origin "${branch}"
     fi
     bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/grandine/testnet/${config_dir}/bootstrap_nodes.yaml" | paste -sd ",")"
-    set +e
     __grandine+=" --grandine-configuration-directory=/var/lib/grandine/testnet/${config_dir} --grandine-boot-nodes=${bootnodes}"
   else
     __grandine+=" --grandine-network=${NETWORK}"

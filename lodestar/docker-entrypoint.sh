@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -Eeuo pipefail
 
 if [[ "$(id -u)" -eq 0 ]]; then
   chown -R lsconsensus:lsconsensus /var/lib/lodestar
@@ -42,8 +43,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
   config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
-  # For lack of something more sophisticated, let's just fail if git fails to pull this
-  set -e
   if [[ ! -d "/var/lib/lodestar/consensus/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/lodestar/consensus/testnet
     cd /var/lib/lodestar/consensus/testnet
@@ -54,7 +53,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/lodestar/consensus/testnet/${config_dir}/bootstrap_nodes.yaml" | paste -sd ",")"
-  set +e
   __network="--paramsFile=/var/lib/lodestar/consensus/testnet/${config_dir}/config.yaml --genesisStateFile=/var/lib/lodestar/consensus/testnet/${config_dir}/genesis.ssz \
 --bootnodes=${bootnodes} --network.connectToDiscv5Bootnodes --rest.namespace=*"
 else

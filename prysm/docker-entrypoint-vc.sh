@@ -12,8 +12,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
   config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
-  # For want of something more amazing, let's just fail if git fails to pull this
-  set -e
   if [[ ! -d "/var/lib/prysm/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/prysm/testnet
     cd /var/lib/prysm/testnet
@@ -23,7 +21,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  set +e
   __network="--chain-config-file=/var/lib/prysm/testnet/${config_dir}/config.yaml"
 else
   __network="--${NETWORK}"

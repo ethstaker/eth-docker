@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -Eeuo pipefail
 
 if [[ "$(id -u)" -eq 0 ]]; then
   chown -R user:user /var/lib/nimbus
@@ -51,8 +52,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
   config_dir=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f2-)
   echo "This appears to be the ${repo} repo, branch ${branch} and config directory ${config_dir}."
-  # For want of something more amazing, let's just fail if git fails to pull this
-  set -e
   if [[ ! -d "/var/lib/nimbus/testnet/${config_dir}" ]]; then
     mkdir -p /var/lib/nimbus/testnet
     cd /var/lib/nimbus/testnet
@@ -63,7 +62,6 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   bootnodes="$(awk -F'- ' '!/^#/ && NF>1 {print $2}' "/var/lib/nimbus/testnet/${config_dir}/bootstrap_nodes.yaml" | paste -sd ",")"
-  set +e
   __network="--network=/var/lib/nimbus/testnet/${config_dir} --bootstrap-node=${bootnodes}"
 else
   __network="--network=${NETWORK}"
@@ -88,13 +86,13 @@ fi
 # Check whether we should use MEV Boost
 if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--payload-builder=true --payload-builder-url=${MEV_NODE:-http://mev-boost:18550}"
+  __mev_factor=""
   echo "MEV Boost enabled"
   if [[ "${EMBEDDED_VC}" = "true" ]]; then
     build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
     case "${build_factor}" in
       0)
         __mev_boost=""
-        __mev_factor=""
         echo "Disabled MEV Boost because MEV_BUILD_FACTOR is 0."
         echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
         ;;
@@ -109,11 +107,9 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
         echo "This may still build a local block, if it pays more than a builder block"
         ;;
       "")
-        __mev_factor=""
         echo "Use default --local-block-value-boost"
         ;;
       *)
-        __mev_factor=""
         echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${build_factor}\""
         ;;
     esac
