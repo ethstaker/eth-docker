@@ -2639,6 +2639,11 @@ update() {
   fi
 
   if [[ -z "${ETHDSECUNDO:-}" ]]; then
+# Remove after Glamsterdam
+    if git ls-files --error-unmatch ./prometheus/node-exporter-text/eth-docker-version.prom; then
+      rm -f ./prometheus/node-exporter-text/eth-docker-version.prom
+    fi
+
     set +e
     ${__as_owner} git config pull.rebase false
     var="ETH_DOCKER_TAG"
