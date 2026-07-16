@@ -7,12 +7,11 @@ ARG DOCKER_TAG
 ARG DOCKER_REPO
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    lsb-release wget gnupg ca-certificates libclang-dev && \
-    wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && \
-    chmod +x /tmp/llvm.sh && /tmp/llvm.sh 22 all && \
-    for bin in clang llvm-config lld ld.lld FileCheck; do \
-      ln -fs "$(which "$bin-22")" "/usr/bin/$bin"; \
-    done && \
+    lsb-release wget gnupg ca-certificates
+
+ARG LLVM_VER=22
+RUN wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && \
+    chmod +x /tmp/llvm.sh && /tmp/llvm.sh "$LLVM_VER" all && \
     rm /tmp/llvm.sh
 
 ARG BUILD_TARGET
@@ -21,20 +20,28 @@ ARG SRC_REPO
 WORKDIR /src
 
 ARG SRC_DIR=reth
-RUN bash -eo pipefail <<'EOF'
-  git clone "$SRC_REPO" "$SRC_DIR"
-  cd "$SRC_DIR"
-  git config advice.detachedHead false
-  git fetch --all --tags
-  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
-  TARGET=$(eval echo "$CLEANED")
-  if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
-    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
-    git checkout build-pr
-  else
-    git checkout "$TARGET"
-  fi
-  RUSTFLAGS='-C target-cpu=native' cargo build --profile maxperf --features jemalloc
+ENV CC=clang-$LLVM_VER
+ENV CXX=clang++-$LLVM_VER
+RUN --mount=type=cache,sharing=locked,id=reth-target,target=/src/target/ \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/git/db \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry/ \
+  bash <<'EOF'
+set -Eeuo pipefail
+git clone "$SRC_REPO" "$SRC_DIR"
+cd "$SRC_DIR"
+git config advice.detachedHead false
+git fetch --all --tags
+CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+TARGET=$(eval echo "$CLEANED")
+if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
+  git fetch origin pull/${TARGET#pr-}/head:build-pr
+  git checkout build-pr
+else
+  git checkout "$TARGET"
+fi
+CARGO_TARGET_DIR=/src/target RUSTFLAGS='-C target-cpu=native' cargo build --profile maxperf --features jemalloc
+mkdir -p /src/bin
+cp /src/target/maxperf/reth /src/bin/reth
 EOF
 
 
@@ -69,7 +76,7 @@ RUN adduser \
 RUN mkdir -p /var/lib/reth/ee-secret && chown -R ${USER}:${USER} /var/lib/reth && chmod -R 700 /var/lib/reth && chmod 777 /var/lib/reth/ee-secret
 
 # Cannot assume buildkit, hence no chmod
-COPY --from=builder --chown=${USER}:${USER} /src/reth/target/maxperf/reth /usr/local/bin/
+COPY --from=builder --chown=${USER}:${USER} /src/bin/reth /usr/local/bin/
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
