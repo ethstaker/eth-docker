@@ -1,3 +1,0 @@
-# HELP eth_docker_version_info Currently checked out Eth Docker version
-# TYPE eth_docker_version_info gauge
-eth_docker_version_info{tag="v26.7.2-dev",commit="6ec90be"} 1
