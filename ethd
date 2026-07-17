@@ -2640,7 +2640,7 @@ update() {
 
   if [[ -z "${ETHDSECUNDO:-}" ]]; then
 # Remove after Glamsterdam
-    if git ls-files --error-unmatch ./prometheus/node-exporter-text/eth-docker-version.prom; then
+    if git ls-files --error-unmatch ./prometheus/node-exporter-text/eth-docker-version.prom >/dev/null 2>&1; then
       rm -f ./prometheus/node-exporter-text/eth-docker-version.prom
     fi
 
