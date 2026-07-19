@@ -54,9 +54,9 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/erigon/testnet/${config_dir}/enodes.yaml")"
+  el_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/erigon/testnet/${config_dir}/enodes.yaml")"
   networkid="$(jq -r '.config.chainId' "/var/lib/erigon/testnet/${config_dir}/genesis.json")"
-  __network="--bootnodes=${bootnodes} --networkid=${networkid}"
+  __network="--bootnodes=${el_bootnodes} --networkid=${networkid}"
   if [[ ! -d /var/lib/erigon/chaindata ]]; then
     erigon init --datadir /var/lib/erigon "/var/lib/erigon/testnet/${config_dir}/genesis.json"
   fi
@@ -133,7 +133,8 @@ else
       ;;
   esac
   if [[ "${NETWORK}" =~ ^https?:// ]]; then
-    __caplin+=" --caplin.custom-config=/var/lib/erigon/testnet/${config_dir}/config.yaml --caplin.custom-genesis=/var/lib/erigon/testnet/${config_dir}/genesis.ssz"
+    cl_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/erigon/testnet/${config_dir}/bootstrap_nodes.yaml")"
+    __caplin+=" --caplin.custom-config=/var/lib/erigon/testnet/${config_dir}/config.yaml --caplin.custom-genesis=/var/lib/erigon/testnet/${config_dir}/genesis.ssz --sentinel.bootnodes=${cl_bootnodes}"
   fi
   if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
     __caplin+=" --caplin.checkpoint-sync-url=${CHECKPOINT_SYNC_URL}/eth/v2/debug/beacon/states/finalized"
