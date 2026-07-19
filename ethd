@@ -2645,7 +2645,7 @@ update() {
     fi
 
     set +e
-    ${__as_owner} git config pull.rebase false
+    ${__as_owner} git config pull.rebase true
     var="ETH_DOCKER_TAG"
     __get_value_from_env "${var}" "${__env_file}" "__value"
     if [[ -z "${__value}" || "${__value}" = "latest" ]]; then
