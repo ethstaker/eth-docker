@@ -52,7 +52,6 @@ services:
       - --ws
       - --data-dir=/var/lib/nimbus
       - --tcp-port=${EL_P2P_PORT:-30303}
-      - --discovery=V5
       - --metrics
       - --metrics-port=6060
       - --metrics-address=0.0.0.0

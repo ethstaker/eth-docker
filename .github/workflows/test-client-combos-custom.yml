@@ -154,8 +154,10 @@ jobs:
             test_vc: true
         env-var:
           - >-
-            NETWORK=https://github.com/eth-clients/sepolia/tree/main/metadata
-            CHECKPOINT_SYNC_URL=https://checkpoint-sync.sepolia.ethpandaops.io
+            NETWORK=https://github.com/ethpandaops/glamsterdam-devnets/tree/master/network-configs/devnet-7/metadata
+            CHECKPOINT_SYNC_URL=""
+            NIMEL_DOCKER_TAG="master"
+          # Nimbus EL Docker tag until the fixes in master are in a release
     steps:
       - name: Checkout
         uses: actions/checkout@v7

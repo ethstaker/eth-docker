@@ -54,8 +54,13 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/reth/testnet/${config_dir}/enodes.yaml")"
-  __network="--chain=/var/lib/reth/testnet/${config_dir}/genesis.json --bootnodes=${bootnodes}"
+  config_dir_path="/var/lib/reth/testnet/${config_dir}"
+  if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
+    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
+  else
+    bootnodes="$(paste -sd, "${config_dir_path}/enodes.txt")"
+  fi
+  __network="--chain=${config_dir_path}/genesis.json --bootnodes=${bootnodes}"
 else
   __network="--chain ${NETWORK}"
 fi

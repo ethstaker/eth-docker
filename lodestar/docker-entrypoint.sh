@@ -52,9 +52,13 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/lodestar/consensus/testnet/${config_dir}/bootstrap_nodes.yaml")"
-  __network="--paramsFile=/var/lib/lodestar/consensus/testnet/${config_dir}/config.yaml --genesisStateFile=/var/lib/lodestar/consensus/testnet/${config_dir}/genesis.ssz \
---bootnodes=${bootnodes} --network.connectToDiscv5Bootnodes --rest.namespace=*"
+  config_dir_path="/var/lib/lodestar/consensus/testnet/${config_dir}"
+  if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
+    bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
+  else
+    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
+  fi
+  __network="--paramsFile=${config_dir_path}/config.yaml --genesisStateFile=${config_dir_path}/genesis.ssz --bootnodes=${bootnodes} --network.connectToDiscv5Bootnodes --rest.namespace=*"
 else
   __network="--network ${NETWORK}"
 fi

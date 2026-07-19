@@ -61,8 +61,8 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/grandine/testnet/${config_dir}/bootstrap_nodes.yaml")"
-  __network="--configuration-directory=/var/lib/grandine/testnet/${config_dir} --boot-nodes=${bootnodes}"
+  config_dir_path="/var/lib/grandine/testnet/${config_dir}"
+  __network="--configuration-directory=${config_dir_path} --network=custom"
 else
   __network="--network=${NETWORK}"
 fi

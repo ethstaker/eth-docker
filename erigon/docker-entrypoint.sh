@@ -54,8 +54,13 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  el_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/erigon/testnet/${config_dir}/enodes.yaml")"
-  networkid="$(jq -r '.config.chainId' "/var/lib/erigon/testnet/${config_dir}/genesis.json")"
+  config_dir_path="/var/lib/erigon/testnet/${config_dir}"
+  if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
+    el_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
+  else
+    el_bootnodes="$(paste -sd, "${config_dir_path}/enodes.txt")"
+  fi
+  networkid="$(jq -r '.config.chainId' "${config_dir_path}/genesis.json")"
   __network="--bootnodes=${el_bootnodes} --networkid=${networkid}"
   if [[ ! -d /var/lib/erigon/chaindata ]]; then
     erigon init --datadir /var/lib/erigon "/var/lib/erigon/testnet/${config_dir}/genesis.json"
@@ -133,8 +138,13 @@ else
       ;;
   esac
   if [[ "${NETWORK}" =~ ^https?:// ]]; then
-    cl_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/erigon/testnet/${config_dir}/bootstrap_nodes.yaml")"
-    __caplin+=" --caplin.custom-config=/var/lib/erigon/testnet/${config_dir}/config.yaml --caplin.custom-genesis=/var/lib/erigon/testnet/${config_dir}/genesis.ssz --sentinel.bootnodes=${cl_bootnodes}"
+    config_dir_path="/var/lib/erigon/testnet/${config_dir}"
+    if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
+      cl_bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
+    else
+      cl_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
+    fi
+    __caplin+=" --caplin.custom-config=${config_dir_path}/config.yaml --caplin.custom-genesis=${config_dir_path}/genesis.ssz --sentinel.bootnodes=${cl_bootnodes}"
   fi
   if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
     __caplin+=" --caplin.checkpoint-sync-url=${CHECKPOINT_SYNC_URL}/eth/v2/debug/beacon/states/finalized"

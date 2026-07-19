@@ -67,8 +67,13 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/nethermind/testnet/${config_dir}/enodes.yaml")"
-  __network="--config none.cfg --Init.ChainSpecPath=/var/lib/nethermind/testnet/${config_dir}/chainspec.json --Discovery.Bootnodes=${bootnodes} --Init.IsMining=false"
+  config_dir_path="/var/lib/nethermind/testnet/${config_dir}"
+  if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
+    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
+  else
+    bootnodes="$(paste -sd, "${config_dir_path}/enodes.txt")"
+  fi
+  __network="--config none.cfg --Init.ChainSpecPath=${config_dir_path}/chainspec.json --Discovery.Bootnodes=${bootnodes}"
   if [[ ! "${NODE_TYPE}" = "archive" ]]; then
     __prune="--Pruning.Mode=None"
   fi
@@ -250,8 +255,8 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
       echo "${config_dir}" > .git/info/sparse-checkout
       git pull origin "${branch}"
     fi
-    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/grandine/testnet/${config_dir}/bootstrap_nodes.yaml")"
-    __grandine+=" --grandine-configuration-directory=/var/lib/grandine/testnet/${config_dir} --grandine-boot-nodes=${bootnodes}"
+    config_dir_path="/var/lib/grandine/testnet/${config_dir}"
+    __grandine+=" --grandine-configuration-directory=${config_dir_path} --grandine-network=custom"
   else
     __grandine+=" --grandine-network=${NETWORK}"
   fi
@@ -349,8 +354,8 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
     done
   fi
 
-  if [[ ! "${DEFAULT_GRAFFITI}" = "true" ]]; then
-      __grandine+=" --grandine-graffiti ${GRAFFITI}"
+  if [[ "${EMBEDDED_VC}" = "true" && "${DEFAULT_GRAFFITI}" != "true" ]]; then
+    __grandine_graffiti_args=(--grandine-graffiti "${GRAFFITI}")
   fi
 
 # Traces
@@ -364,8 +369,10 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
   fi
 
   __grandine+=" ${CL_EXTRAS} ${VC_EXTRAS}"
+  echo "Grandine plugin will be launched with these parameters: ${__grandine}" "${__grandine_graffiti_args[@]}"
 else
   __grandine=""
+  __grandine_graffiti_args=()
 fi
 
 __strip_empty_args "$@"
@@ -373,4 +380,4 @@ set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__datadir} ${__network} ${__prune} ${__ere} ${__flat} ${__grandine} ${EL_EXTRAS}
+exec "$@" ${__datadir} ${__network} ${__prune} ${__ere} ${__flat} ${__grandine} "${__grandine_graffiti_args[@]}" ${EL_EXTRAS}

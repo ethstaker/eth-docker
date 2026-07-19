@@ -250,9 +250,18 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  el_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/nimbus/testnet/${config_dir}/enodes.yaml")"
-  cl_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/nimbus/testnet/${config_dir}/bootstrap_nodes.yaml")"
-  __network="--bootstrap-node=${cl_bootnodes} --el-bootstrap-node=${el_bootnodes} --network=/var/lib/nimbus/testnet/${config_dir}"
+  config_dir_path="/var/lib/nimbus/testnet/${config_dir}"
+  if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
+    el_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
+  else
+    el_bootnodes="$(paste -sd, "${config_dir_path}/enodes.txt")"
+  fi
+  if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
+    cl_bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
+  else
+    cl_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
+  fi
+  __network="--bootstrap-node=${cl_bootnodes} --el-bootstrap-node=${el_bootnodes} --network=${config_dir_path}/"
 else
   __network="--network=${NETWORK}"
 fi

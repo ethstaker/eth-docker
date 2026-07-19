@@ -47,8 +47,13 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     echo "${config_dir}" > .git/info/sparse-checkout
     git pull origin "${branch}"
   fi
-  bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "/var/lib/lighthouse/beacon/testnet/${config_dir}/bootstrap_nodes.yaml")"
-  __network="--testnet-dir=/var/lib/lighthouse/beacon/testnet/${config_dir} --boot-nodes=${bootnodes}"
+  config_dir_path="/var/lib/lighthouse/beacon/testnet/${config_dir}"
+  if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
+    bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
+  else
+    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
+  fi
+  __network="--testnet-dir=${config_dir_path} --boot-nodes=${bootnodes}"
 else
   __network="--network=${NETWORK}"
 fi
