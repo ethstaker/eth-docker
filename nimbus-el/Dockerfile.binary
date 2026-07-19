@@ -11,6 +11,8 @@ ARG SRC_REPO
 ARG USER=user
 ARG UID=10001
 
+USER root
+
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   ca-certificates \
   tzdata \
@@ -25,15 +27,19 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# See https://stackoverflow.com/a/55757473/12429735RUN
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/usr/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    "${USER}"
+RUN if id -u "${USER}" >/dev/null 2>&1; then \
+      groupmod -g "${UID}" "${USER}" && \
+      usermod -u "${UID}" -g "${UID}" "${USER}"; \
+    else \
+      adduser \
+        --disabled-password \
+        --gecos "" \
+        --home "/nonexistent" \
+        --shell "/usr/sbin/nologin" \
+        --no-create-home \
+        --uid "${UID}" \
+        "${USER}"; \
+    fi
 
 RUN mkdir -p /var/lib/nimbus/ee-secret && chown -R ${USER}:${USER} /var/lib/nimbus && chmod 700 /var/lib/nimbus && chmod 777 /var/lib/nimbus/ee-secret
 
