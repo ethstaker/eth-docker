@@ -1,0 +1,55 @@
+x-logging: &logging
+  logging:
+    driver: ${LOG_DRIVER}
+    options:
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
+
+services:
+  zkboost:
+    restart: "unless-stopped"
+    build:
+      context: ./zkboost
+      dockerfile: ${ZKBOOST_DOCKERFILE}
+      args:
+        - BUILD_TARGET=${ZKBOOST_SRC_BUILD_TARGET:-master}
+        - SRC_REPO=${ZKBOOST_SRC_REPO:-https://github.com/eth-act/zkboost}
+        - DOCKER_TAG=${ZKBOOST_DOCKER_TAG}
+        - DOCKER_REPO=${ZKBOOST_DOCKER_REPO}
+    image: zkboost:local
+    pull_policy: never
+    networks:
+      default:
+        aliases:
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${ZKBOOST_ALIAS:-default-zkboost}
+    volumes:
+      - ./zkboost/config.toml:/app/config.toml:ro
+      - zkboost-data:/var/lib/zkboost
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - RUST_LOG=${LOG_LEVEL},zkboost=debug
+      - ZKBOOST_EXTRAS=${ZKBOOST_EXTRAS:-}
+      - NETWORK=${NETWORK}
+      - COMPOSE_FILE=${COMPOSE_FILE}
+    <<: *logging
+    entrypoint:
+      - docker-entrypoint.sh
+      - zkboost
+      - --config
+      - /app/config.toml
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=3000
+      - metrics.instance=zkboost
+      - metrics.network=${NETWORK}
+      - logs.collect=true
+
+volumes:
+  zkboost-data:
+
+networks:
+  default:
+    enable_ipv6: ${IPV6:-false}

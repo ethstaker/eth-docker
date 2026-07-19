@@ -770,6 +770,7 @@ __prep_conffiles() {
     [./ssv-config/dkg-config.yaml]="./ssv-config/dkg-config.yaml.sample"
     [./commit-boost/cb-config.toml]="./commit-boost/cb-config.toml.sample"
     [./tempo/tempo.yaml]="./tempo/tempo.yaml.sample"
+    [./zkboost/config.toml]="./zkboost/config.toml.sample"
     [./.motd]="./.motd.sample"
   )
   local -A chmod_dirs=(
@@ -780,6 +781,7 @@ __prep_conffiles() {
     [./.eth/dkg_output]="*"
     [./commit-boost]="cb-config.toml"
     [./tempo]="*.yaml"
+    [./zkboost]="config.toml"
     [./loki]="*.yml"
     [./siren]="*.sh"
   )
@@ -1523,6 +1525,15 @@ __source_build() {
       __get_value_from_env "${var}" "${__env_file}" "__value"
       if [[ "${__value}" = "Dockerfile.source" ]]; then
         __docompose build --pull --no-cache validator
+      fi
+      ;;
+  esac
+  case "${COMPOSE_FILE}" in
+    *zkboost.yml*)
+      var="ZKBOOST_DOCKERFILE"
+      __get_value_from_env "${var}" "${__env_file}" "__value"
+      if [[ "${__value}" = "Dockerfile.source" ]]; then
+        __docompose build --pull --no-cache zkboost
       fi
       ;;
   esac

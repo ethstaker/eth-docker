@@ -72,28 +72,35 @@ case "${NODE_TYPE}" in
     ;;
 esac
 
-# Assume we're not zk-enabled
+# Assume we're running an EL
 __engine="--execution-endpoint ${EL_NODE} --execution-jwt /var/lib/lighthouse/beacon/ee-secret/jwtsecret"
 
+if [[ "${COMPOSE_FILE}" =~ zkboost\.yml ]]; then
+  echo "Lighthouse node with zkproofs. HIGHLY experimental."
+  echo "Please make sure that you have edited \".env\" and changed:"
+  echo "LH_SRC_BUILD_TARGET=optional-proofs"
+  echo "LH_SRC_REPO=https://github.com/eth-act/lighthouse"
+  echo "LH_DOCKERFILE=Dockerfile.source"
+  echo "And have source-built Lighthouse with \"./ethd update\""
+  __zkboost="--proof-engine-endpoint ${ZKBOOST_NODE}"
+else
+  __zkboost=""
+fi
+
 if [[ "${EL_NODE_TYPE}" = "use-cl-zkproofs" ]]; then
-  if [[ ! "${NETWORK}" = "mainnet" ]]; then
-    echo "Lighthouse with zkProof verification only works on mainnet, as far as Eth Docker is aware."
-    echo "Aborting."
+  if [[ ! "${COMPOSE_FILE}" =~ zkboost\.yml ]]; then
+    echo "Lighthouse requires zkboost.yml to run without an EL. Please adjust your configuration in \".env\""
+    echo "Aborting"
     sleep 30
     exit 1
   fi
-  echo "Lighthouse node with zkProof verification. HIGHLY experimental."
+  echo
+  echo "Lighthouse node without EL node. EXTREMELY experimental."
   echo "Please make sure that you have edited \".env\" and changed:"
-  echo "CL_EXTRAS=--boot-nodes enr:-Oy4QJgMz9S1Eb7s13nKIbulKC0nvnt7AEqbmwxnTdwzptxNCGWjc9ipteUaCwqlu2bZDoNz361vGC_IY4fbdkR1K9iCDeuHYXR0bmV0c4gAAAAAAAAABoNjZ2MEhmNsaWVudNGKTGlnaHRob3VzZYU4LjAuMYRldGgykK1TLOsGAAAAAEcGAAAAAACCaWSCdjSCaXCEisV68INuZmSEzCxc24RxdWljgiMpiXNlY3AyNTZrMaEDEIWq41UTcFUgL8LRletpbIwrrpxznIMN_F5jRgatngmIc3luY25ldHMAg3RjcIIjKIR6a3ZtAQ"
-  echo "LH_SRC_BUILD_TARGET=ethproofs/zkattester-demo"
-  echo "LH_SRC_REPO=https://github.com/ethproofs/lighthouse"
-  echo "LH_DOCKERFILE=Dockerfile.source"
   echo "MEV_BOOST=true"
   echo "MEV_BUILD_FACTOR=100"
-  echo "And have source-built Lighthouse with \"./ethd update\""
-  echo "A PBS sidecar needs to be in COMPOSE_FILE, and MEV relays need to be configured"
-  echo "Note the bootnodes ENR may have changed, check on the zkEVM attesting Telegram group!"
-  __engine="--execution-proofs"
+  echo "A PBS sidecar needs to be in CORE_FILES or CUSTOM_FILES, and MEV relays need to be configured"
+  __engine=""
 fi
 
 # Check whether we should rapid sync
@@ -177,5 +184,5 @@ if [[ -f /var/lib/lighthouse/beacon/prune-marker ]]; then
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__mev_boost} ${__checkpoint_sync} ${__engine} ${__prune} ${__beacon_stats} ${__trace} ${__ipv6} ${CL_EXTRAS}
+  exec "$@" ${__network} ${__mev_boost} ${__checkpoint_sync} ${__engine} ${__zkboost} ${__prune} ${__beacon_stats} ${__trace} ${__ipv6} ${CL_EXTRAS}
 fi
