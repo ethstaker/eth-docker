@@ -17,20 +17,23 @@ WORKDIR /usr/src
 ARG SRC_DIR=lighthouse
 ENV CC=clang
 ENV CXX=clang++
-RUN bash -eo pipefail <<'EOF'
-  git clone "$SRC_REPO" "$SRC_DIR"
-  cd "$SRC_DIR"
-  git config advice.detachedHead false
-  git fetch --all --tags
-  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
-  TARGET=$(eval echo "$CLEANED")
-  if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
-    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
-    git checkout build-pr
-  else
-    git checkout "$TARGET"
-  fi
-  CROSS_PROFILE=maxperf make
+RUN --mount=type=cache,sharing=locked,id=lighthouse-target,target=/usr/src/target/ \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/git/db \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry/ \
+  bash -eo pipefail <<'EOF'
+git clone "$SRC_REPO" "$SRC_DIR"
+cd "$SRC_DIR"
+git config advice.detachedHead false
+git fetch --all --tags
+CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+TARGET=$(eval echo "$CLEANED")
+if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
+  git fetch origin pull/${TARGET#pr-}/head:build-pr
+  git checkout build-pr
+else
+  git checkout "$TARGET"
+fi
+CROSS_PROFILE=maxperf CARGO_TARGET_DIR=/usr/src/target make
 EOF
 
 
