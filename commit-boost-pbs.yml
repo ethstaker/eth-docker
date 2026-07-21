@@ -9,7 +9,7 @@ x-logging: &logging
 services:
   cb-pbs:
     restart: "unless-stopped"
-    image: ${CB_PBS_DOCKER_REPO:-ghcr.io/commit-boost/pbs}:${CB_PBS_DOCKER_TAG:-latest}
+    image: ${CB_DOCKER_REPO:-ghcr.io/commit-boost/commit-boost}:${CB_DOCKER_TAG:-latest}
     environment:
       CB_CONFIG: /cb-config.toml
     volumes:
@@ -19,6 +19,9 @@ services:
         aliases:
           # This allows multiple Eth Docker stacks all connected to the same bridge network
           - ${MEV_ALIAS:-default-mev}
+    entrypoint:
+      - commit-boost
+      - pbs
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics
