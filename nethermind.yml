@@ -67,6 +67,8 @@ services:
       - "true"
       - --HealthChecks.UIEnabled
       - "true"
+      - --LogIndex.Enabled
+      - "true"
       - --JsonRpc.Enabled
       - "true"
       - --JsonRpc.Host
