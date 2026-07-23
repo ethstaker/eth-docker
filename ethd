@@ -2140,7 +2140,7 @@ __migrate_env() {
       if [[ "${__source_ver}" -lt "65" && "${var}" = "EL_EXTRAS" && "${COMPOSE_FILE}" =~ nethermind\.yml ]]; then
         if [[ -z "${__value}" ]]; then
           __value="--LogIndex.Enabled true"
-        else
+        elif [[ ! "${__value}" =~ Logindex\.Enabled|logindex-enabled ]]; then
           __value+=" --LogIndex.Enabled true"
         fi
       fi
