@@ -2136,6 +2136,14 @@ __migrate_env() {
             && ${COMPOSE_FILE} =~ (prysm\.yml|prysm-cl-only\.yml|lighthouse\.yml|lighthouse-cl-only\.yml|lodestar\.yml|lodestar-cl-only\.yml|caplin\.yml) ]]; then
         __value="blob-archive"
       fi
+      # Remove after Glamsterdam
+      if [[ "${__source_ver}" -lt "65" && "${var}" = "EL_EXTRAS" && "${COMPOSE_FILE}" =~ nethermind\.yml ]]; then
+        if [[ -z "${__value}" ]]; then
+          __value="--LogIndex.Enabled true"
+        else
+          __value+=" --LogIndex.Enabled true"
+        fi
+      fi
 
       if [[ "${var}" = "CL_QUIC_PORT" ]]; then
         __get_value_from_env "CL_P2P_PORT" "${__env_file}.source" "CL_P2P_PORT"
