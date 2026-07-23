@@ -5691,6 +5691,33 @@ __query_mev_factor() {
 }
 
 
+# Remove when Nethermind enables log index by default
+# Called after __query_execution_client when configuring something that needs
+# receipts, such as RPC and SSV
+__set_nethermind_log_index() {
+  local var
+
+  if [[ "${EXECUTION_CLIENT}" != "nethermind.yml" ]]; then
+    return
+  fi
+
+  var="EL_EXTRAS"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+  if [[ "${EL_EXTRAS}" =~ LogIndex\.Enabled|logindex-enabled ]]; then
+    echo "Nethermind log index is already configured, making no changes"
+    return
+  fi
+
+  echo "Enabling Nethermind log index via \"EL_EXTRAS\" in \".env\""
+  __write_vars+=("EL_EXTRAS")
+  if [[ -z "${EL_EXTRAS}" ]]; then
+    EL_EXTRAS="--LogIndex.Enabled true"
+  else
+    EL_EXTRAS+=" --LogIndex.Enabled true"
+  fi
+}
+
+
 __lido_withdrawal_credentials_address() {
   local lido_address
 
@@ -6051,6 +6078,7 @@ __config_node() {
 __config_rpc() {
   __query_consensus_only_client
   __query_execution_client
+  __set_nethermind_log_index  # Remove after Nethermind enables it by default
   __query_4444 "--defaultno"
   __query_reth_snapshot
   __query_checkpoint_sync
@@ -6113,6 +6141,7 @@ __config_ssv() {
   fi
   __query_dkg
   __query_execution_client
+  __set_nethermind_log_index  # Remove after Nethermind enables it by default
   __query_4444 ""
   __query_reth_snapshot
   __query_checkpoint_sync
