@@ -55,12 +55,22 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/besu/testnet/${config_dir}"
-  if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
-    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
-  else
+  if [[ -f "${config_dir_path}/enodes.txt" ]]; then
     bootnodes="$(paste -sd, "${config_dir_path}/enodes.txt")"
+  else
+    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
   fi
-  __network="--genesis-file=${config_dir_path}/besu.json --bootnodes=${bootnodes}"
+  if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
+    v5_bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
+  else
+    v5_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
+  fi
+  if [[ -n "${bootnodes}" && -n "${v5_bootnodes}" ]]; then
+    bootnodes+=",${v5_bootnodes}"
+  elif [[ -n "${v5_bootnodes}" ]]; then
+    bootnodes="${v5_bootnodes}"
+  fi
+  __network="--genesis-file=${config_dir_path}/besu.json --bootnodes=${bootnodes} --bonsai-limit-trie-logs-enabled=false"
 else
   __network="--network ${NETWORK}"
 fi
@@ -68,11 +78,11 @@ fi
 case "${NODE_TYPE}" in
   archive)
     echo "Besu archive node without pruning"
-    __prune="--data-storage-format=FOREST --sync-mode=FULL"
+    __prune="--data-storage-format=FOREST --sync-mode=FULL --snapsync-server-enabled"
     ;;
   full)
-    echo "Besu full node without history expiry"
-    __prune="--snapsync-synchronizer-pre-checkpoint-headers-only-enabled=false --snapsync-server-enabled"
+    echo "Besu full node without history expiry. Requires \"full\" sync and will take a long time to sync"
+    __prune="--sync-mode=FULL --bonsai-limit-trie-logs-enabled=false --snapsync-server-enabled"
     ;;
   pre-merge-expiry)
     case "${NETWORK}" in
@@ -116,9 +126,10 @@ else
 fi
 
 # DiscV5 for IPV6
-if [[ "${IPV6:-false}" = "true" ]]; then
+if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Besu for discv5 for IPv6 advertisements"
-  __ipv6="--Xv5-discovery-enabled --p2p-interface-ipv6=:: --p2p-port-ipv6=${EL_P2P_PORT_2} --p2p-ipv6-outbound-enabled"
+  # Remove discovery-mode with Besu >26.8.0 and have it as BOTH in besu.yml
+  __ipv6="--discovery-mode=V5 --p2p-interface-ipv6=:: --p2p-port-ipv6=${EL_P2P_PORT} --p2p-ipv6-outbound-enabled"
 # Address discovery on v6 is not implemented
   ipv6_pattern="^[0-9A-Fa-f]{1,4}:" # Sufficient to check the start
   set +e
