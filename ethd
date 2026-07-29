@@ -4841,7 +4841,7 @@ __query_consensus_client() {
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
-      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
     choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
     choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
@@ -4852,7 +4852,7 @@ __query_consensus_client() {
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
-      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
   elif [[ "${__deployment}" = "lido_obol" ]]; then
     choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
@@ -4866,7 +4866,7 @@ __query_consensus_client() {
     choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
-      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
     choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
@@ -4930,7 +4930,7 @@ __query_consensus_only_client() {
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
-      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
     choices+=("grandine-cl-only.yml" "Grandine (Rust) - consensus client")
     choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
@@ -4941,7 +4941,7 @@ __query_consensus_only_client() {
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
-      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
   else
     choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
@@ -4949,7 +4949,7 @@ __query_consensus_only_client() {
     choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
-      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - alpha")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
     choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
     choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
@@ -5073,7 +5073,7 @@ __query_execution_client() {
   fi
 
   if [[ ! "${arch}" =~ riscv64 && "${NETWORK}" =~ (hoodi|sepolia) ]]; then
-    choices+=("nimbus-el.yml" "Nimbus (Nim) - alpha")
+    choices+=("nimbus-el.yml" "Nimbus (Nim) - beta")
   fi
 
   choices+=("NONE" "Custom - Distributed")
