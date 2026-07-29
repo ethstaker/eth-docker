@@ -1764,6 +1764,34 @@ migrate-reth() {
 }
 
 
+migrate-geth() {
+  local yn
+
+# Check for Geth
+  __value="${COMPOSE_FILE}"
+  if [[ ! "${__value}" =~ geth\.yml ]]; then
+    echo "You do not appear to be using Geth. Aborting"
+    return 0
+  fi
+
+  if [[ "${__non_interactive}" -eq 0 ]]; then
+    echo
+    while true; do
+      read -rp "WARNING - About to migrate the Geth database to Pebble v2. Do you wish to continue? (Y/n) " yn
+      case "${yn}" in
+        [Nn]o|[Nn]) echo "Skipping Geth database migration"; return 0;;
+        *) break;;
+      esac
+    done
+  fi
+
+  __docompose exec execution touch /var/lib/geth/migrate-v2
+  echo "Restarting Geth to initiate migration"
+  echo "You can monitor progress with \"./ethd logs -f execution\"."
+  restart execution
+}
+
+
 __detect_v6() {
   local v6_works
 
@@ -6703,6 +6731,8 @@ __full_help() {
   echo "    stops the Reth execution client and repairs its database."
   echo "  migrate-reth"
   echo "    stops the Reth execution client and migrates its database to v2."
+  echo "  migrate-geth"
+  echo "    stops the Geth execution client and migrates its database to Pebble v2."
   echo "  resync-execution"
   echo "    removes the execution layer database and forces a resync."
   echo "  resync-consensus"
@@ -6857,7 +6887,7 @@ case "${__command}" in
     ;;
   keys|up|start|down|stop|restart|version|logs|prune-nethermind\
 |prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
-|repair-reth|migrate-reth|space)
+|repair-reth|migrate-reth|migrate-geth|space)
     __verify_env_file --enforce-min
     __get_compose_file
     ${__command} "$@"

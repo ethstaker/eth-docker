@@ -282,6 +282,9 @@ if [[ -f /var/lib/geth/prune-marker ]]; then
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
   exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${EL_EXTRAS} prune-history
+elif [[ -f /var/lib/geth/migrate-v2 ]]; then
+  rm -f /var/lib/geth/migrate-v2
+  exec geth db pebble-upgrade ${__datadir} ${__ancient} ${__network}
 else
   exec "$@" ${__datadir} ${__ancient} ${__network} ${__prune} ${__trace} ${__verbosity} ${EL_EXTRAS}
 fi
