@@ -158,7 +158,7 @@ services:
       - ${KEY_API_PORT:-7500}
       - --http-cors-domain=*
       - --beacon-rest-api-provider
-      - consensus:5052
+      - http://consensus:5052
       - --suggested-fee-recipient
       - ${FEE_RECIPIENT}
       - --wallet-password-file
