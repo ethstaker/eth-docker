@@ -71,7 +71,6 @@ services:
       - 0.0.0.0
       - --monitoring-port
       - "8009"
-      - --web
       - --http-host
       - 0.0.0.0
       - --http-port
