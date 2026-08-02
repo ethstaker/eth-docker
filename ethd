@@ -287,6 +287,19 @@ __handle_docker() {
       __update_value_in_env "${var}" "${!var}" "${__env_file}"
     fi
 
+    # Determine the real mountpoint backing DOCKER_ROOT, so Grafana dashboards
+    # can report disk usage for that filesystem instead of always "/"
+    if command -v findmnt >/dev/null; then
+      DOCKER_ROOT_MOUNTPOINT=$(findmnt -T "${DOCKER_ROOT}" -o TARGET -n)
+    else
+      DOCKER_ROOT_MOUNTPOINT=$(df --output=target "${DOCKER_ROOT}" | tail -1)
+    fi
+    var=DOCKER_ROOT_MOUNTPOINT
+    __get_value_from_env "${var}" "${__env_file}" "__value"
+    if [[ "${DOCKER_ROOT_MOUNTPOINT}" != "${__value}" ]]; then
+      __update_value_in_env "${var}" "${!var}" "${__env_file}"
+    fi
+
     # on macOS, user would set this manually to Colima or Docker Desktop value
     if [[ "${__docker_exe}" = "podman" ]]; then
       if [[ "$(__dodocker system info --format '{{.Host.Security.Rootless}}')" = "true" ]]; then

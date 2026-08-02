@@ -218,6 +218,7 @@ services:
     environment:
       - GF_SERVER_HTTP_PORT=${GRAFANA_PORT}
       - CLIENT=${COMPOSE_FILE}
+      - DOCKER_ROOT_MOUNTPOINT=${DOCKER_ROOT_MOUNTPOINT:-/}
     volumes:
       - grafana-data:/var/lib/grafana
       - grafana-config:/etc/grafana
