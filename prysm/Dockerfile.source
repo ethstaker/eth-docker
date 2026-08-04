@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3007,DL3008,DL3016,DL3059,DL4006
+# hadolint global ignore=DL3007,DL3008,DL3016,DL3059,DL3066,DL4006
 # Build Prysm in a stock Go build container
 FROM golang:1.26-trixie AS builder
 

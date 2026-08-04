@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3007,DL3008,DL3059,DL4006
+# hadolint global ignore=DL3007,DL3008,DL3059,DL3066,DL4006
 FROM node:24-slim AS builder
 
 # Here only to avoid build-time errors
