@@ -14,15 +14,15 @@ anyio==4.13.0 \
     # via
     #   cloudflare
     #   httpx
-boto3==1.43.57 \
-    --hash=sha256:115ed9cac409d9b57e2437b52fdb4286660d12a2bd44a0f48d530e68623d09a7 \
-    --hash=sha256:115ed9cac409d9b57e2437b52fdb4286660d12a2bd44a0f48d530e68623d09a7 \
-    --hash=sha256:549c95e45f9b04cf0c69727632dbdda23b84dcd3d0ed7981c6aaff72ef9cb5af \
-    --hash=sha256:549c95e45f9b04cf0c69727632dbdda23b84dcd3d0ed7981c6aaff72ef9cb5af
+boto3==1.43.62 \
+    --hash=sha256:0bb298e7ffd72b91615df44bf71c417df80a29d844971e5d665b8bd743a4bb35 \
+    --hash=sha256:0bb298e7ffd72b91615df44bf71c417df80a29d844971e5d665b8bd743a4bb35 \
+    --hash=sha256:0bf920e0739346e81c7310b685a3f783bf1fcc62ce7d5c7016508fa25c0d261f \
+    --hash=sha256:0bf920e0739346e81c7310b685a3f783bf1fcc62ce7d5c7016508fa25c0d261f
     # via -r app/requirements.in
-botocore==1.43.57 \
-    --hash=sha256:001a5653bebc03b862bde2da63bad4adb0b30072a3f247aba4daae5aa097b546 \
-    --hash=sha256:319c6d79f66c3f3f2b538f7dcdc90e410a15a7bfced1db06479134947e629482
+botocore==1.43.63 \
+    --hash=sha256:854e45247f00b0732496ea1f0c5d0cf3c31d58b48eb052c31c27ab1087dfddf1 \
+    --hash=sha256:8deed86feacc8f8d2491f1d170562af191f8b33924052d834f4217d5d797e5a9
     # via
     #   boto3
     #   s3transfer
