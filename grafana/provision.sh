@@ -59,7 +59,7 @@ handle_replacement() {
 # If DOCKER_ROOT lives on its own filesystem (not "/"), rewrite disk-usage
 # panels that hard-code mountpoint="/" to point at the real mountpoint instead.
 # No-op (passthrough) when Docker uses the default root on "/".
-fix_docker_mountpoint() {
+__fix_docker_mountpoint() {
   if [[ -n "${DOCKER_ROOT_MOUNTPOINT:-}" && "${DOCKER_ROOT_MOUNTPOINT}" != "/" ]]; then
     jq --arg mp "${DOCKER_ROOT_MOUNTPOINT}" \
       'walk(if type == "string" then gsub("mountpoint=\"/\""; "mountpoint=\"" + $mp + "\"") else . end)'
@@ -406,7 +406,7 @@ case "${CLIENT}" in
       wget -t 3 -T 10 -qcO - "${url}" | jq '.title = "Host & Docker Monitoring"' \
         | jq '.panels |= map(if .title == "Temp" then .targets[0] |= (.legendFormat = "{{type}}" | .expr = "node_thermal_zone_temp")| .options.orientation = "vertical" elif .title == "Temperature" then .targets[0].expr = "node_thermal_zone_temp" else . end)' \
         | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' \
-        | fix_docker_mountpoint >"${tmp}" || status=1
+        | __fix_docker_mountpoint >"${tmp}" || status=1
     fi
     handle_replacement "${status}" "${tmp}" "${file}"
     ;;
