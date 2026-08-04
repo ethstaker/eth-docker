@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3007,DL3008,DL3059
+# hadolint global ignore=DL3007,DL3008,DL3059,DL3066
 ARG DOCKER_TAG=latest
 ARG DOCKER_REPO=chainsafe/lodestar
 

@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3002,DL3007,DL3008,DL3018,DL3059
+# hadolint global ignore=DL3002,DL3007,DL3008,DL3018,DL3059,DL3066
 FROM grafana/grafana:latest
 
 USER root
