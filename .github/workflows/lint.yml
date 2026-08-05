@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: 3.14
+          python-version: 3.15
           cache: 'pip'
       - name: Lint sources
         uses: yorickdowne/pc-action@14ede0db48efa22fe0f9d70a47d23d811e2ba946 # v3.0.2
