@@ -9,7 +9,7 @@ ARG DOCKER_REPO
 RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release wget gnupg ca-certificates
 
-ARG LLVM_VER=22
+ARG LLVM_VER=23
 RUN wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && \
     chmod +x /tmp/llvm.sh && /tmp/llvm.sh "$LLVM_VER" all && \
     rm /tmp/llvm.sh
