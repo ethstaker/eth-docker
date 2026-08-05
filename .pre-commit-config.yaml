@@ -50,6 +50,7 @@ repos:
           - cloudflare
           - tenacity
         args: [--strict]
+        exclude: ^traefik-utils/app/tests/
 
   # Security (lightweight)
   - repo: https://github.com/PyCQA/bandit

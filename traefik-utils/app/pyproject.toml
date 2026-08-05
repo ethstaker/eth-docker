@@ -3,5 +3,26 @@ name = "ddns"
 requires-python = ">=3.14,<4"
 dynamic = ["version"]
 
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+
+[tool.coverage.run]
+branch = true
+source = ["."]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+
 [tool.ruff.lint]
 select = ["E", "W", "F", "UP", "S"]
+per-file-ignores = { "tests/**/*.py" = ["S101", "S108"] }

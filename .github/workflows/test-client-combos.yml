@@ -24,7 +24,8 @@ jobs:
         !contains(github.event.pull_request.labels.*.name, 'test-ethd') &&
         !contains(github.event.pull_request.labels.*.name, 'test-grafana') &&
         !contains(github.event.pull_request.labels.*.name, 'test-nimbus-proxy') &&
-        !contains(github.event.pull_request.labels.*.name, 'test-web3signer')
+        !contains(github.event.pull_request.labels.*.name, 'test-web3signer') &&
+        !contains(github.event.pull_request.labels.*.name, 'test-ddns')
       )
       || github.event_name == 'push'
     runs-on: ubuntu-latest

@@ -1,0 +1,65 @@
+name: Test DDNS
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test-ddns:
+    if: contains(github.event.pull_request.labels.*.name, 'test-ddns')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: traefik-utils/app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: traefik-utils/app/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest pytest-cov
+
+      - name: Run tests and coverage
+        id: tests
+        run: |
+          set +e
+          pytest --cov=. --cov-report=term-missing --cov-report=markdown:coverage.md
+          status=$?
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
+          printf '%s\n' "${status}" > test-status
+          exit 0
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddns-coverage
+          path: |
+            traefik-utils/app/coverage.md
+            traefik-utils/app/test-status
+          if-no-files-found: warn
+
+      - name: Report test result
+        if: always()
+        run: exit "${{ steps.tests.outputs.status }}"
