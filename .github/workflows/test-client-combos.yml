@@ -38,7 +38,7 @@ jobs:
           python-version: 3.14
           cache: 'pip'
       - name: Lint sources
-        uses: pre-commit/action@v3.0.1
+        uses: yorickdowne/pc-action@14ede0db48efa22fe0f9d70a47d23d811e2ba946 # v3.0.2
         with:
           extra_args: --all-files --show-diff-on-failure
 
