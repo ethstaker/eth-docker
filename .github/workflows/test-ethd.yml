@@ -18,7 +18,7 @@ concurrency:
 jobs:
   test-ethd:
     if: |
-      contains(github.event.pull_request.labels.*.name, 'test-ethd') ||
+      contains(github.event.pull_request.labels.*.name, 'check-ethd') ||
       contains(github.event.pull_request.labels.*.name, 'test-all') ||
       github.event_name == 'push'
     runs-on: ${{ matrix.os }}

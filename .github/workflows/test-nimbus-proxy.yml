@@ -18,7 +18,7 @@ concurrency:
 jobs:
   test-nimbus-proxy:
     if: |
-      contains(github.event.pull_request.labels.*.name, 'test-nimbus-proxy') ||
+      contains(github.event.pull_request.labels.*.name, 'check-nimbus-proxy') ||
       contains(github.event.pull_request.labels.*.name, 'test-all') ||
       github.event_name == 'push'
     runs-on: ubuntu-latest

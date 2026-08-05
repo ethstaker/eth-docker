@@ -20,7 +20,7 @@ jobs:
     name: Lint sources
     if: |
       (
-        contains(github.event.pull_request.labels.*.name, 'test-custom')
+        contains(github.event.pull_request.labels.*.name, 'check-custom')
       )
     runs-on: ubuntu-latest
     steps:

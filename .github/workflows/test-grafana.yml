@@ -18,7 +18,7 @@ concurrency:
 jobs:
   test-grafana:
     if: |
-      contains(github.event.pull_request.labels.*.name, 'test-grafana') ||
+      contains(github.event.pull_request.labels.*.name, 'check-grafana') ||
       contains(github.event.pull_request.labels.*.name, 'test-all') ||
       github.event_name == 'push'
     runs-on: ubuntu-latest

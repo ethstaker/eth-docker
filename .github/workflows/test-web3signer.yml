@@ -18,7 +18,7 @@ concurrency:
 jobs:
   test-web3signer:
     if: |
-      contains(github.event.pull_request.labels.*.name, 'test-web3signer') ||
+      contains(github.event.pull_request.labels.*.name, 'check-web3signer') ||
       contains(github.event.pull_request.labels.*.name, 'test-all') ||
       github.event_name == 'push'
     runs-on: ubuntu-latest
