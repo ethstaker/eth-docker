@@ -10,8 +10,8 @@ __current_docker=29
 __min_ubuntu=22
 __eol_min_ubuntu=2027-05-31
 __upgrade_ubuntu="Guide to upgrading to 24.04: https://gist.github.com/yorickdowne/94f1e5538007f4c9d3da7b22b0dc28a4 , consider an upgrade to 26.04 after that"
-__min_debian=11
-__eol_min_debian=2026-08-31
+__min_debian=12
+__eol_min_debian=2028-06-30
 __upgrade_debian="Guide to upgrading to 12: https://gist.github.com/yorickdowne/ec9e2c6f4f8a2ee93193469d285cd54c , consider an upgrade to 13 after that"
 __stat_mode_param=()
 __docker_exe="docker"
@@ -249,7 +249,7 @@ __handle_docker() {
   __docker_patch_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[3]; }')
 
   if [[ "${use_docker}" -eq 1 && "${__docker_major_version}" -lt 23 ]]; then
-  # Debian 11 and Debian 12 have docker.io 20.10. From Debian 13, it's >= 26
+  # Debian 12 has docker.io 20.10. From Debian 13, it's >= 26
   # Ubuntu has docker.io>= 27 from 22.04
   # The code to detect old docker.io can be removed when Debian 12 goes EOL in 2028
     __old_docker=1
@@ -508,7 +508,6 @@ __upgrade_docker() {
 # These fixed versions are a guess and have not been released
             13) runc_fixed_version="1.1.15+ds1-2+deb13u1";;
             12) runc_fixed_version="1.1.5+ds1-1+deb12u2";;  # I don't expect to hit this, because docker.io is old
-            11) runc_fixed_version="1.0.0~rc93+ds1-5+deb11u6";;  # I don't expect to hit this, because docker.io is old
             *) echo "Cannot check runc on Debian ${__os_major_version}. Please update to ${__min_debian} or later"; return;;
           esac
           if dpkg --compare-versions "${runc_dpkg_version}" lt "${runc_fixed_version}"; then
@@ -657,7 +656,7 @@ EOF
 __check_compose_version() {
   local yn
 
-# Compose V1 is in Debian 11 and Debian 12. The Debian-specific code can be removed when Debian 12 goes EOL in 2028.
+# Compose V1 is in Debian 12. The Debian-specific code can be removed when Debian 12 goes EOL in 2028.
 # Compose V1 is in Ubuntu 22.04 and 24.04. The Compose version check can be removed when Ubuntu 24.04 goes EOL in 2029.
 
 # Check for Compose V2+ (docker compose) vs Compose V1 (docker-compose)
