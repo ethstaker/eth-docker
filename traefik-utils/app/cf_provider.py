@@ -1,7 +1,7 @@
 __lazy_modules__ = ["cloudflare"]
 
 import logging
-from typing import Mapping
+from collections.abc import Mapping
 
 from cloudflare import Cloudflare
 from cloudflare.types.dns import RecordResponse
@@ -19,7 +19,7 @@ class CloudflareProvider(DNSProvider):
         self._cf = Cloudflare(api_token=token)
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str]) -> "CloudflareProvider":
+    def from_env(cls, env: Mapping[str, str]) -> CloudflareProvider:
         return cls(env["CF_ZONE_ID"], env["CF_DNS_API_TOKEN"])
 
     def validate(self) -> None:

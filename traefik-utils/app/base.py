@@ -1,19 +1,20 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Mapping, Self
+from typing import TYPE_CHECKING, Self
+from collections.abc import Mapping
 
 if TYPE_CHECKING:
     from privilege import PrivilegeManager
 
-_provider_registry: dict[str, type["DNSProvider"]] = {}
+_provider_registry: dict[str, type[DNSProvider]] = {}
 
 
-def register_provider(name: str, cls: type["DNSProvider"]) -> None:
+def register_provider(name: str, cls: type[DNSProvider]) -> None:
     _provider_registry[name.lower()] = cls
 
 
 def build_provider(
-    priv: "PrivilegeManager", provider_name: str, env: Mapping[str, str]
-) -> "DNSProvider":
+    priv: PrivilegeManager, provider_name: str, env: Mapping[str, str]
+) -> DNSProvider:
     which = provider_name.lower()
     provider_class = _provider_registry.get(which)
     if provider_class is None:

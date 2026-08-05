@@ -2,7 +2,6 @@ import os
 import pwd
 import grp
 import shutil
-import subprocess
 
 
 class PrivilegeManager:
@@ -22,15 +21,16 @@ class PrivilegeManager:
 
         shutil.copytree(src, dst)
 
-        subprocess.check_call(
-            ["chown", "-R", f"{self._pw.pw_uid}:{self._pw.pw_gid}", dst]
-        )
-
         for root, dirs, files in os.walk(dst):
+            os.chown(root, self._pw.pw_uid, self._pw.pw_gid)
             for d in dirs:
-                os.chmod(os.path.join(root, d), 0o700)
+                path = os.path.join(root, d)
+                os.chown(path, self._pw.pw_uid, self._pw.pw_gid)
+                os.chmod(path, 0o700)
             for f in files:
-                os.chmod(os.path.join(root, f), 0o600)
+                path = os.path.join(root, f)
+                os.chown(path, self._pw.pw_uid, self._pw.pw_gid)
+                os.chmod(path, 0o600)
 
     def drop(self) -> None:
         try:

@@ -1,0 +1,7 @@
+[project]
+name = "ddns"
+requires-python = ">=3.14,<4"
+dynamic = ["version"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "UP", "S"]

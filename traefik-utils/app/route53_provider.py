@@ -2,7 +2,8 @@ __lazy_modules__ = ["boto3", "botocore.exceptions"]
 
 import os
 import logging
-from typing import cast, TYPE_CHECKING, Mapping
+from typing import cast, TYPE_CHECKING
+from collections.abc import Mapping
 
 import boto3
 from botocore.exceptions import ClientError
@@ -49,7 +50,8 @@ class AwsCredentialResolver:
         elif profile and profile.strip() and os.path.exists(credentials_path):
             logger.info(f"Using AWS profile '{profile}' from {credentials_path}")
             logger.debug(
-                f"Using AWS creds file: {os.environ.get('AWS_SHARED_CREDENTIALS_FILE', 'N/A')}"
+                f"Using AWS creds file: "
+                f"{os.environ.get('AWS_SHARED_CREDENTIALS_FILE', 'N/A')}"
             )
             logger.debug(
                 f"Using AWS config file: {os.environ.get('AWS_CONFIG_FILE', 'N/A')}"
@@ -76,7 +78,7 @@ class Route53Provider(DNSProvider):
         self._r53 = session.client("route53")
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str]) -> "Route53Provider":
+    def from_env(cls, env: Mapping[str, str]) -> Route53Provider:
         hz = env["AWS_HOSTED_ZONE_ID"]
         session = AwsCredentialResolver(env).resolve()
         return cls(hz, session)
@@ -125,7 +127,8 @@ class Route53Provider(DNSProvider):
             ]
             if len(vals) > 1:
                 logger.warning(
-                    f"Record {n_name} {rr_type} has multiple values {vals}; skipping management."
+                    f"Record {n_name} {rr_type} has multiple values {vals}; "
+                    "skipping management."
                 )
                 return True
 

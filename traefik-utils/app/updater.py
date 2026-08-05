@@ -130,8 +130,10 @@ def build_cname_fqdn(label: str, domain: str) -> str:
     - 'api.<domain>.' -> 'api.<domain>.'
     Always returns a trailing-dot FQDN.
     Deliberately not handling:
-    - Absolute CNAMEs pointing outside the domain (e.g. 'foo.bar.com' -> 'foo.example.com') - not supported
-    - CNAMEs that are the same as the domain (e.g. 'example.com' -> 'example.com') - extremely provider-specific, too many edge cases
+    - Absolute CNAMEs pointing outside the domain (e.g. 'foo.bar.com' ->
+      'foo.example.com') - not supported
+    - CNAMEs that are the same as the domain (e.g. 'example.com' ->
+      'example.com') - extremely provider-specific, too many edge cases
     """
     n = label.strip().rstrip(".")
     d = domain.strip().rstrip(".")
