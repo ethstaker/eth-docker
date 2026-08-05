@@ -47,6 +47,9 @@ repos:
         additional_dependencies:
           - boto3-stubs[route53,sts]
           - types-requests
+          - cloudflare
+          - tenacity
+        args: [--strict]
 
   # Security (lightweight)
   - repo: https://github.com/PyCQA/bandit

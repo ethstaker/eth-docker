@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Literal, Self
 from collections.abc import Mapping
 
 if TYPE_CHECKING:
     from privilege import PrivilegeManager
 
 _provider_registry: dict[str, type[DNSProvider]] = {}
+
+RecordType = Literal["A", "AAAA", "CNAME"]
 
 
 def register_provider(name: str, cls: type[DNSProvider]) -> None:
@@ -42,7 +44,7 @@ class DNSProvider(ABC):
 
     @abstractmethod
     def record_is(
-        self, name: str, rtype: str, value: str, proxied: bool = False
+        self, name: str, rtype: RecordType, value: str, proxied: bool = False
     ) -> bool:
         """Return True if the existing RRSet equals `value`,
         or if it's an alias / a multi-value set (skip with warning).
@@ -51,7 +53,12 @@ class DNSProvider(ABC):
 
     @abstractmethod
     def upsert(
-        self, name: str, rtype: str, value: str, ttl: int, proxied: bool = False
+        self,
+        name: str,
+        rtype: RecordType,
+        value: str,
+        ttl: int,
+        proxied: bool = False,
     ) -> bool:
         """Create or update a single-value record to exactly `value` with `ttl`.
         Return True if an update was performed, False if record was already correct."""

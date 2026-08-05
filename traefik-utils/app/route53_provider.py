@@ -7,7 +7,7 @@ from collections.abc import Mapping
 
 import boto3
 from botocore.exceptions import ClientError
-from base import DNSProvider, normalize_fqdn
+from base import DNSProvider, RecordType, normalize_fqdn
 
 if TYPE_CHECKING:
     from mypy_boto3_route53.client import Route53Client
@@ -25,7 +25,7 @@ else:
 logger = logging.getLogger("dns-updater")
 
 
-def _to_route53_rr_type(rtype: str) -> RRTypeType:
+def _to_route53_rr_type(rtype: RecordType) -> RRTypeType:
     """Cast generic str rtype to boto3's strict RRTypeType for type checking."""
     return cast(RRTypeType, rtype)
 
@@ -92,7 +92,7 @@ class Route53Provider(DNSProvider):
             raise RuntimeError(f"Route53 validation failed: {e}") from e
 
     def record_is(
-        self, name: str, rtype: str, value: str, proxied: bool = False
+        self, name: str, rtype: RecordType, value: str, proxied: bool = False
     ) -> bool:
         n_name = normalize_fqdn(name) + "."
         n_value = normalize_fqdn(value)
@@ -140,7 +140,7 @@ class Route53Provider(DNSProvider):
             return True
 
     def upsert(
-        self, name: str, rtype: str, value: str, ttl: int, proxied: bool = False
+        self, name: str, rtype: RecordType, value: str, ttl: int, proxied: bool = False
     ) -> bool:
         n_name = normalize_fqdn(name) + "."
         n_value = normalize_fqdn(value)
