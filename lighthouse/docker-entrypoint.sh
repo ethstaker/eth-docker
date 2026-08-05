@@ -53,7 +53,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   else
     bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
   fi
-  __network="--testnet-dir=${config_dir_path} --boot-nodes=${bootnodes}"
+  __network="--testnet-dir=${config_dir_path} --boot-nodes=${bootnodes} --ignore-ws-check"
 else
   __network="--network=${NETWORK}"
 fi

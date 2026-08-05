@@ -156,8 +156,6 @@ jobs:
           - >-
             NETWORK=https://github.com/ethpandaops/glamsterdam-devnets/tree/master/network-configs/devnet-7/metadata
             CHECKPOINT_SYNC_URL=""
-            NIMEL_DOCKER_TAG="master"
-          # Nimbus EL Docker tag until the fixes in master are in a release
     steps:
       - name: Checkout
         uses: actions/checkout@v7
