@@ -2064,8 +2064,8 @@ __update_value_in_env() {
 
 
 __migrate_env() {
-  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL )
-  local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS )
+  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL CB_PBS_DOCKER_TAG CB_PBS_DOCKER_REPO )
+  local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS CB_DOCKER_TAG CB_DOCKER_REPO )
   local error
   local line
   local index
@@ -2122,7 +2122,12 @@ __migrate_env() {
     echo "Refreshing build targets in ${__env_file}"
   fi
   if [[ "${__target_ver}" -gt "${__source_ver}" ]]; then
-    echo "Migrating ${__env_file} to version ${__target_ver}"
+    # Remove with version 68
+    if [[ "${__target_ver}" -eq "67" ]]; then
+      echo "Migrating ${__env_file} to version ⁶🤷⁷"
+    else
+      echo "Migrating ${__env_file} to version ${__target_ver}"
+    fi
     echo "Note this is not an ${__project_name} version, it is an internal config file version"
   fi
 
@@ -2241,6 +2246,10 @@ __migrate_env() {
   for index in "${!old_vars[@]}"; do
     var=${old_vars[index]}
     __get_value_from_env "${var}" "${__env_file}.source" "__value"
+    # Remove after Glamsterdam
+    if [[ "${__source_ver}" -lt "67" && "${var}" = "CB_PBS_DOCKER_REPO" && ${__value} = "ghcr.io/commit-boost/pbs" ]]; then
+      __value="ghcr.io/commit-boost/commit-boost"
+    fi
     if [[ "${__found}" -eq 1 ]]; then
       __update_value_in_env "${new_vars[index]}" "${__value}" "${__env_file}"
     fi
