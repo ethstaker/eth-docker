@@ -4,7 +4,7 @@ default_language_version:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -23,7 +23,7 @@ repos:
       - id: check-toml
 
   - repo: https://github.com/jumanjihouse/pre-commit-hooks
-    rev: 3.0.0
+    rev: 38980559e3a605691d6579f96222c30778e5a69e
     hooks:
       - id: shellcheck
       - id: script-must-have-extension
@@ -33,7 +33,7 @@ repos:
 
   # Python formatting & linting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.1
+    rev: 39d9ac5938dadb73df0564a45f163e25ff9fa6e2
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -41,7 +41,7 @@ repos:
 
   # Static typing
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.1
+    rev: 412de98d50e846f31ea6f4b0ad036f2c24a7a024
     hooks:
       - id: mypy
         additional_dependencies:
@@ -50,26 +50,26 @@ repos:
 
   # Security (lightweight)
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.6
+    rev: 2d0b675b04c80ae42277e10500db06a0a37bae17
     hooks:
       - id: bandit
         args: ["-q", "-ll", "-x", "tests"]
 
   # Spelling (nice quality-of-life)
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+    rev: 63c8f8312b7559622c0d82815639671ae42132ac
     hooks:
       - id: codespell
 
   # Dockerfiles
   - repo: https://github.com/hadolint/hadolint
-    rev: v2.13.1
+    rev: 87de847754330ad47ae16bdfe2d1a757ccb4b4d4
     hooks:
       - id: hadolint-docker
 
   # YAML style (beyond syntax)
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.37.1
+    rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7
     hooks:
       - id: yamllint
         args:
