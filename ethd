@@ -289,11 +289,13 @@ __handle_docker() {
 
     # Determine the real mountpoint backing DOCKER_ROOT, so Grafana dashboards
     # can report disk usage for that filesystem instead of always "/"
-    if command -v findmnt >/dev/null; then
-      DOCKER_ROOT_MOUNTPOINT=$(findmnt -T "${DOCKER_ROOT}" -o TARGET -n)
-    else
-      DOCKER_ROOT_MOUNTPOINT=$(df --output=target "${DOCKER_ROOT}" | tail -1)
-    fi
+#    if command -v findmnt >/dev/null; then
+#      DOCKER_ROOT_MOUNTPOINT=$(findmnt -T "${DOCKER_ROOT}" -o TARGET -n)
+#    else
+#      DOCKER_ROOT_MOUNTPOINT=$(df --output=target "${DOCKER_ROOT}" | tail -1)
+#    fi
+# Currently broken bcs bind mounts. Until I can find a better solution, get back to /
+    DOCKER_ROOT_MOUNTPOINT=/
     var=DOCKER_ROOT_MOUNTPOINT
     __get_value_from_env "${var}" "${__env_file}" "__value"
     if [[ "${DOCKER_ROOT_MOUNTPOINT}" != "${__value}" ]]; then
