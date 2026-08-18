@@ -154,10 +154,10 @@ case "${NODE_TYPE}" in
     esac
     ;;
   rolling-expiry)
-    echo "Reth minimal node with rolling history expiry, keeps 1 year."
-    # 365 days = 82125 epochs = 2628000 slots / blocks
-    __prune+=" --prune.transactionlookup.distance 10064 --prune.bodies.distance 2628000 --prune.receipts.distance 2628000"
-    __snap="--with-txs-distance 2628000 --with-receipts-distance 2628000 --with-state-history-distance 10064"
+    echo "Reth minimal node with rolling history expiry, keeps ~5 months"
+    # 33_024 epochs = 1056768 slots / blocks
+    __prune+=" --prune.transactionlookup.distance 10064 --prune.bodies.distance 1056768 --prune.receipts.distance 1056768"
+    __snap="--with-txs-distance 1056768  --with-receipts-distance 1056768 --with-state-history-distance 10064"
     ;;
   aggressive-expiry)
     echo "Reth minimal node with aggressive expiry"
