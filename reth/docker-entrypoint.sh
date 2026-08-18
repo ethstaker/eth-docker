@@ -55,10 +55,20 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/reth/testnet/${config_dir}"
-  if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
-    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
-  else
+  if [[ -f "${config_dir_path}/enodes.txt" ]]; then
     bootnodes="$(paste -sd, "${config_dir_path}/enodes.txt")"
+  else
+    bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
+  fi
+  if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
+    v5_bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
+  else
+    v5_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
+  fi
+  if [[ -n "${bootnodes}" && -n "${v5_bootnodes}" ]]; then
+    bootnodes+=",${v5_bootnodes}"
+  elif [[ -n "${v5_bootnodes}" ]]; then
+    bootnodes="${v5_bootnodes}"
   fi
   __network="--chain=${config_dir_path}/genesis.json --bootnodes=${bootnodes}"
 else
