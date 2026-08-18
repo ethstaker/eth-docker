@@ -87,9 +87,9 @@ case "${NODE_TYPE}" in
     esac
     ;;
   rolling-expiry)
-    echo "Besu minimal node with rolling history expiry, keeps 1 year."
-    # 365 days = 82125 epochs = 2628000 slots / blocks
-    __prune="--snapsync-server-enabled --Xchain-pruning-enabled=ALL --Xchain-pruning-blocks-retained=2628000"
+    echo "Besu minimal node with rolling history expiry, keeps ~5 months"
+    # 33_024 epochs = 1056768 slots / blocks
+    __prune="--snapsync-server-enabled --Xchain-pruning-enabled=ALL --Xchain-pruning-blocks-retained=1056768"
     ;;
   aggressive-expiry)
     echo "Besu minimal node with aggressive expiry"
