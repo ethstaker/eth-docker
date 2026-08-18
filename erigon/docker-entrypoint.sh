@@ -91,9 +91,9 @@ case "${NODE_TYPE}" in
     esac
     ;;
   rolling-expiry)
-    echo "Erigon minimal node with rolling history expiry, keeps 1 year."
-    # 365 days = 82125 epochs = 2628000 slots / blocks
-    __prune="--prune.mode=full --persist.receipts=false --prune.distance=2628000 --prune.distance.blocks=2628000"
+    echo "Erigon minimal node with rolling history expiry, keeps ~5 months"
+    # 33_024 epochs = 1056768 slots / blocks
+    __prune="--prune.mode=full --persist.receipts=false --prune.distance=1056768 --prune.distance.blocks=1056768"
     ;;
   aggressive-expiry)
     echo "Erigon minimal node with aggressive expiry"
