@@ -1721,6 +1721,30 @@ __upgrade_postgres() {
 }
 
 
+__check_teku_db_version() {
+  local teku_volume
+  local volume_name
+  local db_version
+
+  case "${COMPOSE_FILE}" in
+    *teku-allin1.yml*) teku_volume='teku-data';;
+    *teku.yml*|*teku-cl-only.yml*) teku_volume='tekuconsensus-data';;
+    *) return 0;;
+  esac
+
+  volume_name="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_${teku_volume}"
+  if [[ -z "$(__dodocker volume ls -q -f "name=${volume_name}")" ]]; then
+    return 0
+  fi
+
+  db_version="$(__dodocker run --rm -v "${volume_name}:/var/lib/teku" alpine:3 \
+    cat /var/lib/teku/beacon/db.version 2>/dev/null || true)"
+  if [[ "${db_version}" = "leveldb2" ]]; then
+    __final_msg+="\nWARNING: Your Teku database is using LevelDB. You can switch to RocksDB by running \"${__me} resync-consensus\".\n"
+  fi
+}
+
+
 repair-reth() {
   local yn
 
@@ -2818,6 +2842,7 @@ update() {
   __pull_and_build
 
   __upgrade_postgres
+  __check_teku_db_version
 
   echo
   if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then
