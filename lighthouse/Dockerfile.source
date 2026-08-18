@@ -42,6 +42,7 @@ FROM debian:trixie-slim
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
   libssl-dev \
+  libjemalloc-dev \
   ca-certificates \
   tzdata \
   gosu \
