@@ -30,6 +30,10 @@ On Hoodi and Mainnet
 Test that MEV build factor 95 means no factor query or speedtest
 
 Test that MEV build factor "empty, 90 or 100" means factor query and speedtest
+Test Grafana with rootful Docker and active UFW: verify the node-exporter rules are added using `NODE_EXPORTER_PORT`
+Test Grafana with rootful Docker and existing node-exporter UFW rules: verify no duplicate rules are added
+Test Grafana with rootless Docker or Podman: verify no node-exporter UFW rules are added
+Test Grafana with inactive or unavailable UFW: verify configuration continues without adding rules
 
 Test all networks once, verify the expected choices are seen, configure a node on each
 Test Nimbus on Gnosis, verify that `Dockerfile.sourcegnosis` was configured for it

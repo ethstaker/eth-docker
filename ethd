@@ -5229,8 +5229,43 @@ __query_grafana() {
         CORE_FILES+=":grafana-rootless.yml:grafana-shared.yml"
       else
         CORE_FILES+=":grafana.yml:grafana-shared.yml"
+        __configure_grafana_ufw
       fi
   fi
+}
+
+
+__configure_grafana_ufw() {
+  local node_exporter_port
+  local ufw_status
+
+  if [[ "${__cannot_sudo}" -eq 1 ]]; then
+    return
+  fi
+
+  if [[ -z "$(command -v ufw 2>/dev/null)" ]]; then
+    return
+  fi
+
+  if ! ufw_status=$(${__auto_sudo} ufw status 2>/dev/null); then
+    return
+  fi
+  if [[ "${ufw_status}" != *"Status: active"* ]]; then
+    return
+  fi
+
+  var=NODE_EXPORTER_PORT
+  __get_value_from_env "${var}" "${__env_file}" "__value"
+  node_exporter_port="${__value:-9199}"
+
+  if [[ "${ufw_status}" == *"${node_exporter_port}/tcp"*"ALLOW"*"172.16.0.0/12"* ]] &&
+     [[ "${ufw_status}" == *"${node_exporter_port}/tcp"*"ALLOW"*"192.168.0.0/16"* ]]; then
+    return
+  fi
+
+  echo "UFW is active and Grafana's node-exporter rules are missing. Adding them for port ${node_exporter_port}."
+  ${__auto_sudo} ufw allow proto tcp from 172.16.0.0/12 to any port "${node_exporter_port}" comment "node-exporter from Docker"
+  ${__auto_sudo} ufw allow proto tcp from 192.168.0.0/16 to any port "${node_exporter_port}" comment "node-exporter from Docker"
 }
 
 
