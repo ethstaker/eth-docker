@@ -3628,7 +3628,7 @@ prune-history() {
         ;;
       *nethermind.yml*)
         choices+=("pre-prague" "Pre-Prague expiry")
-        choices+=("rolling" "Rolling expiry (experimental)")
+        choices+=("rolling" "Rolling expiry")
         ;;
       *reth.yml*)
         choices+=("pre-prague" "Pre-Prague expiry")
