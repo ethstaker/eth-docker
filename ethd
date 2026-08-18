@@ -3638,6 +3638,11 @@ prune-history() {
       *geth.yml*)
         choices+=("pre-prague" "Pre-Prague expiry")
         ;;
+      *ethrex.yml*)
+        ;;
+      *nimbus-el.yml*|*nimbus-unified.yml*)
+        choices+=("rolling" "Rolling expiry")
+        ;;
     esac
 
     num_items=$(( ${#choices[@]} / 2 ))
