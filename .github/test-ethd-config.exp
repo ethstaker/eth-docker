@@ -82,6 +82,7 @@ proc default-deployment {} {
     expect_or_fail "Select consensus client" accept_default
     expect_optional "Web3signer" yes 5
     expect_or_fail "Select execution client" accept_default
+    expect_or_fail "Select execution layer history" accept_default
 }
 
 # Called without .env

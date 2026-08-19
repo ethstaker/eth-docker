@@ -5194,19 +5194,46 @@ __query_ssv_client() {
 }
 
 
-__query_4444() {  # Call with with --defaultno for RPC
+__query_4444() {
+  local -a choices=()
+  local num_items
+  local menu_height
+
   __write_vars+=("EL_NODE_TYPE")
 
-  if [[ "${EXECUTION_CLIENT}" = "NONE" || ! "${NETWORK}" =~ (mainnet|sepolia) ]]; then
+  if [[ "${EXECUTION_CLIENT}" = "NONE" ]]; then
     EL_NODE_TYPE=full
     return
   fi
 
-  if whiptail --title "History expiry" --yesno "Do you want to expire pre-merge history? Good for a validator node, but makes eth_getLogs RPC calls impossible pre-merge" 10 65 "$1"; then
-    EL_NODE_TYPE=pre-merge-expiry
-  else
-    EL_NODE_TYPE=full
+  # ssv should have pre-merge followed by rolling and full; rpc should have full and archive followed by pre-merge and rolling
+  # All others in order of more disk space used
+  if [[ ! "${__deployment}" =~ ^(rpc|.*ssv)$ && ! "${EXECUTION_CLIENT}" =~ ^(ethrex\.yml|geth\.yml)$ ]]; then
+    choices+=("rolling-expiry" "Rolling expiry")
   fi
+  if [[ "${__deployment}" != "rpc" ]]; then
+    choices+=("pre-merge-expiry" "Pre-merge expiry")
+  fi
+  if [[ "${__deployment}" =~ ^(.*ssv)$ && ! "${EXECUTION_CLIENT}" =~ ^(ethrex\.yml|geth\.yml)$ ]]; then
+    choices+=("rolling-expiry" "Rolling expiry")
+  fi
+  choices+=("full" "Full node without expiry, 4TB disk or more")
+  if [[ "${__deployment}" = "rpc" ]]; then
+    if [[ "${EXECUTION_CLIENT}" != "ethrex.yml" ]]; then
+      choices+=("archive" "Archive node, 4TB disk or more")
+    fi
+    choices+=("pre-merge-expiry" "Pre-merge expiry")
+    if [[ ! "${EXECUTION_CLIENT}" =~ ^(ethrex\.yml|geth\.yml)$ ]]; then
+      choices+=("rolling-expiry" "Rolling expiry")
+    fi
+  fi
+
+  num_items=$(( ${#choices[@]} / 2 ))
+  menu_height=$(( 8 + num_items ))
+
+  EL_NODE_TYPE=$(whiptail --notags --title "Select execution layer history" --menu \
+    "Select the amount of execution layer history to keep" "${menu_height}" 65 "${num_items}" \
+    "${choices[@]}" 3>&1 1>&2 2>&3)
 }
 
 
@@ -6169,7 +6196,7 @@ __config_node() {
   fi
   __query_web3signer
   __query_execution_client
-  __query_4444 ""
+  __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
   __query_mev
@@ -6188,7 +6215,7 @@ __config_rpc() {
   __query_consensus_only_client
   __query_execution_client
   __set_nethermind_log_index  # Remove after Nethermind enables it by default
-  __query_4444 "--defaultno"
+  __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
   __query_mev
@@ -6251,7 +6278,7 @@ __config_ssv() {
   __query_dkg
   __query_execution_client
   __set_nethermind_log_index  # Remove after Nethermind enables it by default
-  __query_4444 ""
+  __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
   __query_mev
@@ -6334,7 +6361,7 @@ __config_lido_obol() {
   CL_NODE="http://charon:3600"
   __query_execution_client
   __query_validator_client
-  __query_4444 ""
+  __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
   __query_mev
