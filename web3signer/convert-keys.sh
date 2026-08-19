@@ -11,7 +11,7 @@ if ! find "${base_dir}"/keys -type f -name '*.password' -print -quit 2>/dev/null
   exit 1
 fi
 
-if [[ "${NETWORK}" =~ ^(mainnet|gnosis)$ ]]; then
+if [[ "${NETWORK}" = "mainnet" ]]; then
   echo "Reducing key security on ${NETWORK} is not recommended. If you need to do so, please do so manually."
   echo "Aborting"
   exit 1
