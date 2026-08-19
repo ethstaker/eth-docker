@@ -3645,23 +3645,17 @@ prune-history() {
     case "${COMPOSE_FILE}" in
       *besu.yml*)
         choices+=("rolling" "Rolling expiry (experimental)")
-        choices+=("aggressive" "Aggressive expiry (experimental)")
         ;;
       *erigon.yml*)
         choices+=("rolling" "Rolling expiry")
-        choices+=("aggressive" "Aggressive expiry")
         ;;
       *nethermind.yml*)
-        choices+=("pre-prague" "Pre-Prague expiry")
         choices+=("rolling" "Rolling expiry")
         ;;
       *reth.yml*)
-        choices+=("pre-prague" "Pre-Prague expiry")
         choices+=("rolling" "Rolling expiry")
-        choices+=("aggressive" "Aggressive expiry")
         ;;
       *geth.yml*)
-        choices+=("pre-prague" "Pre-Prague expiry")
         ;;
       *ethrex.yml*)
         ;;
@@ -6810,7 +6804,7 @@ __full_help() {
   echo "    stops the Besu execution client and prunes trie-logs."
   echo "  prune-reth [--non-interactive]"
   echo "    stops the Reth execution client and prunes its DB."
-  echo "  prune-history [--non-interactive] [--pre-merge|--pre-prague|--rolling|--aggressive]"
+  echo "  prune-history [--non-interactive] [--pre-merge|--rolling]"
   echo "    stops the execution client and configures history expiry."
   echo "  prune-lighthouse [--non-interactive]"
   echo "    stops the Lighthouse consensus client and prunes state."
