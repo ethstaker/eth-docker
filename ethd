@@ -3656,6 +3656,7 @@ prune-history() {
         choices+=("rolling" "Rolling expiry")
         ;;
       *geth.yml*)
+        choices+=("rolling" "Rolling expiry")
         ;;
       *ethrex.yml*)
         ;;
@@ -3724,16 +3725,16 @@ prune-history() {
   case "${COMPOSE_FILE}" in
     *geth.yml*)
       client="Geth"
-      if [[ "${target}" =~ ^(rolling|aggressive)$ ]]; then
+      if [[ "${target}" = "aggressive" ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
       fi
       if [[ "${must_resync}" -eq 0 ]]; then
-        extra_msg="History can be pruned by Geth without requiring a full resync. You can observe pruning with \"./ethd logs -f execution\"."
+        extra_msg="History can be pruned by ${client} without requiring a full resync. You can observe pruning with \"./ethd logs -f execution\"."
         prune_marker="/var/lib/geth/prune-marker"
       else
-        extra_msg="To move from ${EL_NODE_TYPE} to ${target} expiry requires a full resync, which should take 6-8 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
+        extra_msg="To switch to ${target} expiry requires a full resync, which should take 6-8 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
         prune_marker=""
       fi
       ;;
@@ -3749,7 +3750,7 @@ prune-history() {
       ;;
     *nethermind.yml*)
       client="Nethermind"
-      if [[ "${target}" =~ ^(aggressive)$ ]]; then
+      if [[ "${target}" = "aggressive" ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
@@ -3759,7 +3760,7 @@ prune-history() {
       ;;
     *besu.yml*)
       client="Besu"
-      if [[ "${target}" =~ ^(pre-prague)$ ]]; then
+      if [[ "${target}" = "pre-prague" ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
@@ -3773,13 +3774,13 @@ prune-history() {
         extra_msg="${target} expiry does not require a resync and should be immediate.\nA resync saves more space than a prune: You can set \"EL_NODE_TYPE=${target}-expiry\" manually with \"nano .env\" and then resync with \"./ethd resync-execution\"."
         prune_marker="/var/lib/reth/minimal-node"
       else
-        extra_msg="To move from ${EL_NODE_TYPE} to ${target} expiry requires a full resync, which should take 1-2 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
+        extra_msg="To switch to ${target} expiry requires a full resync, which should take 1-2 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
         prune_marker=""
       fi
       ;;
     *erigon.yml*)
       client="Erigon"
-      if [[ "${target}" =~ ^(pre-prague)$ ]]; then
+      if [[ "${target}" = "pre-prague" ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
@@ -3795,7 +3796,7 @@ prune-history() {
         exit 1
       fi
       if [[ "${target}" = "pre-merge" ]]; then
-        extra_msg="Ethrex always expires pre-merge history. This command will have no effect."
+        extra_msg="${client} always expires ${target} history. This command will have no effect."
         prune_marker="/var/lib/ethrex/minimal-node"
       else
         extra_msg="To switch to ${target} expiry requires a full resync, which should take 16-24 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
@@ -3803,8 +3804,8 @@ prune-history() {
       fi
       ;;
     *)
-      echo "${__project_name} does not know how to prune pre-merge history on ${client:-MysteryClient},"
-      echo "nor how to configure it for pre-merge history expiry on fresh sync."
+      echo "${__project_name} does not know how to prune ${target} history on ${client:-MysteryClient},"
+      echo "nor how to configure it for ${target} history expiry on fresh sync."
       exit 0
       ;;
   esac

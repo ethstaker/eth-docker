@@ -224,6 +224,11 @@ case "${NODE_TYPE}" in
         ;;
     esac
     ;;
+  rolling-expiry)
+    # 33_024 epochs = 1056768 slots / blocks
+    echo "Geth minimal node with with rolling history expiry, keeps ~5 months"
+    __prune="--history.chain recent --history.blocks 1056768"
+    ;;
   use-cl-zkproofs)
     echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
     echo "Remove \"geth.yml\" from configuration, or change the node type"
