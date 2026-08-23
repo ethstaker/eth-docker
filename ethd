@@ -6702,7 +6702,7 @@ version() {
       echo
       ;;
     *commit-boost-pbs.yml*)
-      __docompose exec cb-pbs commit-boost-pbs --version
+      __docompose exec cb-pbs commit-boost --version
       echo
       ;;
   esac
