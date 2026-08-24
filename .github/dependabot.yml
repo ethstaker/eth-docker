@@ -9,7 +9,7 @@ updates:
     allow:
       dependency-type: "all"
     cooldown:
-      default-days: "7"
+      default-days: 7
     directories:
       - "*"
     schedule:
@@ -23,7 +23,7 @@ updates:
           - "*"
   - package-ecosystem: "docker"
     cooldown:
-      default-days: "7"
+      default-days: 7
     directories:
       - "*"
     schedule:
@@ -34,7 +34,7 @@ updates:
           - "*"
   - package-ecosystem: "github-actions"
     cooldown:
-      default-days: "7"
+      default-days: 7
     directory: "/"
     schedule:
       interval: "weekly"
@@ -44,7 +44,7 @@ updates:
           - "*"
   - package-ecosystem: "pre-commit"
     cooldown:
-      default-days: "7"
+      default-days: 7
     directory: "/"
     schedule:
       interval: "weekly"
