@@ -60,6 +60,7 @@ services:
       - --beacon-node-api-endpoints=${CL_NODE:-http://consensus:5052}
       - --data-path=/var/lib/teku
       - --log-destination=CONSOLE
+      - --logging=${LOG_LEVEL}
       - --validator-keys=/var/lib/teku/validator-keys:/var/lib/teku/validator-passwords
       - --validator-api-enabled=true
       - --validator-api-interface=0.0.0.0

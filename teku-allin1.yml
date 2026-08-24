@@ -77,6 +77,7 @@ services:
       - /opt/teku/bin/teku
       - --data-path=/var/lib/teku
       - --log-destination=CONSOLE
+      - --logging=${LOG_LEVEL}
       - --ee-endpoint=${EL_NODE}
       - --ee-jwt-secret-file
       - /var/lib/teku/ee-secret/jwtsecret
@@ -85,7 +86,6 @@ services:
       - ${CL_MAX_PEER_COUNT:+--p2p-peer-upper-bound=${CL_MAX_PEER_COUNT}}
       - ${CL_MIN_PEER_COUNT:+--p2p-peer-lower-bound=${CL_MIN_PEER_COUNT}}
       - --validator-keys=/var/lib/teku/validator-keys:/var/lib/teku/validator-passwords
-      - --logging=${LOG_LEVEL}
       - --rest-api-host-allowlist=*
       - --rest-api-enabled=true
       - --rest-api-interface=0.0.0.0
