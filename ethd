@@ -3628,15 +3628,22 @@ prune-history() {
     exit 0
   fi
   if [[ "${EL_NODE_TYPE}" = "archive" ]]; then
-    echo "This node is an archive node, and should not use expired history."
-    echo "Nothing to do. Aborting."
+    echo "This node is an archive node, and should not use expired history"
+    echo "Nothing to do. Aborting"
+    exit 0
+  fi
+  if [[ "${EL_NODE_TYPE}" = "custom" ]]; then
+    echo "This node uses custom database settings, and ${__me} can't reconfigure it"
+    echo "Edit \".env\" and change \"EL_NODE_TYPE\" and \"EL_EXTRAS\" as desired, then run"
+    echo "\"${__me} resync-execution\""
+    echo "Nothing to do. Aborting"
     exit 0
   fi
 
   if [[ -z "${target}" ]]; then
     if [[ "${__non_interactive}" -eq 1 ]]; then
-      echo "You need to specify a pruning mode when running in non-interactive mode."
-      echo "Aborting."
+      echo "You need to specify a pruning mode when running in non-interactive mode"
+      echo "Aborting"
       exit 1
     fi
 

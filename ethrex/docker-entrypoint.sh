@@ -91,6 +91,10 @@ case "${NODE_TYPE}" in
     echo "Ethrex minimal node with pre-merge history expiry and snap sync"
     __sync="--syncmode snap"
     ;;
+  custom)
+    echo "Ethrex default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
+    __sync=""
+    ;;
   use-cl-zkproofs)
     echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
     echo "Remove \"ethrex.yml\" from configuration, or change the node type"

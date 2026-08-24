@@ -164,6 +164,11 @@ case "${NODE_TYPE}" in
     __prune="--minimal"
     __snap="--minimal"
     ;;
+  custom)
+    echo "Reth default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
+    __prune=""
+    __snap=""
+    ;;
   use-cl-zkproofs)
     echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
     echo "Remove \"reth.yml\" from configuration, or change the node type"
@@ -244,7 +249,7 @@ fi
 
 # EraE import
 if [[ -n "${ERE_URL}" && ! -f /var/lib/reth/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
-  if [[ "${NODE_TYPE}" =~ ^(full|archive)$ ]]; then
+  if [[ "${NODE_TYPE}" =~ ^(full|archive|custom)$ ]]; then
     echo "Starting EraE history import from ${ERE_URL}"
 # shellcheck disable=SC2086
     reth import-era --datadir /var/lib/reth ${__static} ${__network} --url "${ERE_URL}"

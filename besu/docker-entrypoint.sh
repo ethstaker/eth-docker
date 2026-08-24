@@ -105,6 +105,10 @@ case "${NODE_TYPE}" in
     echo "Besu minimal node with aggressive expiry"
     __prune="--snapsync-server-enabled --Xchain-pruning-enabled=ALL --Xchain-pruning-blocks-retained=113056"
     ;;
+  custom)
+    echo "Besu default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
+    __prune=""
+    ;;
   use-cl-zkproofs)
     echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
     echo "Remove \"besu.yml\" from configuration, or change the node type"

@@ -224,6 +224,10 @@ case "${NODE_TYPE}" in
         ;;
     esac
     ;;
+  custom)
+    echo "Geth default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
+    __prune=""
+    ;;
   use-cl-zkproofs)
     echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
     echo "Remove \"geth.yml\" from configuration, or change the node type"
@@ -239,7 +243,7 @@ esac
 
 # EraE import
 if [[ -n "${ERE_URL}" && ! -f /var/lib/geth/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
-  if [[ "${NODE_TYPE}" =~ ^(full|archive)$ ]]; then
+  if [[ "${NODE_TYPE}" =~ ^(full|archive|custom)$ ]]; then
     echo "Starting EraE history import from ${ERE_URL}"
     if [[ ! -f /var/lib/geth/ere-download-complete ]]; then
       __download_ere_files "${ERE_URL}" /var/lib/geth/ere

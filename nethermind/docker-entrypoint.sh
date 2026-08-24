@@ -182,6 +182,12 @@ case "${NODE_TYPE}" in
     echo "\"EL_EXTRAS=--history-retentionepochs <epochs>\" in \".env\" can override, minimum <epochs> are 82125."
     __prune+=" --History.Pruning=Rolling"
     ;;
+  custom)
+    echo "Nethermind default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
+    echo "NB: \"AUTOPRUNE_NM\" has no effect; if auto-pruning is desired, add the parameters yourself"
+    __prune=""
+    __ere_from=0
+    ;;
   use-cl-zkproofs)
     echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
     echo "Remove \"nethermind.yml\" from configuration, or change the node type"

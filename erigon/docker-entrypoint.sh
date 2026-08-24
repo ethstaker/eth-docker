@@ -99,6 +99,10 @@ case "${NODE_TYPE}" in
     echo "Erigon minimal node with aggressive expiry"
     __prune="--prune.mode=minimal --persist.receipts=false"
     ;;
+  custom)
+    echo "Erigon default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
+    __prune=""
+    ;;
   use-cl-zkproofs)
     echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
     echo "Remove \"erigon.yml\" from configuration, or change the node type"

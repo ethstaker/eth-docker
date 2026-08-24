@@ -141,6 +141,10 @@ case "${NODE_TYPE}" in
     echo "Nimbus EL minimal node with 33,024 epochs rolling expiry - ~5 months"
     __prune="--prune"
     ;;
+  custom)
+    echo "Nimbus EL default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
+    __prune=""
+    ;;
   use-cl-zkproofs)
     echo "ERROR: The node type ${NODE_TYPE} is designed to not run an execution layer client"
     echo "Remove \"nimbus-el.yml\" from configuration, or change the node type"
@@ -182,7 +186,7 @@ fi
 
 # EraE import
 if [[ -n "${ERE_URL}" && ! -f /var/lib/nimbus/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
-  if [[ "${NODE_TYPE}" =~ ^(full|archive)$ ]]; then
+  if [[ "${NODE_TYPE}" =~ ^(full|archive|custom)$ ]]; then
     echo "Starting EraE history import from ${ERE_URL}"
     if [[ ! -f /var/lib/nimbus/ere-download-complete ]]; then
       __download_ere_files "${ERE_URL}" /var/lib/nimbus/ere
