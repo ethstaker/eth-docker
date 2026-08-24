@@ -7,7 +7,7 @@ version: 2
 updates:
   - package-ecosystem: "pip"
     allow:
-      dependency-type: "all"
+      - dependency-type: "all"
     cooldown:
       default-days: 7
     directories:
