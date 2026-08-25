@@ -5144,6 +5144,7 @@ __query_execution_client() {
     choices+=("ethrex.yml" "Ethrex (Rust)")
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("geth.yml" "Geth (Go)")
+    choices+=("ethrex.yml" "Ethrex (Rust)")
   else
     choices+=("reth.yml" "Reth (Rust)")
     choices+=("besu.yml" "Besu (Java)")
@@ -5165,9 +5166,17 @@ __query_execution_client() {
     "Which execution client do you want to run?" "${menu_height}" 65 "${num_items}" \
     "${choices[@]}" 3>&1 1>&2 2>&3)
 
-  if [[ "${arch}" =~ riscv64 && "${EXECUTION_CLIENT}" = "geth.yml" ]]; then
-    __write_vars+=("GETH_DOCKERFILE")
-    GETH_DOCKERFILE=Dockerfile.source
+  if [[ "${arch}" =~ riscv64 ]]; then
+    case "${EXECUTION_CLIENT}" in
+      "geth.yml")
+        __write_vars+=("GETH_DOCKERFILE")
+        GETH_DOCKERFILE=Dockerfile.source
+        ;;
+      "ethrex.yml")
+        __write_vars+=("ETHREX_DOCKERFILE")
+        ETHREX_DOCKERFILE=Dockerfile.source
+        ;;
+    esac
   fi
 
   if [[ "${EXECUTION_CLIENT}" = "NONE" ]]; then
