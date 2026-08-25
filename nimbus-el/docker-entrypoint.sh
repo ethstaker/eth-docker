@@ -138,7 +138,7 @@ case "${NODE_TYPE}" in
     esac
     ;;
   rolling-expiry)
-    echo "Nimbus EL minimal node with 33,024 epochs rolling expiry - ~5 months"
+    echo "Nimbus EL minimal node with rolling history expiry, keeps ~5 months"
     __prune="--prune"
     ;;
   use-cl-zkproofs)
