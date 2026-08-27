@@ -718,12 +718,12 @@ __check_compose_version() {
       else
         echo "Debian ${__os_major_version} ships with Compose V2."
         echo "This is very unexpected, and ${__project_name} is not sure what to recommend."
-        echo "Please come to ethstaker Discord: http://discord.gg/ethstaker"
+        echo "Please come to EthCoördinate Discord: https://discord.gg/ethstaker"
       fi
     else
       echo "You appear to be using Docker CE, which ships with Compose V2."
       echo "This is very unexpected, and ${__project_name} is not sure what to recommend."
-      echo "Please come to ethstaker Discord: http://discord.gg/ethstaker"
+      echo "Please come to EthCoördinate Discord: https://discord.gg/ethstaker"
     fi
   else
     echo "${__project_name} does not know how to update Docker Compose on ${__distro}"
@@ -864,7 +864,7 @@ __check_for_snap() {
     echo "but in a nutshell \"${__me} stop\" followed by \"sudo snap remove --purge docker\" followed by a reboot,"
     echo "and as needed install docker-ce or docker.io with apt."
     echo
-    echo "Do join us on EthStaker Discord at http://discord.gg/ethstaker to work through this issue."
+    echo "Do join us on EthCoördinate Discord at https://discord.gg/ethstaker to work through this issue."
     echo
     echo "Aborting, this is not safe"
     exit 1
@@ -1675,7 +1675,7 @@ __upgrade_postgres() {
     echo "PostgreSQL upgrade was aborted. A backup volume ${backup_vol} already exists,"
     echo "and you are on PostgreSQL ${source_pg}. This suggests a failed upgrade previously."
     echo "Upgrading PostgreSQL isn't safe."
-    echo "This should not have happened. Please come to Ethstaker Discord to troubleshoot this."
+    echo "This should not have happened. Please come to EthCoördinate Discord at https://discord.gg/ethstaker to troubleshoot this."
     return 70
   fi
 
@@ -1693,7 +1693,7 @@ __upgrade_postgres() {
   echo
   echo "Migrating database from PostgreSQL ${source_pg} to PostgreSQL ${__target_pg}"
   echo "If this step fails, the Web3signer slashing protection database is no longer protecting you."
-  echo "In failure case, do not start Web3signer again, instead seek help on Ethstaker Discord: http://discord.gg/ethstaker"
+  echo "In failure case, do not start Web3signer again, instead seek help on EthCoördinate Discord: https://discord.gg/ethstaker"
   echo
 
   __dodocker pull "pgautoupgrade/pgautoupgrade:${__target_pg}-trixie"
@@ -6878,7 +6878,7 @@ __full_help() {
   echo "✍️ Give feedback and report issues on GitHub:"
   echo "  * https://github.com/ethstaker/eth-docker"
   echo "🤗 Get support on Discord:"
-  echo "  * http://discord.gg/ethstaker"
+  echo "  * https://discord.gg/ethstaker"
 }
 
 
@@ -6957,7 +6957,7 @@ if [[ "${__old_docker}" -eq 1 ]]; then
       else
         echo "Debian ${__os_major_version} ships with a newer docker.io."
         echo "This is very unexpected, and ${__project_name} is not sure what to recommend."
-        echo "Please come to ethstaker Discord: http://discord.gg/ethstaker"
+        echo "Please come to EthCoördinate Discord: https://discord.gg/ethstaker"
       fi
     else
       echo "This should be as simple as \"sudo apt update && sudo apt dist-upgrade\""
@@ -6972,7 +6972,7 @@ if [[ "${__old_docker}" -eq 1 ]]; then
       else
         echo "Ubuntu ${__os_major_version}.${__os_minor_version} ships with a newer docker.io."
         echo "This is very unexpected, and ${__project_name} is not sure what to recommend."
-        echo "Please come to ethstaker Discord: http://discord.gg/ethstaker"
+        echo "Please come to EthCoördinate Discord: https://discord.gg/ethstaker"
       fi
     else
       echo "This should be as simple as \"sudo apt update && sudo apt dist-upgrade\""
