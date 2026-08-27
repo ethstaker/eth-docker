@@ -194,7 +194,7 @@ jobs:
           test_el: ${{ matrix.client.test_el }}
           test_vc: ${{ matrix.client.test_vc }}
       - name: Set env variables
-        if: ${{ matrix.combo.vc-env && matrix.combo.vc-env != '' }}
+        if: ${{ matrix.client.vc-env && matrix.client.vc-env != '' }}
         run: |
           source ./.github/helper.sh
           while IFS= read -r varpair; do
@@ -204,7 +204,7 @@ jobs:
             set_value_in_env
           done <<< "${{ matrix.client.vc-env }}"
       - name: Test the stack
-        if: ${{ matrix.combo.vc-env && matrix.combo.vc-env != '' }}
+        if: ${{ matrix.client.vc-env && matrix.client.vc-env != '' }}
         uses: ./.github/actions/test_client_stack
         with:
           test_cl: ${{ matrix.client.test_cl }}
