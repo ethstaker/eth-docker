@@ -4687,6 +4687,7 @@ __query_network() {
   __write_vars+=("NETWORK")
 
   choices+=("hoodi" "Hoodi Testnet")
+  choices+=("plataberget" "Plataberget Testnet (short-lived)")
   choices+=("ephemery" "Ephemery Testnet")
   choices+=("mainnet" "Ethereum Mainnet")
   choices+=("gnosis" "Gnosis Chain")
@@ -4709,7 +4710,7 @@ __query_network() {
     gnosis)
       echo "You chose to run on Gnosis Chain"
       ;;
-    sepolia|hoodi|ephemery)
+    sepolia|hoodi|ephemery|plataberget)
       echo "You chose to run on ${NETWORK} testnet"
       ;;
     custom)
@@ -5369,6 +5370,9 @@ __query_checkpoint_beacon() {
         ;;
       hoodi)
         CHECKPOINT_SYNC_URL="https://hoodi.checkpoint.sigp.io"
+        ;;
+      plataberget)
+        CHECKPOINT_SYNC_URL="https://checkpoint-sync.plataberget.ethpandaops.io"
         ;;
       ephemery)
         CHECKPOINT_SYNC_URL="https://ephemery.beaconstate.ethstaker.cc"
