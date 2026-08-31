@@ -224,6 +224,11 @@ case "${NODE_TYPE}" in
         ;;
     esac
     ;;
+  rolling-expiry)
+    # 33_024 epochs = 1056768 slots / blocks
+    echo "Geth minimal node with rolling history expiry, keeps ~5 months"
+    __prune="--history.chain recent --history.blocks 1056768"
+    ;;
   custom)
     echo "Geth default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
     __prune=""

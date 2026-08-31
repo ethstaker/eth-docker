@@ -3660,6 +3660,7 @@ prune-history() {
         choices+=("rolling" "Rolling expiry")
         ;;
       *geth.yml*)
+        choices+=("rolling" "Rolling expiry")
         ;;
       *ethrex.yml*)
         ;;
@@ -3730,7 +3731,7 @@ prune-history() {
   case "${COMPOSE_FILE}" in
     *geth.yml*)
       client="Geth"
-      if [[ "${target}" =~ ^(rolling|aggressive)$ ]]; then
+      if [[ "${target}" = "aggressive" ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
