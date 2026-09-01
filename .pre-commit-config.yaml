@@ -64,6 +64,7 @@ repos:
     rev: 63c8f8312b7559622c0d82815639671ae42132ac
     hooks:
       - id: codespell
+        args: ["--ignore-words-list", "ream"]
 
   # Dockerfiles
   - repo: https://github.com/hadolint/hadolint
