@@ -50,9 +50,8 @@ services:
       - /opt/besu/bin/besu
       - --p2p-port
       - ${EL_P2P_PORT:-30303}
-      # Re-enable with Besu > 26.8.0 when CPU issue resolved
-      #- --discovery-mode
-      #- BOTH
+      - --discovery-mode
+      - BOTH
       - --rpc-http-enabled
       - --rpc-http-host
       - 0.0.0.0

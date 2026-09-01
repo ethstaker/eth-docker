@@ -131,13 +131,12 @@ fi
 
 # DiscV5 for IPV6
 if [[ "${IPV6}" = "true" ]]; then
-  echo "Configuring Besu for discv5 for IPv6 advertisements"
-  # Remove discovery-mode with Besu >26.8.0 and have it as BOTH in besu.yml
-  __ipv6="--discovery-mode=V5 --p2p-interface-ipv6=:: --p2p-port-ipv6=${EL_P2P_PORT} --p2p-ipv6-outbound-enabled"
+  echo "Configuring Besu for IPv6"
+  __ipv6="--p2p-interface-ipv6=:: --p2p-port-ipv6=${EL_P2P_PORT} --p2p-ipv6-outbound-enabled"
 # Address discovery on v6 is not implemented
   ipv6_pattern="^[0-9A-Fa-f]{1,4}:" # Sufficient to check the start
   set +e
-  public_v6=$(curl -s -6 https://ifconfig.me)
+  public_v6=$(curl -s -m2 -6 https://ifconfig.me)
   set -e
   if [[ "${public_v6}" =~ ${ipv6_pattern} ]]; then
     __ipv6+=" --p2p-host-ipv6=${public_v6}"
