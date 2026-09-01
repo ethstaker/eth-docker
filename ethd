@@ -3662,6 +3662,7 @@ prune-history() {
       *geth.yml*)
         ;;
       *ethrex.yml*)
+        choices+=("rolling" "Rolling expiry")
         ;;
       *nimbus-el.yml*|*nimbus-unified.yml*)
         choices+=("rolling" "Rolling expiry")
@@ -3795,13 +3796,16 @@ prune-history() {
       ;;
     *ethrex.yml*)
       client="Ethrex"
-      if [[ "${target}" =~ ^(pre-prague|rolling|aggressive)$ ]]; then
+      if [[ "${target}" =~ ^(pre-prague|aggressive)$ ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
       fi
       if [[ "${target}" = "pre-merge" ]]; then
         extra_msg="${client} always expires ${target} history. This command will have no effect."
+        prune_marker="/var/lib/ethrex/minimal-node"
+      elif [[ "${must_resync}" -eq 0 ]]; then
+        extra_msg="${target} expiry does not require a resync and should be immediate."
         prune_marker="/var/lib/ethrex/minimal-node"
       else
         extra_msg="To switch to ${target} expiry requires a full resync, which should take 16-24 hours.\nYou can use https://rescuenode.com to keep attesting during resync."

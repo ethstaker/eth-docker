@@ -78,18 +78,24 @@ case "${NODE_TYPE}" in
   full)
     case ${NETWORK} in
       mainnet|sepolia)
-        echo "Ethrex does not support full sync on ${NETWORK}. Running an expired node with snap sync"
-        __sync="--syncmode snap"
+        echo "Ethrex does not support full sync on ${NETWORK}. Running a node backfilled to Byzantium"
+        __sync="--syncmode snap --history.chain all --history.transactions 0 --history.retention all"
         ;;
       *)
-        echo "There is no pre-merge history for ${NETWORK} network, running a full sync as requested"
-        __sync="--syncmode full"
+        echo "There is no pre-merge history for ${NETWORK} network, running a node backfilled to genesis"
+        __sync="--syncmode snap --history.chain all --history.transactions 0 --history.retention all"
         ;;
     esac
     ;;
   pre-merge-expiry)
-    echo "Ethrex minimal node with pre-merge history expiry and snap sync"
-    __sync="--syncmode snap"
+    echo "Ethrex minimal node with pre-merge history expiry"
+    __sync="--syncmode snap --history.chain postmerge --history.retention all"
+    ;;
+  rolling-expiry)
+    # 33_024 epochs = 1056768 slots / blocks
+    # --history.chain would conflict with retention
+    echo "Ethrex minimal node with rolling history expiry, keeps ~5 months"
+    __sync="--syncmode snap --history.retention cl-window"
     ;;
   custom)
     echo "Ethrex default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
