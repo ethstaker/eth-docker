@@ -155,17 +155,12 @@ services:
       - 0.0.0.0
       - --http-port
       - ${KEY_API_PORT:-7500}
-      - --http-cors-domain=*
+      - --rpc
       - --suggested-fee-recipient
       - ${FEE_RECIPIENT}
       - --wallet-password-file
       - /var/lib/prysm/password.txt
     labels:
-      - traefik.enable=true
-      - traefik.http.routers.prysm.entrypoints=web,websecure
-      - traefik.http.routers.prysm.rule=Host(`${PRYSM_HOST}.${DOMAIN}`)
-      - traefik.http.routers.prysm.tls.certresolver=letsencrypt
-      - traefik.http.services.prysm.loadbalancer.server.port=${KEY_API_PORT:-7500}
       - metrics.scrape=true
       - metrics.path=/metrics
       - metrics.port=8009

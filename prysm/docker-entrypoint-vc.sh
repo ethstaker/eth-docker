@@ -52,7 +52,7 @@ if [[ "${WEB3SIGNER}" = "true" ]]; then
     touch /var/lib/prysm/w3s-keys.txt
   fi
 else
-  __w3s_url="--web --wallet-password-file /var/lib/prysm/password.txt"
+  __w3s_url="--wallet-password-file /var/lib/prysm/password.txt"
 fi
 
 # Distributed attestation aggregation
