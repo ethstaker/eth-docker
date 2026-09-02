@@ -2,5 +2,3 @@
 prometheus.yml
 custom-prom.yml
 conf.d
-# node-exporter textfile-collector metrics written by ethd
-node-exporter-text

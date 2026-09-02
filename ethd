@@ -2721,6 +2721,17 @@ update() {
 
   if [[ -z "${ETHDSECUNDO:-}" ]]; then
 # Remove after Glamsterdam
+    if [[ -d ./prometheus/node-exporter-text ]]; then
+      if [[ "$OSTYPE" = "darwin"* ]]; then
+        if [[ "$(stat -f '%u' ./prometheus/node-exporter-text)" -eq 0 ]]; then
+          ${__auto_sudo} chown "${__owner}:${__owner}" ./prometheus/node-exporter-text
+        fi
+      else
+        if [[ "$(stat -c '%u' ./prometheus/node-exporter-text)" -eq 0 ]]; then
+          ${__auto_sudo} chown "${__owner}:${__owner}" ./prometheus/node-exporter-text
+        fi
+      fi
+    fi
     if git ls-files --error-unmatch ./prometheus/node-exporter-text/eth-docker-version.prom >/dev/null 2>&1; then
       rm -f ./prometheus/node-exporter-text/eth-docker-version.prom
     fi
