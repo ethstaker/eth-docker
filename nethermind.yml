@@ -29,7 +29,6 @@ services:
       - EL_EXTRAS=${EL_EXTRAS:-}
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - AUTOPRUNE_NM=${AUTOPRUNE_NM:-true}
-      - NM_FLATDB=${NETHERMIND_FLATDB:-}
       - NETWORK=${NETWORK}
       - ERE_URL=${ERE_URL:-}
       # For Grandine plugin
