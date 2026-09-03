@@ -81,29 +81,41 @@ else
   __network="--config ${NETWORK}"
 fi
 
-if [[ "${NODE_TYPE}" = "archive" ]]; then
-  __flat=""
-else
-  case "${NM_FLATDB}" in
-    "")
-      __flat=""
-      ;;
-    flat)
+case "${NM_FLATDB}" in
+  "")
+    __flat=""
+    if [[ ! "${EL_EXTRAS}" =~ (--flatdb-enabled|--FlatDb.Enabled) ]]; then
+      echo "Nethermind HalfPath DB"
+      if [[ "${NODE_TYPE}" = "archive" ]]; then
+        echo "This is an archive node: Consider a FlatDB instead"
+      fi
+    else
+      echo "Nethermind FlatDB via EL_EXTRAS"
+    fi
+    ;;
+  flat)
+    __flat="--FlatDb.Enabled=true"
+    if [[ "${NODE_TYPE}" = "archive" ]]; then
+      __flat+=" --FlatDb.HistoryEnabled true"
+      echo "Enabling Nethermind FlatDB with Layout Flat and archive history"
+    else
       echo "Enabling Nethermind FlatDB with Layout Flat"
-      #__flat="--FlatDb.Enabled=true --FlatDb.ImportFromPruningTrieState=true"
-      __flat="--FlatDb.Enabled=true"
-      ;;
-    flatintrie)
+    fi
+    ;;
+  flatintrie)
+    __flat="--FlatDb.Enabled=true --FlatDb.Layout=FlatInTrie"
+    if [[ "${NODE_TYPE}" = "archive" ]]; then
+      __flat+=" --FlatDb.HistoryEnabled true"
+      echo "Enabling Nethermind FlatDB with Layout FlatInTrie and archive history"
+    else
       echo "Enabling Nethermind FlatDB with Layout FlatInTrie"
-      #__flat="--FlatDb.Enabled=true --FlatDb.ImportFromPruningTrieState=true --FlatDb.Layout=FlatInTrie"
-      __flat="--FlatDb.Enabled=true --FlatDb.Layout=FlatInTrie"
-      ;;
-    *)
-      __flat=""
-      echo "Unknown value ${NM_FLATDB} for \"NETHERMIND_FLATDB\". Continuing without FlatDB."
-      ;;
-  esac
-fi
+    fi
+    ;;
+  *)
+    __flat=""
+    echo "Unknown value ${NM_FLATDB} for \"NETHERMIND_FLATDB\". Continuing without FlatDB."
+    ;;
+esac
 
 if [[ ! "${NETWORK}" =~ ^https?:// && "${NODE_TYPE}" != "archive" && -z "${__flat}" ]]; then  # Only configure prune parameters for named networks, non-archive and HalfPath DB
   memtotal=$(awk '/MemTotal/ {printf "%d", int($2/1024/1024)}' /proc/meminfo)
@@ -127,8 +139,14 @@ fi
 
 case "${NODE_TYPE}" in
   archive)
-    echo "Nethermind archive node without pruning"
-    __prune="--Sync.DownloadBodiesInFastSync=false --Sync.DownloadReceiptsInFastSync=false --Sync.FastSync=false --Sync.SnapSync=false --Sync.FastBlocks=false --Pruning.Mode=None --Sync.PivotNumber=0"
+    if [[ -z "${__flat}" ]]; then
+      echo "Nethermind legacy archive node without pruning"
+      echo "Consider a FlatDB archive node instead"
+      __prune="--Sync.DownloadBodiesInFastSync=false --Sync.DownloadReceiptsInFastSync=false --Sync.FastSync=false --Sync.SnapSync=false --Sync.FastBlocks=false --Pruning.Mode=None --Sync.PivotNumber=0"
+    else
+      echo "Nethermind FlatDB archive node without pruning"
+      __prune="--Sync.AncientBodiesBarrier=0 --Sync.AncientReceiptsBarrier=0"
+    fi
     __ere_from=0
     ;;
   full)
