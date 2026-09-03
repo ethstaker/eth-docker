@@ -5146,22 +5146,22 @@ __query_execution_client() {
       exit 1
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]] ; then
-    choices+=("reth.yml" "Reth (Rust)")
-    choices+=("besu.yml" "Besu (Java)")
-    choices+=("nethermind.yml" "Nethermind (.NET)")
-    choices+=("erigon.yml" "Erigon (Go)")
-    choices+=("geth.yml" "Geth (Go)")
     choices+=("ethrex.yml" "Ethrex (Rust)")
+    choices+=("reth.yml" "Reth (Rust)")
+    choices+=("nethermind.yml" "Nethermind (.NET)")
+    choices+=("besu.yml" "Besu (Java)")
+    choices+=("geth.yml" "Geth (Go)")
+    choices+=("erigon.yml" "Erigon (Go)")
   elif [[ "${arch}" =~ riscv64 ]]; then
-    choices+=("geth.yml" "Geth (Go)")
     choices+=("ethrex.yml" "Ethrex (Rust)")
+    choices+=("geth.yml" "Geth (Go)")
   else
-    choices+=("reth.yml" "Reth (Rust)")
-    choices+=("besu.yml" "Besu (Java)")
-    choices+=("nethermind.yml" "Nethermind (.NET)")
-    choices+=("erigon.yml" "Erigon (Go)")
-    choices+=("geth.yml" "Geth (Go)")
     choices+=("ethrex.yml" "Ethrex (Rust)")
+    choices+=("reth.yml" "Reth (Rust)")
+    choices+=("nethermind.yml" "Nethermind (.NET)")
+    choices+=("besu.yml" "Besu (Java)")
+    choices+=("geth.yml" "Geth (Go)")
+    choices+=("erigon.yml" "Erigon (Go)")
   fi
 
   if [[ ! "${arch}" =~ riscv64 && "${NETWORK}" =~ (hoodi|sepolia) ]]; then
