@@ -94,7 +94,7 @@ if [[ "${EL_NODE_TYPE}" = "use-cl-zkproofs" ]]; then
   echo "LH_SRC_REPO=https://github.com/ethproofs/lighthouse"
   echo "LH_DOCKERFILE=Dockerfile.source"
   echo "MEV_BOOST=true"
-  echo "MEV_BUILD_FACTOR=100"
+  echo "EPBS_BUILD_FACTOR=100"
   echo "And have source-built Lighthouse with \"./ethd update\""
   echo "A PBS sidecar needs to be in COMPOSE_FILE, and MEV relays need to be configured"
   echo "Note the bootnodes ENR may have changed, check on the zkEVM attesting Telegram group!"

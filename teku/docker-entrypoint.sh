@@ -114,12 +114,12 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
     __mev_boost+=" --validators-builder-registration-default-enabled"
   fi
   # Teku has the build factor on the CL, which is unusual
-  build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+  build_factor="$(__normalize_int "${EPBS_BUILD_FACTOR}")"
   case "${build_factor}" in
     0)
       __mev_boost=""
       __mev_factor=""
-      echo "Disabled MEV Boost because MEV_BUILD_FACTOR is 0."
+      echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is 0."
       echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
       ;;
     [1-9]|[1-9][0-9])
@@ -128,7 +128,7 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       ;;
     100)
       __mev_factor="--builder-bid-compare-factor=BUILDER_ALWAYS"
-      echo "Always prefer MEV builder blocks, MEV_BUILD_FACTOR 100"
+      echo "Always prefer MEV builder blocks, EPBS_BUILD_FACTOR 100"
       ;;
     "")
       __mev_factor=""
@@ -136,7 +136,7 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       ;;
     *)
       __mev_factor=""
-      echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${build_factor}\""
+      echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
       ;;
   esac
 else

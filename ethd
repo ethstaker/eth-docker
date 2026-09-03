@@ -1744,6 +1744,18 @@ __check_teku_db_version() {
 }
 
 
+# Remove RIGHT after Glamsterdam
+__check_mev_boost() {
+  local var
+
+  var="MEV_BOOST"
+  __get_value_from_env "${var}" "${__env_file}" "__value"
+  if [[ "${__value}" = "true" ]]; then
+    __final_msg+="\nUpdate Eth Docker again after mainnet Glamsterdam hard fork, expected December 2026, to remove MEV Boost\n"
+  fi
+}
+
+
 repair-reth() {
   local yn
 
@@ -2087,8 +2099,8 @@ __update_value_in_env() {
 
 
 __migrate_env() {
-  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL CB_PBS_DOCKER_TAG CB_PBS_DOCKER_REPO )
-  local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS CB_DOCKER_TAG CB_DOCKER_REPO )
+  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL CB_PBS_DOCKER_TAG CB_PBS_DOCKER_REPO MEV_MIN_BID MEV_BUILD_FACTOR )
+  local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS CB_DOCKER_TAG CB_DOCKER_REPO EPBS_MIN_BID EPBS_BUILD_FACTOR )
   local error
   local line
   local index
@@ -2145,12 +2157,7 @@ __migrate_env() {
     echo "Refreshing build targets in ${__env_file}"
   fi
   if [[ "${__target_ver}" -gt "${__source_ver}" ]]; then
-    # Remove with version 68
-    if [[ "${__target_ver}" -eq "67" ]]; then
-      echo "Migrating ${__env_file} to version ⁶🤷⁷"
-    else
-      echo "Migrating ${__env_file} to version ${__target_ver}"
-    fi
+    echo "Migrating ${__env_file} to version ${__target_ver}"
     echo "Note this is not an ${__project_name} version, it is an internal config file version"
   fi
 
@@ -2852,6 +2859,8 @@ update() {
 
   __upgrade_postgres
   __check_teku_db_version
+  # Remove RIGHT after Glamsterdam
+  __check_mev_boost
 
   echo
   if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then
@@ -5319,6 +5328,7 @@ __configure_grafana_ufw() {
     return
   fi
 
+  echo "Checking ufw status for Grafana. This may prompt you for your sudo password"
   if ! ufw_status=$(${__auto_sudo} ufw status 2>/dev/null); then
     return
   fi
@@ -5518,6 +5528,68 @@ screen.\n\nThe client will not start successfully until a valid ETH rewards addr
 }
 
 
+__query_epbs() {
+  local var
+  local selected
+  local -A builders=()
+  local -A optional_builders=()
+  local -a choices=()
+  local num_items
+  local menu_height
+  local relay
+  local message
+  local default
+
+  __write_vars+=("EPBS_BUILDERS")
+
+
+  if [[ ! "${__deployment}" =~ (node|validator|rocket|lido_) ]]; then
+    EPBS_BUILDERS="false"
+    EPBS_BUILDER_URLS=""
+    return 0
+  fi
+
+  message="Do you want to use ePBS Builders?"
+  if [[ "${MEV_BOOST}" = "false" ]]; then
+    default="--defaultno"
+  else
+    default=""
+  fi
+  if ! whiptail --title "ePBS Builders" --yesno "${message}" 10 65 "${default}"; then
+    EPBS_BUILDERS="false"
+    EPBS_BUILDER_URLS=""
+    if [[ "${MEV_BOOST}" = "false" ]]; then
+      __final_msg+="\nYou are configured to build blocks locally.\nPlease ensure you have 200 Mbit/s upload bandwidth or more."
+    else
+      __final_msg+="\nYou are configured to build blocks locally, after Glamsterdam.\nPlease ensure you have 200 Mbit/s upload bandwidth or more."
+    fi
+    return 0
+  else
+    EPBS_BUILDERS="true"
+    __final_msg+="\nYou are configured to get ePBS block building bids via P2P."
+  fi
+
+  if [[ ! "${NETWORK}" =~ ^(mainnet|hoodi|sepolia|plataberget)$ ]]; then
+    if [[ "${__network_change}" -eq 1 ]]; then
+      __write_vars+=("EPBS_BUILDER_URLS")
+      EPBS_BUILDER_URLS=""
+    fi
+    return 0
+  fi
+
+  var="EPBS_BUILDER_URLS"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+
+# No builder URLs known yet
+  if [[ "${__network_change}" -eq 1 ]]; then
+    __write_vars+=("EPBS_BUILDER_URLS")
+    EPBS_BUILDER_URLS=""
+  fi
+  if [[ -z "${EPBS_BUILDER_URLS}" ]]; then
+    __final_msg+="\nIf you also want direct bids, please set \"EPBS_BUILDER_URLS\" in \"${__env_file}\""
+  fi
+}
+
 __query_mev() {
   local var
   local selected
@@ -5544,6 +5616,7 @@ __query_mev() {
   if [[ ! "${NETWORK}" =~ ^(mainnet|hoodi|sepolia)$ ]]; then
     MEV_BOOST="false"
     MEV_RELAYS=""
+    __query_epbs
     return 0
   fi
 
@@ -5555,6 +5628,7 @@ want to use MEV Boost?" 10 65; then
       MEV_BOOST="false"
     fi
     MEV_RELAYS=""
+    __query_epbs
     return 0
   fi
 
@@ -5664,6 +5738,7 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
         echo "No MEV RELAYS configured for ${NETWORK}"
         MEV_BOOST=false
         MEV_RELAYS=""
+        __query_epbs
         return 0
         ;;
     esac
@@ -5678,7 +5753,7 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
     if ! whiptail --title "MEV Boost" --yesno "${message}" 10 65 "${default}"; then
       MEV_BOOST="false"
       MEV_RELAYS=""
-      __final_msg+="\nYou are configured to build blocks locally, only.\nPlease ensure you have 200 Mbit/s upload bandwidth or more."
+      __query_epbs
       return 0
     else
       MEV_BOOST="true"
@@ -5771,10 +5846,12 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
   CORE_FILES+=":mev-boost.yml"
   echo "Your MEV relay(s): ${MEV_RELAYS}"
   __final_msg+="\nYou are configured to get block building bids remotely via relay(s)."
+
+  __query_epbs
 }
 
 
-__query_mev_factor() {
+__query_epbs_factor() {
   local var
   local message
   local default
@@ -5783,15 +5860,16 @@ __query_mev_factor() {
   local up_speed
   local max_blobs
 
-  var="MEV_BUILD_FACTOR"
+  var="EPBS_BUILD_FACTOR"
   __get_value_from_env "${var}" "${__env_file}" "${var}"
-# If MEV_BUILD_FACTOR is already set to a non-default value, or MEV Boost is not enabled, or the user is using a CL-only deployment, leave as-is
-  if [[ ( -n "${MEV_BUILD_FACTOR}" && ! "${MEV_BUILD_FACTOR}" =~ ^(90|100)$ ) || "${MEV_BOOST}" != "true" || "${CONSENSUS_CLIENT}" =~ -cl-only\.yml ]]; then
+# If EPBS_BUILD_FACTOR is already set to a non-default value, or MEV Boost is not enabled, or the user is using a CL-only deployment, leave as-is
+# Adjust after Glamsterdam
+  if [[ ( -n "${EPBS_BUILD_FACTOR}" && ! "${EPBS_BUILD_FACTOR}" =~ ^(90|100)$ ) || ( "${MEV_BOOST}" != "true" && ${EPBS_BUILDERS} != "true" ) || "${CONSENSUS_CLIENT}" =~ -cl-only\.yml ]]; then
     return
   fi
 
   if [[ ! "${__distro}" =~ (ubuntu|debian) ]]; then
-    __final_msg+="\nCannot measure network speed on ${__distro}. Please ensure you have 112 Mbit/s up or set MEV_BUILD_FACTOR=100 or set MAX_BLOBS."
+    __final_msg+="\nCannot measure network speed on ${__distro}. Please ensure you have 112 Mbit/s up or set EPBS_BUILD_FACTOR=100 or set MAX_BLOBS."
     return
   fi
 
@@ -5814,12 +5892,12 @@ __query_mev_factor() {
   exitstatus=$?
   set -e
   if [[ "${exitstatus}" -ne 0 ]]; then
-    echo "Speedtest failed, skipping MEV Build Factor query"
+    echo "Speedtest failed, skipping ePBS Build Factor query"
     return
   fi
 
 # From here we know that we'll set these variables
-  __write_vars+=("MEV_BUILD_FACTOR" "MAX_BLOBS")
+  __write_vars+=("EPBS_BUILD_FACTOR" "MAX_BLOBS")
 
   down_speed=$(jq -r '.download' <<< "${speed_json}" | awk '{print int($1 / 1000000)}')
   up_speed=$(jq -r '.upload' <<< "${speed_json}" | awk '{print int($1 / 1000000)}')
@@ -5831,24 +5909,24 @@ __query_mev_factor() {
     max_blobs=$(echo "${up_speed}" | awk '{print int($1 / 5.33)}')
     if [[ "${max_blobs}" -eq 0 ]]; then
       echo "Your upload speed is too low to upload any blobs"
-      echo "Disabling local block building by setting MEV_BUILD_FACTOR to 100"
-      MEV_BUILD_FACTOR="100"
+      echo "Disabling local block building by setting EPBS_BUILD_FACTOR to 100"
+      EPBS_BUILD_FACTOR="100"
       MAX_BLOBS="0"
       __final_msg+="\nLocal block building was disabled, because your upload speed is low."
     else
       echo "You can upload up to ${max_blobs} with your upload speed"
-      echo "Setting default MEV_BUILD_FACTOR and MAX_BLOBS=${max_blobs}"
-      MEV_BUILD_FACTOR=""
+      echo "Setting default EPBS_BUILD_FACTOR and MAX_BLOBS=${max_blobs}"
+      EPBS_BUILD_FACTOR=""
       MAX_BLOBS="${max_blobs}"
       __final_msg+="\nBlobs were restricted to ${max_blobs} max, because your upload speed is low."
     fi
   else
-    message="Your upload speed is ${up_speed} Mbit/s. Do you want to build local blocks, when the relay pays less than 10% more?"
-    if whiptail --title "MEV Build Factor" --yesno "${message}" 10 65; then
-      MEV_BUILD_FACTOR="90"
+    message="Your upload speed is ${up_speed} Mbit/s. Do you want to build local blocks, when the builder pays less than 10% more?"
+    if whiptail --title "ePBS Build Factor" --yesno "${message}" 10 65; then
+      EPBS_BUILD_FACTOR="90"
       __final_msg+="\nLocal block building is preferred, when the relay pays less than 10% more."
     else
-      MEV_BUILD_FACTOR="100"
+      EPBS_BUILD_FACTOR="100"
       __final_msg+="\nLocal block building is disabled."
     fi
     MAX_BLOBS=""
@@ -6228,8 +6306,9 @@ __config_node() {
   __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
+# Adjust RIGHT after Glamsterdam
   __query_mev
-  __query_mev_factor
+  __query_epbs_factor
   __query_grafana
   __query_fee_recipient
   __query_graffiti
@@ -6247,6 +6326,7 @@ __config_rpc() {
   __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
+# Adjust RIGHT after Glamsterdam
   __query_mev
   __query_grafana
   __query_fee_recipient
@@ -6310,6 +6390,7 @@ __config_ssv() {
   __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
+# Adjust RIGHT after Glamsterdam
   __query_mev
   __query_grafana
   __query_fee_recipient
@@ -6321,6 +6402,7 @@ __config_validator() {
   __query_validator_client
   __query_web3signer
   __query_remote_beacon
+# Adjust RIGHT after Glamsterdam
   __query_mev
   __query_fee_recipient
   __query_graffiti
@@ -6393,8 +6475,9 @@ __config_lido_obol() {
   __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
+# Adjust RIGHT after Glamsterdam
   __query_mev
-  __query_mev_factor
+  __query_epbs_factor
   __query_grafana
   __query_fee_recipient
 

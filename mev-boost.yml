@@ -35,7 +35,7 @@ services:
       - -relays
       - ${MEV_RELAYS}
       - -min-bid
-      - ${MEV_MIN_BID:-0}
+      - ${EPBS_MIN_BID:-0}
       - -loglevel
       - ${LOG_LEVEL}
       - -metrics
