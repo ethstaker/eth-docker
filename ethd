@@ -4921,24 +4921,24 @@ __query_consensus_client() {
   arch=$(uname -m)
 
   if [[ "${NETWORK}" = "gnosis" ]]; then
+    choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
+    choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
     choices+=("teku.yml" "Teku (Java) - consensus and validator client")
     choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
-    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
-    choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
+    choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
     choices+=("teku.yml" "Teku (Java) - consensus and validator client")
-    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
+    choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
     choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
-    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
     choices+=("teku.yml" "Teku (Java) - consensus and validator client")
-    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
+    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
@@ -4946,21 +4946,21 @@ __query_consensus_client() {
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
   elif [[ "${__deployment}" = "lido_obol" ]]; then
-    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
+    choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
     choices+=("teku.yml" "Teku (Java) - consensus and validator client")
-    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
+    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
   else
-    choices+=("teku.yml" "Teku (Java) - consensus and validator client")
-    choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
-    choices+=("lodestar.yml" "Lodestar (TypeScript) - consensus and validator client")
+    choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
-    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
+    choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
+    choices+=("teku.yml" "Teku (Java) - consensus and validator client")
     choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
+    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   fi
 
@@ -5011,23 +5011,23 @@ __query_consensus_only_client() {
   arch=$(uname -m)
 
   if [[ "${NETWORK}" = "gnosis" ]]; then
+    choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
+    choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
     choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
     choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
-    choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
-    choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
+    choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
     choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
-    choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
+    choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
     choices+=("grandine-cl-only.yml" "Grandine (Rust) - consensus client")
-    choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
-    choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
     choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
     choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
+    choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
@@ -5035,15 +5035,15 @@ __query_consensus_only_client() {
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
   else
-    choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
-    choices+=("grandine-cl-only.yml" "Grandine (Rust) - consensus client")
-    choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
+    choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
-    choices+=("lodestar-cl-only.yml" "Lodestar (TypeScript) - consensus client")
+    choices+=("grandine-cl-only.yml" "Grandine (Rust) - consensus client")
+    choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
     choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
+    choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   fi
 
