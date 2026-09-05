@@ -1306,6 +1306,14 @@ space() {
 }
 
 
+__display_docker_space() {
+  if [[ "${__command}" != "space" ]]; then
+    __display_docker_dir
+    __display_docker_volumes
+  fi
+}
+
+
 # Warn user if space is low, so they can prune
 # This runs after any ethd command: It is safe to assign to uppercase vars
 __check_disk_space() {
@@ -1321,8 +1329,7 @@ __check_disk_space() {
       echo
       echo "You have less than 50 GiB of free disk space:"
       echo
-      __display_docker_dir
-      __display_docker_volumes
+      __display_docker_space
     fi
     return 0
   fi
@@ -1357,16 +1364,14 @@ Full\". Free space:"
       echo "If the below reads above ${safe_prune} GiB free, prune it with \"${__me} prune-nethermind\""
     fi
     echo
-    __display_docker_dir
-    __display_docker_volumes
+    __display_docker_space
   elif [[ "${__value}" =~ geth\.yml && "${__free_space}" -lt 104857600 ]]; then
     low=1
     echo
     echo "You are running Geth and have less than 100 GiB of free disk space."
     echo "You may resync from scratch to use PBSS and slow on-disk DB growth, with \"${__me} resync-execution\"."
     echo
-    __display_docker_dir
-    __display_docker_volumes
+    __display_docker_space
   elif [[ "${__value}" =~ besu\.yml && "${__free_space}" -lt 52428800 ]]; then
     low=1
     echo
@@ -1374,15 +1379,13 @@ Full\". Free space:"
     echo
     echo "If this is a long-running Besu, you may prune trie-logs with \"${__me} prune-besu\"."
     echo
-    __display_docker_dir
-    __display_docker_volumes
+    __display_docker_space
   elif [[ "${__free_space}" -lt 52428800 ]]; then
     low=1
     echo
     echo "You have less than 50 GiB of free disk space:"
     echo
-    __display_docker_dir
-    __display_docker_volumes
+    __display_docker_space
   fi
 
   if [[ "${low}" -eq 1 && "${NETWORK}" = "mainnet" ]]; then
