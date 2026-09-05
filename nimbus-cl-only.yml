@@ -37,7 +37,7 @@ services:
       - NETWORK=${NETWORK}
       - JWT_SECRET=${JWT_SECRET}
       - MEV_BOOST=${MEV_BOOST}
-      - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}  # Unused, here to avoid runtime errors in case of faulty logic
+      - EPBS_BUILD_FACTOR=${EPBS_BUILD_FACTOR}  # Unused, here to avoid runtime errors in case of faulty logic
       - MEV_NODE=${MEV_NODE}
       - DOPPELGANGER=false
       - CL_EXTRAS=${CL_EXTRAS:-}

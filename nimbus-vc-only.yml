@@ -32,7 +32,7 @@ services:
       - jwtsecret:/var/lib/nimbus/ee-secret
     environment:
       - MEV_BOOST=${MEV_BOOST}
-      - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}
+      - EPBS_BUILD_FACTOR=${EPBS_BUILD_FACTOR}
       - CL_NODE=${CL_NODE}
       - DOPPELGANGER=${DOPPELGANGER}
       - VC_EXTRAS=${VC_EXTRAS:-}

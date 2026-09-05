@@ -116,7 +116,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
     environment:
       - MEV_BOOST=${MEV_BOOST}
-      - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}
+      - EPBS_BUILD_FACTOR=${EPBS_BUILD_FACTOR}
       - BEACON_STATS_API=${BEACON_STATS_API}
       - BEACON_STATS_MACHINE=${BEACON_STATS_MACHINE}
       - DOPPELGANGER=${DOPPELGANGER}

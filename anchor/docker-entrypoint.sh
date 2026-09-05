@@ -22,11 +22,11 @@ else
 fi
 
 echo "MEV Boost enabled, mandatory Anchor default"
-build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+build_factor="$(__normalize_int "${EPBS_BUILD_FACTOR}")"
 case "${build_factor}" in
   0)
     __mev_factor="--builder-boost-factor ${build_factor}"
-    echo "MEV_BUILD_FACTOR is 0, which essentially disables remote block building / MEV."
+    echo "EPBS_BUILD_FACTOR is 0, which essentially disables remote block building / MEV."
     ;;
   [1-9]|[1-9][0-9])
     __mev_factor="--builder-boost-factor ${build_factor}"
@@ -34,7 +34,7 @@ case "${build_factor}" in
     ;;
   100)
     __mev_factor="--prefer-builder-proposals"
-    echo "Always prefer MEV builder blocks, MEV_BUILD_FACTOR 100"
+    echo "Always prefer MEV builder blocks, EPBS_BUILD_FACTOR 100"
     ;;
   "")
     __mev_factor=""
@@ -42,7 +42,7 @@ case "${build_factor}" in
     ;;
   *)
     __mev_factor=""
-    echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${build_factor}\""
+    echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
     ;;
 esac
 

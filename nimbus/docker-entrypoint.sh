@@ -201,11 +201,11 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_factor=""
   echo "MEV Boost enabled"
   if [[ "${EMBEDDED_VC}" = "true" ]]; then
-    build_factor="$(__normalize_int "${MEV_BUILD_FACTOR}")"
+    build_factor="$(__normalize_int "${EPBS_BUILD_FACTOR}")"
     case "${build_factor}" in
       0)
         __mev_boost=""
-        echo "Disabled MEV Boost because MEV_BUILD_FACTOR is 0."
+        echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is 0."
         echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
         ;;
       [1-9]|[1-9][0-9])
@@ -215,14 +215,14 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
         ;;
       100)
         __mev_factor="--local-block-value-boost=0"
-        echo "Do not boost local blocks, MEV_BUILD_FACTOR 100"
+        echo "Do not boost local blocks, EPBS_BUILD_FACTOR 100"
         echo "This may still build a local block, if it pays more than a builder block"
         ;;
       "")
         echo "Use default --local-block-value-boost"
         ;;
       *)
-        echo "WARNING: MEV_BUILD_FACTOR has an invalid value of \"${build_factor}\""
+        echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
         ;;
     esac
   fi

@@ -65,9 +65,9 @@ jobs:
         run: expect -d ./.github/test-ethd-config.exp all-defaults
         env:
           TERM: xterm
-      - name: Test ethd config no mev
+      - name: Test ethd config no epbs
         if: ${{ startsWith(matrix.os, 'ubuntu-') }}
-        run: expect -d ./.github/test-ethd-config.exp no-mev
+        run: expect -d ./.github/test-ethd-config.exp no-epbs
         env:
           TERM: xterm
       - name: Test ethd config no grafana

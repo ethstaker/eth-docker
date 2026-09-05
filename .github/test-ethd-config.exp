@@ -92,7 +92,8 @@ proc all-defaults {} {
     expect_or_fail "Configure CL checkpoint sync URL" accept_default
     expect_or_fail "MEV Boost" yes
     expect_or_fail "Relays list" accept_default
-    expect_optional "MEV Build Factor" yes 30
+    expect_or_fail "ePBS Builders" yes
+    expect_optional "ePBS Build Factor" yes 30
     expect_or_fail "Grafana" yes
     expect_or_fail "Configure rewards address" address
     expect_or_fail "Configure Graffiti" accept_default
@@ -102,11 +103,12 @@ proc all-defaults {} {
 }
 
 # Called after all-defaults, existing .env
-proc no-mev {} {
+proc no-epbs {} {
     default-deployment
 
     expect_or_fail "Configure CL checkpoint sync URL" accept_default
     expect_or_fail "MEV Boost" no
+    expect_or_fail "ePBS Builders" yes
     expect_or_fail "Grafana" yes
     expect_or_fail "Configure rewards address" accept_default
     expect_or_fail "Configure Graffiti" accept_default
@@ -122,7 +124,8 @@ proc no-grafana {} {
     expect_or_fail "Configure CL checkpoint sync URL" accept_default
     expect_or_fail "MEV Boost" yes
     expect_or_fail "Relays list" accept_default
-    expect_optional "MEV Build Factor" yes
+    expect_or_fail "ePBS Builders" yes
+    expect_optional "ePBS Build Factor" yes 30
     expect_or_fail "Grafana" no
     expect_or_fail "Configure rewards address" accept_default
     expect_or_fail "Configure Graffiti" accept_default
@@ -139,7 +142,7 @@ if {$argc > 0} {
     set action [lindex $argv 0]
     switch -- $action {
         "all-defaults" all-defaults
-        "no-mev" no-mev
+        "no-epbs" no-epbs
         "no-grafana" no-grafana
         default  { puts "Unknown action: $action"; exit 1 }
     }
