@@ -178,9 +178,8 @@ case "${NODE_TYPE}" in
     esac
     ;;
   rolling-expiry)
-    echo "Nethermind minimal node with rolling history expiry, keeps 1 year by default."
-    echo "\"EL_EXTRAS=--history-retentionepochs <epochs>\" in \".env\" can override, minimum <epochs> are 82125."
-    __prune+=" --History.Pruning=Rolling"
+    echo "Nethermind minimal node with rolling history expiry, keeps ~5 months"
+    __prune+=" --History.Pruning=Rolling --History.RetentionEpochs=33024"
     ;;
   custom)
     echo "Nethermind default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
