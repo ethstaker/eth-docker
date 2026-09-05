@@ -29,6 +29,7 @@ services:
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
       - EL_P2P_PORT=${EL_P2P_PORT:-30303}
+      - ERE_URL=${ERE_URL}
       - COMPOSE_FILE=${COMPOSE_FILE}
     volumes:
       - besu-el-data:/var/lib/besu
