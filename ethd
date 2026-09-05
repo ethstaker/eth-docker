@@ -626,6 +626,7 @@ __upgrade_compose() {
     ${__auto_sudo} install -m 0755 -d /etc/apt/keyrings
     ${__auto_sudo} curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
     ${__auto_sudo} chmod a+r /etc/apt/keyrings/docker.asc
+    # shellcheck source=/dev/null
     ${__auto_sudo} tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
 URIs: https://download.docker.com/linux/debian
@@ -1104,6 +1105,7 @@ __install_docker() {
     ${__auto_sudo} install -m 0755 -d /etc/apt/keyrings
     ${__auto_sudo} curl -fsSL https://download.docker.com/linux/${repo}/gpg -o /etc/apt/keyrings/docker.asc
     ${__auto_sudo} chmod a+r /etc/apt/keyrings/docker.asc
+    # shellcheck source=/dev/null
     ${__auto_sudo} tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
 URIs: https://download.docker.com/linux/${repo}

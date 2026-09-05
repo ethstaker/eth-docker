@@ -326,6 +326,7 @@ __check_os() {
     echo "Aborting"
     exit 0
   fi
+  # shellcheck source=/dev/null
   . /etc/os-release
   if [[ ! "$ID" =~ (debian|ubuntu) ]]; then
     echo "ERROR: This script is designed to be run on Debian or Ubuntu, and you don't appear to be running either."
