@@ -1361,7 +1361,7 @@ __check_disk_space() {
       echo "It should currently be auto-pruning, check logs with \"${__me} logs -f --tail 500 execution | grep \
 Full\". Free space:"
     else
-      echo "If the below reads above ${safe_prune} GiB free, prune it with \"${__me} prune-nethermind\""
+      echo "If you have above ${safe_prune} GiB free, prune it with \"${__me} prune-nethermind\""
     fi
     echo
     __display_docker_space
