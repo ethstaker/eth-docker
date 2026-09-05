@@ -83,6 +83,12 @@ case "${NODE_TYPE}" in
   full)
     echo "Besu full node without history expiry. Requires \"full\" sync and will take a long time to sync"
     __prune="--sync-mode=FULL --bonsai-limit-trie-logs-enabled=false --snapsync-server-enabled"
+    if [[ -n "${ERE_URL}" ]]; then
+      echo "Attempting to load Era1 files from ${ERE_URL}. Note Besu does not support EraE yet!"
+      __prune+=" --era1-import-prepipeline-enabled=true --era1-data-uri=${ERE_URL}"
+    else
+      echo "Consider setting \"ERE_URL\" to an Era1 (!) URL in \".env\" to speed up sync."
+    fi
     ;;
   pre-merge-expiry)
     case "${NETWORK}" in
