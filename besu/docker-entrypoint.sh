@@ -77,8 +77,24 @@ fi
 
 case "${NODE_TYPE}" in
   archive)
-    echo "Besu archive node without pruning"
-    __prune="--data-storage-format=FOREST --sync-mode=FULL --snapsync-server-enabled"
+    if [[ ! -d /var/lib/besu/database && ! -d /var/lib/besu-og/database ]]; then
+      touch /var/lib/besu/bonsai-archive
+    fi
+    if [[ -f /var/lib/besu/bonsai-archive ]]; then
+      __prune="--data-storage-format=X_BONSAI_ARCHIVE --sync-mode=FULL --snapsync-server-enabled"
+      echo "Besu bonsai archive node without history expiry."
+    else
+      echo "Besu legacy forest archive node without history expiry. Consider a resync to a Bonsai archive"
+      __prune="--data-storage-format=FOREST --sync-mode=FULL --snapsync-server-enabled"
+    fi
+    if [[ !  "${NETWORK}" =~ ^https?:// ]]; then
+      if [[ -n "${ERE_URL}" ]]; then
+        echo "Attempting to load Era1 files from ${ERE_URL}. Note Besu does not support EraE yet!"
+        __prune+=" --era1-import-prepipeline-enabled=true --era1-data-uri=${ERE_URL}"
+      else
+        echo "Consider setting \"ERE_URL\" to an Era1 (!) URL in \".env\" to speed up sync."
+      fi
+    fi
     ;;
   full)
     echo "Besu full node without history expiry. Requires \"full\" sync and will take a long time to sync"
