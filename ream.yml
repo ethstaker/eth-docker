@@ -1,0 +1,172 @@
+x-logging: &logging
+  logging:
+    driver: ${LOG_DRIVER}
+    options:
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
+
+services:
+  ream-builder:
+    restart: "no"
+    build:
+      context: ./ream
+      dockerfile: ${REAM_DOCKERFILE:-Dockerfile.source}
+      args:
+        - BUILD_TARGET=${REAM_SRC_BUILD_TARGET:-master}
+        - SRC_REPO=${REAM_SRC_REPO:-https://github.com/ReamLabs/ream}
+        - DOCKER_TAG=${REAM_DOCKER_TAG:-}
+        - DOCKER_REPO=${REAM_DOCKER_REPO:-}
+    image: ream:local
+    pull_policy: never
+    entrypoint: ["true"]
+
+  consensus:
+    restart: "unless-stopped"
+    image: ream:local
+    pull_policy: never
+    user: ream
+    stop_grace_period: 1m
+    depends_on:
+      ream-builder:
+        condition: service_completed_successfully
+    environment:
+      - CL_EXTRAS=${CL_EXTRAS:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - NETWORK=${NETWORK}
+    volumes:
+      - ream-consensus-data:/var/lib/ream/beacon
+      - /etc/localtime:/etc/localtime:ro
+      - jwtsecret:/var/lib/ream/beacon/ee-secret
+    ports:
+      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
+      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
+    networks:
+      default:
+        aliases:
+          - eth2
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${CL_ALIAS:-default-consensus}
+    <<: *logging
+    entrypoint:
+#      - docker-entrypoint.sh
+      - ream
+      - --data-dir
+      - /var/lib/ream/beacon
+      - --verbosity
+      - $$VERBOSITY
+      - beacon_node
+      - --socket-address
+      - 0.0.0.0
+      - --socket-port
+      - ${CL_P2P_PORT:-9000}
+      - --discovery-port
+      - ${CL_P2P_PORT:-9000}
+      - --http-address
+      - 0.0.0.0
+      - --http-port
+      - ${CL_REST_PORT:-5052}
+      - --checkpoint-sync-url
+      - ${CHECKPOINT_SYNC_URL:?CHECKPOINT_SYNC_URL must be set in .env}
+      - --network
+      - ${NETWORK}  # entrypoint would also support devnets
+    labels:
+      - metrics.scrape=false
+      - metrics.path=/metrics
+      - metrics.port=8008
+      - metrics.instance=consensus
+      - metrics.network=${NETWORK}
+      - logs.collect=true
+
+  validator:
+    restart: "unless-stopped"
+    image: ream:local
+    pull_policy: never
+    user: reamvalidator
+    depends_on:
+      consensus:
+        condition: service_started
+      ream-builder:
+        condition: service_completed_successfully
+    volumes:
+      - ream-vc-data:/var/lib/ream/validators
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - MEV_BOOST=${MEV_BOOST}
+      - MEV_BUILD_FACTOR=${MEV_BUILD_FACTOR}
+      - BEACON_STATS_API=${BEACON_STATS_API}
+      - BEACON_STATS_MACHINE=${BEACON_STATS_MACHINE}
+      - DOPPELGANGER=${DOPPELGANGER}
+      - VC_EXTRAS=${VC_EXTRAS:-}
+      - GRAFFITI=${GRAFFITI:-}
+      - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
+      - NETWORK=${NETWORK}
+    networks:
+      default:
+        aliases:
+          - ${VC_ALIAS:-vc}
+    <<: *logging
+    entrypoint:
+#      - docker-entrypoint-vc.sh
+      - ream
+      - --data-dir
+      - /var/lib/ream/validators
+      - validator_node
+      - --beacon-api-endpoint
+      - ${CL_NODE:-http://consensus:5052}
+      - --suggested-fee-recipient
+      - ${FEE_RECIPIENT}
+      - --key-manager-http-address
+      - 0.0.0.0
+      - --key-manager-http-port
+      - ${KEY_API_PORT:-7500}
+      - --http-address
+      - 0.0.0.0
+      - --network
+      - ${NETWORK}  # entrypoint would also support devnets
+    labels:
+      - metrics.scrape=false
+      - metrics.path=/metrics
+      - metrics.port=8009
+      - metrics.instance=validator
+      - metrics.network=${NETWORK}
+      - logs.collect=true
+
+  validator-keys:
+    profiles: ["tools"]
+    restart: "no"
+    build:
+      context: ./vc-utils
+    image: vc-utils:local
+    pull_policy: never
+    # The API token has 640 permissions. Root copies it,
+    # then switches to the local user's UID or if not provided,
+    # 1000. The UID has to be able to write .eth/validator_keys
+    # for the "keys delete" command.
+    user: root
+    depends_on:
+      - validator
+    volumes:
+      - ream-vc-data:/var/lib/ream/validators
+      - ./.eth/validator_keys:/validator_keys
+      - ./.eth/exit_messages:/exit_messages
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
+      - KEY_API_PORT=${KEY_API_PORT:-7500}
+      - WEB3SIGNER=${WEB3SIGNER:-false}
+      - W3S_NODE=${W3S_NODE}
+      - CL_NODE=${CL_NODE}
+    entrypoint:
+      - keymanager.sh
+      - /var/lib/ream/validators/api-token.txt
+      - ${VC_ALIAS:-vc}
+
+volumes:
+  ream-consensus-data:
+  ream-vc-data:
+  jwtsecret:
+
+networks:
+  default:
+    enable_ipv6: ${IPV6:-false}
