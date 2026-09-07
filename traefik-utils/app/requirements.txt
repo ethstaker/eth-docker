@@ -14,9 +14,9 @@ anyio==4.14.2 \
     # via
     #   cloudflare
     #   httpx
-boto3==1.43.79 \
-    --hash=sha256:4c2381cf99abf749c82762a636337f4aba4800fda6525412fcae2bebe4f72748 \
-    --hash=sha256:a36b4209a8170f7f8d2c19b36f350808f313b178939c9e5df0a8f683717a6d9c
+boto3==1.43.84 \
+    --hash=sha256:4d46d5689b82d05c3a1ed6de285c1f8f05cceffd5eec930a5423105ee6a9e0d1 \
+    --hash=sha256:973e9982a3a819644c71d7fe4f9e67b4f833d33760ba418c2a0680aa5afed1f0
     # via -r app/requirements.in
 botocore==1.43.84 \
     --hash=sha256:1518d98de94e4bf034da94c2a7b7acccea58619146db14c8327b2769919a4dd8 \
