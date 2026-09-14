@@ -8,19 +8,19 @@ annotated-types==0.8.0 \
     --hash=sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7 \
     --hash=sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0
     # via pydantic
-anyio==4.14.2 \
-    --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494 \
-    --hash=sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f
+anyio==4.15.1 \
+    --hash=sha256:6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101 \
+    --hash=sha256:9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94
     # via
     #   cloudflare
     #   httpx
-boto3==1.43.84 \
-    --hash=sha256:4d46d5689b82d05c3a1ed6de285c1f8f05cceffd5eec930a5423105ee6a9e0d1 \
-    --hash=sha256:973e9982a3a819644c71d7fe4f9e67b4f833d33760ba418c2a0680aa5afed1f0
+boto3==1.43.89 \
+    --hash=sha256:c28abbe472e9b7cad08807356311aeec51bde5218c18489da827045d2267bfd9 \
+    --hash=sha256:fe4190afe63eb562b6ba6a3911cf4427473b35fa047adde093bf696d3ae09fc0
     # via -r app/requirements.in
-botocore==1.43.84 \
-    --hash=sha256:1518d98de94e4bf034da94c2a7b7acccea58619146db14c8327b2769919a4dd8 \
-    --hash=sha256:e83a1ff0c5777fd47b3f0ee75c65c16a5fa786271b38b78f88b10fab548f2b66
+botocore==1.43.94 \
+    --hash=sha256:1dfb86603a87fdaebda2540db56aef5b226ec58ab72c13ca56737e4d66dea9ab \
+    --hash=sha256:cb97cedec5fceee3261f7fff75d0b0aa2cf68b32eeb2e8c2649e4657419773a6
     # via
     #   boto3
     #   s3transfer
@@ -205,9 +205,9 @@ charset-normalizer==3.5.1 \
     --hash=sha256:fd0a274c0e5f9a21565cd9d3dd749b61f96b7aa1e20a93aa1ba4029518f2e5c0 \
     --hash=sha256:fdb8a068947befafba9952162645dc2fecaeb400e64584829ed5e9b2fbe21a7f
     # via requests
-cloudflare==5.6.0 \
-    --hash=sha256:b8c81586aecd0ce48f0daaa859cce554f7b975b01d312b60d1a91ad0ea4b67ff \
-    --hash=sha256:d3b5ab79a03bd858380c8a56cc09362d744b7c9e9abb27890206624a64887305
+cloudflare==5.7.0 \
+    --hash=sha256:0ca2fb6017e8077bd798211d2505aa2cad186a2dac14a20aae57b8ffe43fb38b \
+    --hash=sha256:69eda5c3c05f8a6acc1341fe89628e8c145d45d712bda77ff2a7150a70262085
     # via -r app/requirements.in
 distro==1.9.0 \
     --hash=sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed \
@@ -392,6 +392,7 @@ typing-extensions==4.16.0 \
     --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
     --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5
     # via
+    #   anyio
     #   cloudflare
     #   pydantic
     #   pydantic-core
