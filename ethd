@@ -70,6 +70,8 @@ __value=""  # This is a global to hand a result back from __get_value_from_env
 __free_space=0
 __docker_dir="/var/lib/docker"
 __keys_args=""
+__builder_args=()
+__keys_tty=""
 __final_msg=""
 
 
@@ -4228,10 +4230,45 @@ __keys_usage() {
   echo "  get-graffiti 0xPUBKEY"
   echo "      List graffiti set for the validator with public key 0xPUBKEY"
   echo "      Validators will use GRAFFITI in .env by default, if not set individually"
-  echo "  set-graffiti 0xPUBKEY amount"
+  echo "  set-graffiti 0xPUBKEY string"
   echo "      Set individual graffiti for the validator with public key 0xPUBKEY"
   echo "  delete-graffiti 0xPUBKEY"
   echo "      Delete individual graffiti for the validator with public key 0xPUBKEY"
+  echo
+  echo "  get-builder 0xPUBKEY [--json]"
+  echo "      Show the builder configuration in effect for the validator with public key 0xPUBKEY"
+  echo "      Validators will use EPBS_BUILDER_URLS, EPBS_MIN_BID and EPBS_BUILD_FACTOR in .env"
+  echo "      by default, if not set individually"
+  echo "      This is the resolved configuration: values this validator does not set of its own"
+  echo "      are shown as the validator client will use them"
+  echo "      \"--json\" prints it as the JSON that set-builder --from-json expects. Storing it"
+  echo "      back fixes those values, instead of leaving them to follow .env"
+  echo "  set-builder 0xPUBKEY | all | 0xPUBKEY,0xPUBKEY URL[,URL...] | none [OPTIONS]"
+  echo "      Set the builders for the validator with public key 0xPUBKEY, from a comma-separated"
+  echo "      list of URLs, in the same format as EPBS_BUILDER_URLS in .env"
+  echo "      \"all\" sets all detected validators, and a comma-separated list of public keys"
+  echo "      sets just those"
+  echo "      \"none\" stores a configuration that uses no builders, so the validator uses p2p"
+  echo "      bids only. This is not the same as delete-builder, which follows .env again"
+  echo "      Options, which can also be given on their own to change only that value:"
+  echo "        --min-bid ETH"
+  echo "            Minimum bid to accept, in ETH, for example 0.01. The JSON uses Gwei"
+  echo "        --boost-factor local | maxprofit | always | NUMBER"
+  echo "            How to weigh builder bids against a locally built block."
+  echo "            \"local\" prefers the local block, \"maxprofit\" takes whichever pays more,"
+  echo "            \"always\" prefers the builder. A number is a percentage multiplier, where"
+  echo "            below 100 disfavors builders and above 100 favors them."
+  echo "            Note this is not the same scale as EPBS_BUILD_FACTOR in .env, where 100"
+  echo "            means \"always\" and here it means \"maxprofit\""
+  echo "        --from-json FILE | -"
+  echo "            Set the whole configuration from a JSON file, or \"-\" for standard input."
+  echo "            Use this for builder pubkeys, authentication data, per-builder payment caps"
+  echo "            and per-builder boost factors, which the options above do not cover."
+  echo "            This replaces the configuration in full and cannot be combined with the"
+  echo "            options above. Start from \"get-builder 0xPUBKEY --json\""
+  echo "  delete-builder 0xPUBKEY | all | 0xPUBKEY,0xPUBKEY"
+  echo "      Delete the individual builder configuration, so the validator follows EPBS_BUILDER_URLS,"
+  echo "      EPBS_MIN_BID and EPBS_BUILD_FACTOR in .env again"
   echo
   echo "  get-api-token"
   echo "      Print the token for the keymanager API running on port ${KEY_API_PORT:-7500}."
@@ -4520,8 +4557,71 @@ keys() {
       vc-utils:local /var/lib/lighthouse/nonesuch.txt eth2 send-exit
   else
     #__i_haz_keys_service
-    __docompose run --rm -e OWNER_UID="${owner_uid}" validator-keys "$@"
+    __prep-builder-args "$@"
+# __keys_tty is either "-T" or empty, and empty must vanish rather than become an empty argument
+# shellcheck disable=SC2086
+    __docompose run --rm ${__keys_tty} -e OWNER_UID="${owner_uid}" validator-keys "${__builder_args[@]}"
   fi
+}
+
+
+# The container only has ./.eth/validator_keys and ./.eth/exit_messages bind mounted, so read
+# --from-json here on the host and hand the contents to keymanager.sh as one argument.
+# Also suppress the TTY when JSON goes to stdout, so redirecting it does not add carriage returns.
+__prep-builder-args() {
+  local json_file
+  local json_body
+  local exitstatus
+
+  __builder_args=()
+  __keys_tty=""
+  while [[ -n "${1+x}" ]]; do
+    case "$1" in
+      --from-json)
+        if [[ -z "${2+x}" ]]; then
+          echo "--from-json needs a file name, or \"-\" to read standard input"
+          exit 1
+        fi
+        json_file=$2
+        if [[ "${json_file}" = "-" ]]; then
+          json_body=$(cat)
+        else
+          if [[ ! -f "${json_file}" ]]; then
+            echo "File ${json_file} not found."
+            exit 1
+          fi
+          set +e
+          json_body=$(cat "${json_file}")
+          exitstatus=$?
+          set -e
+          if [[ "${exitstatus}" -ne 0 ]]; then
+            echo "Error reading ${json_file}"
+            exit 1
+          fi
+        fi
+        if [[ -z "${json_body}" ]]; then
+          if [[ "${json_file}" = "-" ]]; then
+            echo "The builder configuration read from standard input is empty."
+          else
+            echo "The builder configuration in ${json_file} is empty."
+          fi
+          exit 1
+        fi
+        __builder_args+=( "--json-body" "${json_body}" )
+        __keys_tty="-T"
+        shift 2
+        ;;
+      --json)
+        __builder_args+=( "$1" )
+        __keys_tty="-T"
+        shift
+        ;;
+      *)
+        __builder_args+=( "$1" )
+        shift
+        ;;
+    esac
+  done
 }
 
 
@@ -6922,7 +7022,7 @@ __full_help() {
   echo "  config"
   echo "    configures ${__project_name} with your choice of Ethereum clients"
   echo "  keys ACTION [--non-interactive] [--debug]"
-  echo "    list, count, delete, import keys; their fee recipients; and gas fees"
+  echo "    list, count, delete, import keys; their fee recipients, gas fees and builders"
   echo "    Run without ACTION to get help text"
   echo "  update [--refresh-targets] [--non-interactive] [--no-screen] [--debug] [--trace]"
   echo "    updates all client versions and ${__project_name} itself"

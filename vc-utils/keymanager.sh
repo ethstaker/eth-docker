@@ -20,6 +20,18 @@ __pubkey=""
 __limit=0
 __graffiti=""
 __address=""
+__builder_urls=""
+__min_bid=""
+__min_bid_gwei=""
+__boost_factor=""
+__boost_factor_value=""
+__pubkey_selector=""
+__pubkeys=()
+__json_body=""
+__json_out=0
+# "always use the builder" in the keymanager API. Note this is NOT the same scale as
+# EPBS_BUILD_FACTOR in .env, where 100 means "always"; here 100 means profit maximization.
+__max_boost_factor=18446744073709551615
 __pass=0
 __eth2_val_tools=0
 __non_interactive=0
@@ -409,6 +421,436 @@ graffiti-delete() {
     500) echo "Internal server error. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
     *) echo "Unexpected return code ${__code}. Result: ${__result}"; exit 1;;
   esac
+}
+
+
+# Turn "all", a single pubkey, or a comma-separated list into the pubkeys array
+# This is called as __pubkeys_to_array "<selector>" "<what we are doing>"
+__pubkeys_to_array() {
+  local selector=$1
+  local purpose=$2
+  local key
+  local keys_to_array
+  local vc_api_container
+  local vc_service
+  local vc_api_port
+  local vc_api_tls
+
+  __pubkeys=()
+  if [[ -z "${selector}" ]]; then
+    echo "Please specify a validator public key to ${purpose} for, \"all\", or a comma-separated list"
+    exit 0
+  fi
+  if [[ "${selector}" = "all" ]]; then
+    __api_path=eth/v1/keystores
+    if [[ "${WEB3SIGNER}" = "true" ]]; then
+      __token=NIL
+      vc_api_container=${__api_container}
+      __api_container=${__w3s_container}
+      vc_service=${__service}
+      __service=web3signer
+      vc_api_port=${__api_port}
+      __api_port=${__w3s_port}
+      vc_api_tls=${__api_tls}
+      __api_tls=false
+    else
+      __get_token
+    fi
+    __validator_list_call
+    if [[ "${WEB3SIGNER}" = "true" ]]; then
+      __api_container=${vc_api_container}
+      __api_port=${vc_api_port}
+      __api_tls=${vc_api_tls}
+      __service=${vc_service}
+    fi
+    if [[ "$(echo "${__result}" | jq '.data | length')" -eq 0 ]]; then
+      echo "No keys loaded, nothing to ${purpose}"
+      exit 0
+    fi
+    keys_to_array=$(echo "${__result}" | jq -r '.data[].validating_pubkey' | tr '\n' ' ')
+# Word splitting is desired for the array
+# shellcheck disable=SC2206
+    __pubkeys+=( ${keys_to_array} )
+  else
+# Strip blanks but not the newlines the comma split just created
+    while IFS= read -r key || [[ -n "${key}" ]]; do
+      [[ -z "${key}" ]] && continue
+      __check_pubkey "${key}"
+      __pubkeys+=( "${key}" )
+    done < <(echo "${selector}" | tr ',' '\n' | tr -d '[:blank:]')
+    if [[ "${#__pubkeys[@]}" -eq 0 ]]; then
+      echo "Please specify a validator public key to ${purpose} for, \"all\", or a comma-separated list"
+      exit 0
+    fi
+  fi
+}
+
+
+# Validate a Gwei value as the keymanager API spec defines it
+# This is called as __check_gwei "<value>" "<field name>"
+__check_gwei() {
+  if [[ ! "$1" =~ ^(0|[1-9][0-9]{0,19})$ ]]; then
+    echo "The ${2} needs to be a whole number of Gwei, and \"${1}\" is not"
+    exit 0
+  fi
+}
+
+
+# Convert the ETH value of --min-bid to the Gwei the API expects
+__builder_min_bid_to_gwei() {
+  local min_bid
+
+  min_bid=${__min_bid}
+  if [[ ! "${min_bid}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    echo "The minimum bid needs to be a number in ETH, for example 0.01, and \"${min_bid}\" is not"
+    exit 0
+  fi
+  __min_bid_gwei=$(awk -v v="${min_bid}" 'BEGIN{printf "%.0f", v * 1000000000}')
+  __check_gwei "${__min_bid_gwei}" "minimum bid"
+}
+
+
+# Translate the words we accept for --boost-factor into what the API expects
+__builder_boost_factor_value() {
+  case "${__boost_factor}" in
+    local) __boost_factor_value=0;;
+    maxprofit) __boost_factor_value=100;;
+    always) __boost_factor_value=${__max_boost_factor};;
+    *)
+      if [[ ! "${__boost_factor}" =~ ^(0|[1-9][0-9]{0,19})$ ]]; then
+        echo "The boost factor needs to be \"local\", \"maxprofit\", \"always\", or a whole number."
+        echo "It is a percentage multiplier: below 100 disfavors builders, above 100 favors them."
+        echo "Note this is not the same scale as EPBS_BUILD_FACTOR in .env, where 100 means \"always\"."
+        exit 0
+      fi
+      __boost_factor_value=${__boost_factor}
+      ;;
+  esac
+}
+
+
+# Build the patch document from the command line arguments
+__builder_patch() {
+  local urls
+
+  urls=${__builder_urls}
+  if [[ -n "${__min_bid}" ]]; then
+    __builder_min_bid_to_gwei
+  fi
+  if [[ -n "${__boost_factor}" ]]; then
+    __builder_boost_factor_value
+  fi
+
+  jq -cn --arg urls "${urls}" --arg min_bid "${__min_bid_gwei}" --arg boost "${__boost_factor_value}" '
+    {}
+    | if $urls == "none" then .builders = []
+      elif $urls != "" then .builders = ($urls | split(",")
+                                          | map(sub("^\\s+";"") | sub("\\s+$";""))
+                                          | map(select(length > 0))
+                                          | map({url: .}))
+      else . end
+    | if $min_bid != "" then .min_bid = $min_bid else . end
+    | if $boost != "" then .builder_boost_factor = $boost else . end' >/tmp/builder-patch.json
+}
+
+
+# Catch what the API would reject with a bare 400, so the user gets a useful message
+# This is called as __builder_check_document "<file>"
+__builder_check_document() {
+  local file=$1
+  local count
+  local dupes
+  local long_urls
+  local no_url
+
+  if ! jq -e . "${file}" >/dev/null 2>&1; then
+    echo "The builder configuration is not valid JSON."
+    exit 1
+  fi
+  if [[ "$(jq -r 'type' "${file}")" != "object" ]]; then
+    echo "The builder configuration needs to be a JSON object, see \"ethd keys get-builder 0xPUBKEY --json\"."
+    exit 1
+  fi
+  if [[ "$(jq -r 'has("builders")' "${file}")" != "true" ]]; then
+    return
+  fi
+  if [[ "$(jq -r '.builders | type' "${file}")" != "array" ]]; then
+    echo "The \"builders\" field needs to be a JSON array."
+    exit 1
+  fi
+  count=$(jq -r '.builders | length' "${file}")
+  if [[ "${count}" -gt 64 ]]; then
+    echo "The keymanager API allows at most 64 builders, and this configuration has ${count}."
+    exit 1
+  fi
+  no_url=$(jq -r '[.builders[] | select(has("url") | not)] | length' "${file}")
+  if [[ "${no_url}" -gt 0 ]]; then
+    echo "Every entry in \"builders\" needs a \"url\", and at least one entry does not have one."
+    exit 1
+  fi
+  long_urls=$(jq -r '[.builders[] | select(.url | length > 2048)] | length' "${file}")
+  if [[ "${long_urls}" -gt 0 ]]; then
+    echo "A builder url can be at most 2048 characters long."
+    exit 1
+  fi
+# No two entries may share both url and auth_data. An omitted auth_data is derived from the url,
+# so two entries with the same url and no auth_data will be rejected by the validator client.
+  dupes=$(jq -r '[.builders[] | [.url, (.auth_data // "")] | @tsv] | group_by(.) | map(select(length > 1)) | length' "${file}")
+  if [[ "${dupes}" -gt 0 ]]; then
+    echo "This configuration has duplicate builders. No two entries can share both their url and"
+    echo "their auth_data, and an entry without auth_data gets one derived from its url."
+    jq -r '.builders[] | [.url, (.auth_data // "")] | @tsv' "${file}" | sort | uniq -d | cut -f1 | sed 's/^/  /'
+    exit 1
+  fi
+}
+
+
+# Tell the user which values are now pinned rather than following the validator client
+# This is called as __builder_report_pinned "<merged file>"
+__builder_report_pinned() {
+  local file=$1
+  local candidates=()
+  local pinned=()
+  local field
+
+# A field the user did not give on the command line, but that is in the document we just stored,
+# is now fixed for this validator. We cannot tell whether it was already fixed before, because
+# the API only ever hands back the resolved configuration.
+  [[ -z "${__builder_urls}" ]] && candidates+=( "builders" )
+  [[ -z "${__min_bid}" ]] && candidates+=( "min_bid" )
+  [[ -z "${__boost_factor}" ]] && candidates+=( "builder_boost_factor" )
+
+  for field in ${candidates[@]+"${candidates[@]}"}; do
+    if [[ "$(jq -r --arg f "${field}" 'has($f)' "${file}")" = "true" ]]; then
+      pinned+=( "${field}" )
+    fi
+  done
+  if [[ "${#pinned[@]}" -eq 0 ]]; then
+    return
+  fi
+
+  echo "These values are now stored for this validator and will no longer follow the"
+  echo "validator client's configuration:"
+  for field in "${pinned[@]}"; do
+    if [[ "${field}" = "builders" ]]; then
+      printf '  %-22s%s\n' "builders" "$(jq -r '[.builders[].url] | join(", ") | if . == "" then "none, p2p bids only" else . end' "${file}")"
+    else
+      printf '  %-22s%s\n' "${field}" "$(jq -r --arg f "${field}" '.[$f]' "${file}")"
+    fi
+  done
+  echo "Run \"ethd keys delete-builder ${__pubkey}\" to follow EPBS_* in .env again."
+}
+
+
+# Parse the arguments for the builder configuration commands. keymanager.sh is otherwise
+# positional, but a nested document needs real options.
+# This is called as __parse_builder_args "<action>" "$@", with "$@" starting at the selector
+__parse_builder_args() {
+  local action=$1
+  shift
+
+  __pubkey_selector=$1
+  __pubkey=$1
+  if [[ -n "$1" ]]; then
+    shift
+  fi
+  if [[ "${action}" = "set-builder" && -n "$1" && "$1" != -* ]]; then
+    __builder_urls=$1
+    shift
+  fi
+  while [[ -n "${1+x}" ]]; do
+    case "$1" in
+      --json)
+        __json_out=1
+        shift
+        ;;
+      --json-body)
+        if [[ -z "${2+x}" ]]; then
+          echo "--from-json needs a file name"
+          exit 1
+        fi
+        __json_body=$2
+        shift 2
+        ;;
+      --from-json)
+        echo "--from-json should have been turned into the file contents by ethd. This is a bug, please report."
+        exit 70
+        ;;
+      --min-bid)
+        if [[ -z "${2+x}" ]]; then
+          echo "--min-bid needs a value in ETH, for example 0.01"
+          exit 1
+        fi
+        __min_bid=$2
+        shift 2
+        ;;
+      --boost-factor)
+        if [[ -z "${2+x}" ]]; then
+          echo "--boost-factor needs a value: \"local\", \"maxprofit\", \"always\", or a number"
+          exit 1
+        fi
+        __boost_factor=$2
+        shift 2
+        ;;
+      --debug|--trace)
+        shift
+        ;;
+      *)
+        echo "Error: Unknown option for ${action}: $1" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
+
+builder-get() {
+  __check_pubkey "${__pubkey}"
+  __get_token
+  __api_path="eth/v1/validator/${__pubkey}/builder_config"
+  __api_data=""
+  __http_method=GET
+  __call_api
+  case "${__code}" in
+    200)
+      if [[ "${__json_out}" -eq 1 ]]; then
+        echo "${__result}" | jq '.data'
+      else
+        echo "The builder configuration in effect for the validator with public key ${__pubkey} is:"
+        echo "${__result}" | jq -r '.data |
+          "  minimum bid          \(.min_bid // "not set") Gwei",
+          "  boost factor         \(.builder_boost_factor // "not set")",
+          (if (.builders | length) == 0 then "  builders             none, this validator uses p2p bids only"
+           else "  builders:", (.builders[] |
+             "    \(.url)"
+             + (if .min_bid then "\n      minimum bid           \(.min_bid) Gwei" else "" end)
+             + (if .max_execution_payment then "\n      max execution payment \(.max_execution_payment) Gwei" else "" end)
+             + (if .builder_boost_factor then "\n      boost factor          \(.builder_boost_factor)" else "" end)
+             + (if (.builder_pubkeys // [] | length) > 0 then "\n      builder pubkeys       \(.builder_pubkeys | join(", "))" else "" end))
+           end)'
+        echo
+        echo "This is the resolved configuration: values this validator does not set of its own are"
+        echo "shown as the validator client will use them. Storing it back with set-builder --from-json"
+        echo "fixes those values, instead of leaving them to follow EPBS_* in .env."
+      fi
+      exit 0;;
+    400) echo "The pubkey was formatted wrong. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
+    401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
+    403) echo "The authorization token is invalid. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
+    404|405|501)
+      echo "The ${__service} client did not serve the builder configuration API."
+      echo "Either it does not support it yet, or the validator with public key ${__pubkey} is not known to it."
+      echo "Message: $(__print_jq_message "${__result}" '.message')"
+      exit 0;;
+    500) echo "Internal server error. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
+    *) echo "Unexpected return code ${__code}. Result: ${__result}"; exit 1;;
+  esac
+}
+
+
+builder-set() {
+  local updated=0
+
+  if [[ -n "${__json_body}" ]]; then
+    if [[ -n "${__builder_urls}" || -n "${__min_bid}" || -n "${__boost_factor}" ]]; then
+      echo "--from-json replaces the whole builder configuration, so it cannot be combined with"
+      echo "a builder url list, --min-bid, or --boost-factor. Please edit the JSON instead."
+      exit 0
+    fi
+    echo "${__json_body}" >/tmp/builder-patch.json
+    __builder_check_document /tmp/builder-patch.json
+  else
+    if [[ -z "${__builder_urls}" && -z "${__min_bid}" && -z "${__boost_factor}" ]]; then
+      echo "Please specify what to set: a builder url list, \"none\", --min-bid, --boost-factor,"
+      echo "or a whole configuration with --from-json."
+      exit 0
+    fi
+    __builder_patch
+  fi
+
+  __pubkeys_to_array "${__pubkey_selector}" "set the builder configuration"
+  __get_token
+  for __pubkey in "${__pubkeys[@]}"; do
+    if [[ -n "${__json_body}" ]]; then
+      cp /tmp/builder-patch.json /tmp/apidata.txt
+    else
+# The API replaces the configuration in full, so merge the patch onto what is there now.
+# jq's * merges objects and replaces arrays, which is what we want for the builders list.
+      __api_path="eth/v1/validator/${__pubkey}/builder_config"
+      __api_data=""
+      __http_method=GET
+      __call_api
+      case "${__code}" in
+        200) echo "${__result}" | jq '.data' >/tmp/builder-current.json;;
+        404) echo '{}' >/tmp/builder-current.json;;
+        401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
+        403) echo "The authorization token is invalid. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
+        *) echo "Unexpected return code ${__code} while reading the builder configuration for ${__pubkey}. Result: ${__result}"; exit 1;;
+      esac
+      jq -n --slurpfile cur /tmp/builder-current.json --slurpfile patch /tmp/builder-patch.json \
+        '($cur[0] // {}) * $patch[0]' >/tmp/apidata.txt
+      __builder_check_document /tmp/apidata.txt
+    fi
+
+    __api_path="eth/v1/validator/${__pubkey}/builder_config"
+    __api_data=@/tmp/apidata.txt
+    __http_method=POST
+    __call_api
+    case "${__code}" in
+      202)
+        echo "The builder configuration for the validator with public key ${__pubkey} was updated."
+        if [[ -z "${__json_body}" ]]; then
+          __builder_report_pinned /tmp/apidata.txt
+        fi
+        (( updated++ ))
+        ;;
+      400) echo "The configuration was rejected for ${__pubkey}. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
+      401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
+      403) echo "The authorization token is invalid. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
+      404|405|501)
+        echo "The ${__service} client did not serve the builder configuration API."
+        echo "Either it does not support it yet, or the validator with public key ${__pubkey} is not known to it."
+        echo "Message: $(__print_jq_message "${__result}" '.message')"
+        exit 0;;
+      500) echo "Internal server error. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
+      *) echo "Unexpected return code ${__code}. Result: ${__result}"; exit 1;;
+    esac
+  done
+  if [[ "${#__pubkeys[@]}" -gt 1 ]]; then
+    echo "Updated the builder configuration for ${updated} of ${#__pubkeys[@]} validators."
+  fi
+  exit 0
+}
+
+
+builder-delete() {
+  local deleted=0
+
+  __pubkeys_to_array "${__pubkey_selector}" "delete the builder configuration"
+  __get_token
+  for __pubkey in "${__pubkeys[@]}"; do
+    __api_path="eth/v1/validator/${__pubkey}/builder_config"
+    __api_data=""
+    __http_method=DELETE
+    __call_api
+    case "${__code}" in
+      204) echo "The builder configuration for the validator with public key ${__pubkey} was removed, and it follows EPBS_* in .env again."; (( deleted++ ));;
+      400) echo "The pubkey was formatted wrong. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
+      401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
+      403) echo "A builder configuration was found, but cannot be deleted. It may be in a configuration file. Message: $(__print_jq_message "${__result}" '.message')";;
+      404|405|501)
+        echo "The ${__service} client did not serve the builder configuration API."
+        echo "Either it does not support it yet, or the validator with public key ${__pubkey} is not known to it."
+        echo "Message: $(__print_jq_message "${__result}" '.message')"
+        exit 0;;
+      500) echo "Internal server error. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
+      *) echo "Unexpected return code ${__code}. Result: ${__result}"; exit 1;;
+    esac
+  done
+  if [[ "${#__pubkeys[@]}" -gt 1 ]]; then
+    echo "Removed the builder configuration for ${deleted} of ${#__pubkeys[@]} validators."
+  fi
+  exit 0
 }
 
 
@@ -1365,6 +1807,41 @@ usage() {
   echo "  delete-graffiti 0xPUBKEY"
   echo "      Delete individual graffiti for the validator with public key 0xPUBKEY"
   echo
+  echo "  get-builder 0xPUBKEY [--json]"
+  echo "      Show the builder configuration in effect for the validator with public key 0xPUBKEY"
+  echo "      Validators will use EPBS_BUILDER_URLS, EPBS_MIN_BID and EPBS_BUILD_FACTOR in .env"
+  echo "      by default, if not set individually"
+  echo "      This is the resolved configuration: values this validator does not set of its own"
+  echo "      are shown as the validator client will use them"
+  echo "      \"--json\" prints it as the JSON that set-builder --from-json expects. Storing it"
+  echo "      back fixes those values, instead of leaving them to follow .env"
+  echo "  set-builder 0xPUBKEY | all | 0xPUBKEY,0xPUBKEY URL[,URL...] | none [OPTIONS]"
+  echo "      Set the builders for the validator with public key 0xPUBKEY, from a comma-separated"
+  echo "      list of URLs, in the same format as EPBS_BUILDER_URLS in .env"
+  echo "      \"all\" sets all detected validators, and a comma-separated list of public keys"
+  echo "      sets just those"
+  echo "      \"none\" stores a configuration that uses no builders, so the validator uses p2p"
+  echo "      bids only. This is not the same as delete-builder, which follows .env again"
+  echo "      Options, which can also be given on their own to change only that value:"
+  echo "        --min-bid ETH"
+  echo "            Minimum bid to accept, in ETH, for example 0.01. The JSON uses Gwei"
+  echo "        --boost-factor local | maxprofit | always | NUMBER"
+  echo "            How to weigh builder bids against a locally built block."
+  echo "            \"local\" prefers the local block, \"maxprofit\" takes whichever pays more,"
+  echo "            \"always\" prefers the builder. A number is a percentage multiplier, where"
+  echo "            below 100 disfavors builders and above 100 favors them."
+  echo "            Note this is not the same scale as EPBS_BUILD_FACTOR in .env, where 100"
+  echo "            means \"always\" and here it means \"maxprofit\""
+  echo "        --from-json FILE | -"
+  echo "            Set the whole configuration from a JSON file, or \"-\" for standard input."
+  echo "            Use this for builder pubkeys, authentication data, per-builder payment caps"
+  echo "            and per-builder boost factors, which the options above do not cover."
+  echo "            This replaces the configuration in full and cannot be combined with the"
+  echo "            options above. Start from \"get-builder 0xPUBKEY --json\""
+  echo "  delete-builder 0xPUBKEY | all | 0xPUBKEY,0xPUBKEY"
+  echo "      Delete the individual builder configuration, so the validator follows EPBS_BUILDER_URLS,"
+  echo "      EPBS_MIN_BID and EPBS_BUILD_FACTOR in .env again"
+  echo
   echo "  get-api-token"
   echo "      Print the token for the keymanager API running on port ${__api_port}."
   echo "      This is also the token for the Prysm Web UI"
@@ -1536,6 +2013,21 @@ case "$3" in
   delete-graffiti)
     __pubkey=$4
     graffiti-delete
+    ;;
+  get-builder)
+    shift 3
+    __parse_builder_args get-builder "$@"
+    builder-get
+    ;;
+  set-builder)
+    shift 3
+    __parse_builder_args set-builder "$@"
+    builder-set
+    ;;
+  delete-builder)
+    shift 3
+    __parse_builder_args delete-builder "$@"
+    builder-delete
     ;;
   sign-exit)
     __pubkey=$4

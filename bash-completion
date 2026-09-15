@@ -13,7 +13,7 @@ completions() {
                     COMPREPLY=($(docker container ls --filter "name=eth-docker-*" --format "{{.Names}}" | sed 's/eth-docker-\(.*\)-[0-9]/\1/'))
                 ;;
                 keys)
-                    COMPREPLY=($(compgen -W "list import delete register get-recipient set-recipient delete-recipient get-gas set-gas delete-gas get-api-token create-prysm-wallet get-prysm-wallet prepare-address-change send-address-change sign-exit send-exit" -- ${cur}))
+                    COMPREPLY=($(compgen -W "list count import delete register create-for-csm get-recipient set-recipient delete-recipient get-gas set-gas delete-gas get-graffiti set-graffiti delete-graffiti get-builder set-builder delete-builder get-api-token create-prysm-wallet get-prysm-wallet get-grandine-wallet prepare-address-change send-address-change sign-exit send-exit" -- ${cur}))
                 ;;
                 *)
                     COMPREPLY=()
