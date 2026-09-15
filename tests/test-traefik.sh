@@ -97,7 +97,7 @@ run_ddns() {
     --env-file "${env_file}" \
     run "$@" -T --rm ddns 2>&1 || true
 
-  docker container ls -a -q --filter "label=com.docker.compose.service=ddns" --filter "name=ddns-run" | xargs -r docker container rm -f 2>/dev/null || true
+  docker container ls -a -q --filter "label=com.docker.compose.service=ddns" --filter "name=^ddns-run" | xargs -r docker container rm -f 2>/dev/null || true
 }
 
 # ============================================================================

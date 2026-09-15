@@ -71,6 +71,9 @@ __free_space=0
 __docker_dir="/var/lib/docker"
 __keys_args=""
 __final_msg=""
+__compose_project=""  # Compose project name, set by __get_compose_project_name
+__compose_project_exact=0  # 1 once read back from Compose itself
+__volumes=()  # This is a global to hand a result back from __project_volumes
 
 
 __dodocker() {
@@ -82,6 +85,103 @@ __docompose() {
 # I want word splitting here
 # shellcheck disable=SC2086
   ${__docker_sudo} ${__compose_exe} "$@"
+}
+
+
+# Sets __compose_project to this install's Compose project name, which is what
+# prefixes the name of every volume Compose creates here.
+#
+# Read back from Compose's own resolution, the same way __set_alloy_project_name
+# does it, and never computed independently: Compose normalizes the directory
+# name, stripping "." and anything else that is legal in a directory name but
+# not in a project name, so deriving it by hand yields a name Compose never
+# used. Do not add "--no-normalize" to "config", it suppresses the "name:" line.
+#
+# Compose needs .env to find COMPOSE_FILE, and terminate, config and cmd can all
+# run without one. Without it, emulate Compose's own NormalizeProjectName:
+# lowercase, keep only [a-z0-9_-], trim leading "_" and "-". A fallback result
+# is not cached, so a later call still gets the exact name once .env exists.
+__get_compose_project_name() {
+  local name
+
+  if [[ "${__compose_project_exact}" -eq 1 ]]; then
+    return 0
+  fi
+
+  name=$(__docompose config 2>/dev/null \
+    | awk -F': ' '/^name:/{print $2; exit}') || name=""
+  if [[ -n "${name}" ]]; then
+    __compose_project="${name}"
+    __compose_project_exact=1
+    return 0
+  fi
+
+  name="${COMPOSE_PROJECT_NAME:-}"
+  if [[ -z "${name}" && -f "${__env_file}" ]]; then
+    __get_value_from_env "COMPOSE_PROJECT_NAME" "${__env_file}" "__value"
+    name="${__value}"
+  fi
+  if [[ -z "${name}" ]]; then
+    name="$(basename "$(realpath .)")"
+  fi
+  __compose_project=$(printf '%s' "${name}" | tr '[:upper:]' '[:lower:]' \
+    | tr -cd 'a-z0-9_-' | sed -E 's/^[_-]+//')
+}
+
+
+# Does a Docker volume by exactly this name exist?
+#
+# "docker volume ls -f name=" takes an unanchored Go regexp, so it also matches
+# another install's test-eth-docker_jwtsecret when asked for eth-docker_jwtsecret,
+# and treats a "." in the name as a wildcard that anchoring does not fix. It must
+# never be used to look up a specific volume. "volume inspect" matches literally.
+__volume_exists() {
+  __dodocker volume inspect "$1" >/dev/null 2>&1
+}
+
+
+# Sets __volumes to every Docker volume belonging to this copy of the project.
+#
+# Compose labels the volumes it creates with the project name, and the label
+# filter is an exact match rather than a regex. Volumes ethd creates itself get
+# an io.ethdocker.project label for the same reason. A volume with neither label
+# predates that - a backup volume from an older ethd - so fall back to a literal
+# name prefix, a bash glob in which "." is an ordinary character, keeping the
+# "no further _ in the volume name" rule so that a sibling install named
+# <project>_2 is never caught here. That matters: terminate deletes this list.
+__project_volumes() {
+  local name
+  local compose_label
+  local ethd_label
+  local suffix
+
+  __volumes=()
+  __get_compose_project_name
+  if [[ -z "${__compose_project}" ]]; then
+    return 0
+  fi
+
+  while IFS=$'\t' read -r name compose_label ethd_label; do
+    if [[ -z "${name}" ]]; then
+      continue
+    fi
+    if [[ -n "${compose_label}" ]]; then
+      if [[ "${compose_label}" = "${__compose_project}" ]]; then
+        __volumes+=("${name}")
+      fi
+    elif [[ -n "${ethd_label}" ]]; then
+      if [[ "${ethd_label}" = "${__compose_project}" ]]; then
+        __volumes+=("${name}")
+      fi
+    elif [[ "${name}" == "${__compose_project}_"* ]]; then
+      suffix="${name#"${__compose_project}_"}"
+      if [[ "${suffix}" != *_* ]]; then
+        __volumes+=("${name}")
+      fi
+    fi
+  done < <(__dodocker volume ls --format \
+    '{{.Name}}'$'\t''{{.Label "com.docker.compose.project"}}'$'\t''{{.Label "io.ethdocker.project"}}')
+  return 0
 }
 
 
@@ -1250,14 +1350,24 @@ __display_docker_dir() {
 
 
 __display_docker_volumes() {
+  local names
+
   echo
-  # Assume project name and volume are delimited by _ and there is no _ in the volume name. Done to avoid catching project-2 while looking at project
-  if [[ -z "$(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_[^_]+$")" ]]; then
+  __project_volumes
+  if [[ "${#__volumes[@]}" -eq 0 ]]; then
     echo "There are no Docker volumes for this copy of ${__project_name}"
     echo
   else
     echo "Here are the Docker volumes used by this copy of ${__project_name} and their space usage:"
-    __dodocker system df -v | grep -A 500 "VOLUME NAME" | grep -iE "^$(basename "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")_[^_]+$"
+    # Match the volume column against the names we already resolved, rather than
+    # regexing the table. "grep -A 500" also truncated it on a busy host.
+    names=$(printf '%s\n' "${__volumes[@]}")
+    __dodocker system df -v | awk -v names="${names}" '
+      BEGIN { n = split(names, a, "\n"); for (i = 1; i <= n; i++) want[a[i]] = 1 }
+      /^VOLUME NAME/ { in_volumes = 1; next }
+      in_volumes && NF == 0 { in_volumes = 0; next }
+      in_volumes && ($1 in want)
+    '
     echo
     echo "If your Consensus Layer client takes more than 300 GiB, you can resync it with"
     echo "\"${__me} resync-consensus\"."
@@ -1625,8 +1735,9 @@ __upgrade_postgres() {
     return 0
   fi
 
-  source_vol="$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]')_web3signer-slashing-data"
-  if [[ -z "$(__dodocker volume ls -q -f "name=${source_vol}")" ]]; then
+  __get_compose_project_name
+  source_vol="${__compose_project}_web3signer-slashing-data"
+  if ! __volume_exists "${source_vol}"; then
     return 0
   fi
 
@@ -1674,8 +1785,8 @@ __upgrade_postgres() {
     return 1
   fi
 
-  backup_vol="$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]')_web3signer-slashing-data-pg${source_pg}-backup"
-  if [[ -n "$(__dodocker volume ls -q -f "name=${backup_vol}")" ]]; then
+  backup_vol="${__compose_project}_web3signer-slashing-data-pg${source_pg}-backup"
+  if __volume_exists "${backup_vol}"; then
     echo "PostgreSQL upgrade was aborted. A backup volume ${backup_vol} already exists,"
     echo "and you are on PostgreSQL ${source_pg}. This suggests a failed upgrade previously."
     echo "Upgrading PostgreSQL isn't safe."
@@ -1689,7 +1800,7 @@ __upgrade_postgres() {
   __docompose stop postgres && __docompose rm -f postgres
 
   echo "Copying data in web3signer-slashing-data volume to backup"
-  __dodocker volume create "${backup_vol}"
+  __dodocker volume create --label "io.ethdocker.project=${__compose_project}" "${backup_vol}"
   __dodocker run --rm -v "${source_vol}":"/var/lib/postgres-data" \
     -v "${backup_vol}":"/var/lib/pg-backup" \
     alpine:3 cp -a /var/lib/postgres-data/. /var/lib/pg-backup
@@ -1736,8 +1847,9 @@ __check_teku_db_version() {
     *) return 0;;
   esac
 
-  volume_name="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_${teku_volume}"
-  if [[ -z "$(__dodocker volume ls -q -f "name=${volume_name}")" ]]; then
+  __get_compose_project_name
+  volume_name="${__compose_project}_${teku_volume}"
+  if ! __volume_exists "${volume_name}"; then
     return 0
   fi
 
@@ -2997,8 +3109,6 @@ resync-execution() {
   local el_client
   local extra_msg
   local yn
-  local volume_id
-  local legacy_volume
 
 # Check for EL client
   __value="${COMPOSE_FILE}"
@@ -3047,8 +3157,9 @@ resync-execution() {
     *) echo "You do not appear to be running an execution layer client. Nothing to do."; return 0;;
   esac
 
-  if [[ ! "${el_volume}" = "wipe-el-db" ]] && ! __dodocker volume ls -q \
-      | grep -qi "$(basename "$(realpath .)")[_-]${el_volume}"; then
+  __get_compose_project_name
+  if [[ ! "${el_volume}" = "wipe-el-db" ]] \
+      && ! __volume_exists "${__compose_project}_${el_volume}"; then
     echo "Did not find Docker volume for ${el_client}. Nothing to do."
     return 0
   fi
@@ -3075,21 +3186,14 @@ resync-execution() {
   if [[ "${el_volume}" = "wipe-el-db" ]]; then
     __docompose run --rm wipe-el-db
   else
-    el_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_${el_volume}"
-    __dodocker volume rm "$(__dodocker volume ls -q -f "name=${el_volume}")"
-    volume_id=""
+    el_volume="${__compose_project}_${el_volume}"
+    __dodocker volume rm -f "${el_volume}" >/dev/null
     if [[ "${el_volume}" =~ geth-el-data ]]; then
-      legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_geth-eth1-data"
-      volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
+      __dodocker volume rm -f "${__compose_project}_geth-eth1-data" >/dev/null
     elif [[ "${el_volume}" =~ besu-el-data ]]; then
-      legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_besu-eth1-data"
-      volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
+      __dodocker volume rm -f "${__compose_project}_besu-eth1-data" >/dev/null
     elif [[ "${el_volume}" =~ nethermind-el-data ]]; then
-      legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_nm-eth1-data"
-      volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
-    fi
-    if [[ -n "${volume_id}" ]]; then
-      __dodocker volume rm "${volume_id}"
+      __dodocker volume rm -f "${__compose_project}_nm-eth1-data" >/dev/null
     fi
   fi
   var="ANCIENT_DIR"
@@ -3109,8 +3213,6 @@ resync-execution() {
 resync-consensus() {
   local cl_volume
   local cl_client
-  local volume_id
-  local legacy_volume
   local yn
 
   # Check for CL client
@@ -3132,8 +3234,9 @@ resync-consensus() {
     *) echo "You do not appear to be running a consensus layer client. Nothing to do."; return;;
   esac
 
-  if [[ ! "${cl_volume}" = "wipe-cl-db" ]] && ! __dodocker volume ls -q \
-      | grep -qi "$(basename "$(realpath .)")[_-]${cl_volume}"; then
+  __get_compose_project_name
+  if [[ ! "${cl_volume}" = "wipe-cl-db" ]] \
+      && ! __volume_exists "${__compose_project}_${cl_volume}"; then
     echo "Did not find Docker volume for ${cl_client}. Nothing to do."
     return 0
   fi
@@ -3165,18 +3268,12 @@ resync-consensus() {
   if [[ "${cl_volume}" = "wipe-cl-db" ]]; then
     __docompose run --rm wipe-cl-db
   else
-    cl_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_${cl_volume}"
-    __dodocker volume rm "$(__dodocker volume ls -q -f "name=${cl_volume}")"
-    volume_id=""
+    cl_volume="${__compose_project}_${cl_volume}"
+    __dodocker volume rm -f "${cl_volume}" >/dev/null
     if [[ "${cl_volume}" =~ lhconsensus-data ]]; then
-      legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_lhbeacon-data"
-      volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
+      __dodocker volume rm -f "${__compose_project}_lhbeacon-data" >/dev/null
     elif [[ "${cl_volume}" =~ prysmconsensus-data ]]; then
-      legacy_volume="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_prysmbeacon-data"
-      volume_id="$(__dodocker volume ls -q -f "name=${legacy_volume}")"
-    fi
-    if [[ -n "${volume_id}" ]]; then
-      __dodocker volume rm "${volume_id}"
+      __dodocker volume rm -f "${__compose_project}_prysmbeacon-data" >/dev/null
     fi
   fi
   echo
@@ -3194,9 +3291,14 @@ attach-geth() {
     echo "You do not appear to be using Geth, aborting."
     exit 1
   fi
-  legacy_datadir=$(__dodocker run --rm -v "$(__dodocker volume ls -q -f \
-    "name=$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')[_-]geth-eth1-data")":"/var/lib/goethereum" \
-    alpine:3 sh -c 'if [ -d "/var/lib/goethereum/geth/chaindata" ]; then echo true; else echo false; fi')
+  __get_compose_project_name
+  if ! __volume_exists "${__compose_project}_geth-eth1-data"; then
+    legacy_datadir="false"
+  else
+    legacy_datadir=$(__dodocker run --rm \
+      -v "${__compose_project}_geth-eth1-data":"/var/lib/goethereum" \
+      alpine:3 sh -c 'if [ -d "/var/lib/goethereum/geth/chaindata" ]; then echo true; else echo false; fi')
+  fi
 
   if [[ "${legacy_datadir}" = "true" ]]; then
     __docompose exec -it execution bash -c "geth attach /var/lib/goethereum/geth.ipc"
@@ -4499,7 +4601,7 @@ keys() {
           exit;
       }
       ')"
-    if ! __dodocker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q "vc-utils:local"; then
+    if ! __dodocker image ls --format "{{.Repository}}:{{.Tag}}" | grep -qxF "vc-utils:local"; then
       if ! dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
         __dodocker build -t vc-utils:local ./vc-utils
       else
@@ -4540,8 +4642,9 @@ __adjust_grandine_permissions() {
     datadir_owner=10002
   fi
 
-  datadir_volume="$(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_grandineconsensus-data$")"
-  if [[ -z "${datadir_volume}" ]]; then
+  __get_compose_project_name
+  datadir_volume="${__compose_project}_grandineconsensus-data"
+  if ! __volume_exists "${datadir_volume}"; then
     return 0
   fi
 
@@ -4667,8 +4770,8 @@ terminate() {
   local yn
   local message
 
-  # Assume project name and volume are delimited by _ and there is no _ in the volume name. Done to avoid catching project-2 while looking at project
-  if [[ -z "$(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_[^_]+$")" ]]; then
+  __project_volumes
+  if [[ "${#__volumes[@]}" -eq 0 ]]; then
     echo "There are no data stores - Docker volumes - left to remove for this Ethereum node."
     if [[ -f "${__env_file}" ]]; then
       stop
@@ -4692,9 +4795,12 @@ terminate() {
     message="All volumes deleted. ${__project_name} is not configured, so no containers could be stopped."
   fi
 
-# In this case I want the word splitting, so rm can remove all volumes
-# shellcheck disable=SC2046
-  __dodocker volume rm $(__dodocker volume ls -q -f "name=^$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')_[^_]+$")
+  # Re-read, so the delete acts on current state rather than on a list taken
+  # before the confirmation prompt and the stop
+  __project_volumes
+  if [[ "${#__volumes[@]}" -gt 0 ]]; then
+    __dodocker volume rm "${__volumes[@]}"
+  fi
   echo
   echo "${message}"
   echo
@@ -6166,6 +6272,7 @@ __handle_error() {
   local exitstatus=$1
   local line=$2
   local calling_line=$3
+  local w3s_vol
 
   if [[ -f /tmp/"${__lock_file}" ]]; then
     ${__as_owner} rm -f "/tmp/${__lock_file}"
@@ -6205,6 +6312,13 @@ __handle_error() {
   fi
   if [[ "${__during_postgres}" -eq 1 ]]; then
     echo
+    # __upgrade_postgres resolved the project name before it set __during_postgres,
+    # so this is cached and never shells out to Compose while unwinding an error.
+    __get_compose_project_name
+    w3s_vol="${__compose_project}_web3signer-keys"
+    if ! __volume_exists "${w3s_vol}"; then
+      w3s_vol=""
+    fi
     if [[ "${__during_pg_migrate}" -eq 1 && "${__pg_migrated}" -eq 0 ]]; then
       echo "Web3signer slashing protection database migration failed, while switching to the migrated data."
       echo
@@ -6213,8 +6327,10 @@ __handle_error() {
       echo "Please look through the upgrade messages and remedy the fault."
       echo
       echo "Marking Web3signer as unsafe to start."
-      __dodocker run --rm -v "$(__dodocker volume ls -q -f "name=web3signer-keys")":/var/lib/web3signer \
-        alpine:3 touch /var/lib/web3signer/.migration_fatal_error
+      if [[ -n "${w3s_vol}" ]]; then
+        __dodocker run --rm -v "${w3s_vol}":/var/lib/web3signer \
+          alpine:3 touch /var/lib/web3signer/.migration_fatal_error || true
+      fi
     elif [[ "${__pg_migrated}" -eq 1 ]]; then
       echo "Web3signer slashing protection database migration failed, after switching to the migrated data."
       echo
@@ -6223,18 +6339,20 @@ __handle_error() {
       echo "Please look through the upgrade messages and remedy the fault."
       echo
       echo "Marking Web3signer with a migration error."
-      __dodocker run --rm -v "$(__dodocker volume ls -q -f "name=web3signer-keys")":/var/lib/web3signer \
-        alpine:3 touch /var/lib/web3signer/.migration_error
+      if [[ -n "${w3s_vol}" ]]; then
+        __dodocker run --rm -v "${w3s_vol}":/var/lib/web3signer \
+          alpine:3 touch /var/lib/web3signer/.migration_error || true
+      fi
     else
-      if __dodocker run --rm -v "$(__dodocker volume ls -q -f "name=web3signer-keys")":/var/lib/web3signer \
+      if [[ -n "${w3s_vol}" ]] && __dodocker run --rm -v "${w3s_vol}":/var/lib/web3signer \
         alpine:3 [ -f /var/lib/web3signer/.migration_error ]; then
         echo "A previous PostgreSQL upgrade attempt failed after switching to the migrated data, and while switching"
-        echo "to PostgreSQL ${__target_pg} in \"${__env_file}\"."__
+        echo "to PostgreSQL ${__target_pg} in \"${__env_file}\"."
         echo "Web3signer has a marker file \".migration_error\" inside its Docker volume."
         echo
         echo "Please look through the upgrade messages and remedy the fault."
         echo "And only then remove the marker file in the volume."
-      elif __dodocker run --rm -v "$(__dodocker volume ls -q -f "name=web3signer-keys")":/var/lib/web3signer \
+      elif [[ -n "${w3s_vol}" ]] && __dodocker run --rm -v "${w3s_vol}":/var/lib/web3signer \
         alpine:3 [ -f /var/lib/web3signer/.migration_fatal_error ]; then
         echo "A previous PostgreSQL upgrade attempt failed and left you unprotected by slashing data."
         echo "Web3signer is marked as unsafe to start, by the file \".migration_fatal_error\" inside its Docker volume"

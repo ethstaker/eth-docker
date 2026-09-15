@@ -10,7 +10,9 @@ completions() {
         2)
             case ${prev} in
                 logs|restart|down|stop)
-                    COMPREPLY=($(docker container ls --filter "name=eth-docker-*" --format "{{.Names}}" | sed 's/eth-docker-\(.*\)-[0-9]/\1/'))
+                    # Ask Compose for this project's services. "--filter name="
+                    # is an unanchored regex, and it hardcoded the project name.
+                    COMPREPLY=($(compgen -W "$(docker compose ps --services 2>/dev/null)" -- ${cur}))
                 ;;
                 keys)
                     COMPREPLY=($(compgen -W "list import delete register get-recipient set-recipient delete-recipient get-gas set-gas delete-gas get-api-token create-prysm-wallet get-prysm-wallet prepare-address-change send-address-change sign-exit send-exit" -- ${cur}))
