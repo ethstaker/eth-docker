@@ -1761,6 +1761,44 @@ __check_mev_boost() {
 }
 
 
+# Remove after Glamsterdam, with full MPlex deprecation
+__warn_mplex() {
+  local clients
+  local regex
+  local var
+  local quic_port
+  local p2p_port
+  local p2p_disc_port
+
+  clients='prysm|lighthouse|lodestar|nimbus|nimbus-unified|teku|grandine|grandine-plugin|caplin'
+  regex="(${clients})(-cl-only)?(-allin1)?\.yml"  # Would match files that don't exist, which is harmless
+
+  if [[ "${COMPOSE_FILE}" =~ ${regex} ]]; then
+    if [[ "${COMPOSE_FILE}" =~ prysm ]]; then
+      var=PRYSM_PORT
+    else
+      var=CL_P2P_PORT
+    fi
+    __get_value_from_env "${var}" "${__env_file}" "__value"
+    p2p_port="${__value}"
+    if [[ "${COMPOSE_FILE}" =~ prysm ]]; then
+      var=PRYSM_UDP_PORT
+    else
+      var=CL_P2P_PORT
+    fi
+    __get_value_from_env "${var}" "${__env_file}" "__value"
+    p2p_disc_port="${__value}"
+    var=CL_QUIC_PORT
+    __get_value_from_env "${var}" "${__env_file}" "__value"
+    quic_port="${__value}"
+
+    __final_msg+="\nNOTE: Sometime after Glamsterdam, likely Q1 2027, your Consensus Layer Client will drop use of its P2P TCP port and only use QUIC UDP."
+    __final_msg+="\nEnsure that QUIC port ${quic_port} UDP is port-forwarded and allowed by your firewall."
+    __final_msg+="\nYou won't need MPlex port ${p2p_port} TCP any more, but you still DO need discovery port ${p2p_disc_port} UDP.\n"
+  fi
+}
+
+
 repair-reth() {
   local yn
 
@@ -2902,6 +2940,8 @@ reset to defaults."
   __nag_os_version
   __nag_os_update
   __upgrade_docker
+# Remove after Glamsterdam when fully deprecating MPLex
+  __warn_mplex
 
   unset ETHDSECUNDO
   unset GITEXITCODE
