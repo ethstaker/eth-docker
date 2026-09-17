@@ -22,7 +22,7 @@ services:
     pull_policy: never
     user: besu
     environment:
-      - JAVA_OPTS=${BESU_HEAP:--Xmx5g}
+      - JAVA_OPTS=${BESU_HEAP:--Xmx6g}
       - JWT_SECRET=${JWT_SECRET:-}
       - EL_EXTRAS=${EL_EXTRAS:-}
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
