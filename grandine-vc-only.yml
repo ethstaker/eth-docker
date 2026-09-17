@@ -17,90 +17,55 @@ x-build: &gr-build
     - DOCKER_REPO=${GRANDINE_DOCKER_REPO:-sifrai/grandine}
 
 services:
-  consensus:
+  validator:
     restart: "unless-stopped"
     build:
       <<: *gr-build
     image: grandine:local
     pull_policy: never
-    user: gdconsensus
+    user: gdvalidator
     stop_grace_period: 1m
     volumes:
-      - grandineconsensus-data:/var/lib/grandine
+      - grandinevalidator-data:/var/lib/grandine-vc
       - /etc/localtime:/etc/localtime:ro
-      - jwtsecret:/var/lib/grandine/ee-secret
     environment:
-      - CHECKPOINT_SYNC_URL=${CHECKPOINT_SYNC_URL}
-      - JWT_SECRET=${JWT_SECRET}
       - MEV_BOOST=${MEV_BOOST}
       - EPBS_BUILDERS=${EPBS_BUILDERS}
       - EPBS_BUILDER_URLS=${EPBS_BUILDER_URLS}
       - EPBS_BUILD_FACTOR=${EPBS_BUILD_FACTOR}
-      - MEV_NODE=${MEV_NODE}
-      - BEACON_STATS_API=${BEACON_STATS_API}
-      - BEACON_STATS_MACHINE=${BEACON_STATS_MACHINE}
-      - EMBEDDED_VC=true
-      - CL_EXTRAS=${CL_EXTRAS:-}
       - VC_EXTRAS=${VC_EXTRAS:-}
       - GRAFFITI=${GRAFFITI:-}
       - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
       - WEB3SIGNER=${WEB3SIGNER:-false}
       - W3S_NODE=${W3S_NODE}
       - DOPPELGANGER=${DOPPELGANGER:-false}
-      - NODE_TYPE=${CL_NODE_TYPE:-pruned}
-      - IPV6=${IPV6:-false}
-      - CL_P2P_PORT=${CL_P2P_PORT:-9000}
-      - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}
       - NETWORK=${NETWORK}
-      - COMPOSE_FILE=${COMPOSE_FILE}
       - LOG_LEVEL=${LOG_LEVEL}
       - RUST_LOG=${LOG_LEVEL:-info}
-    ports:
-      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
-      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
-      - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp
     networks:
       default:
         aliases:
-          - eth2
           # This allows multiple Eth Docker stacks all connected to the same bridge network
-          - ${CL_ALIAS:-default-consensus}
+          - ${VC_ALIAS:-vc}
     <<: *logging
     entrypoint:
-      - docker-entrypoint.sh
+      - docker-entrypoint-vc.sh
       - grandine
-      - --disable-upnp
+      - vc
       - --data-dir
-      - /var/lib/grandine
-      - --http-address
-      - 0.0.0.0
-      - --http-port
-      - ${CL_REST_PORT:-5052}
-      - --http-allowed-origins=*
-      - --listen-address
-      - 0.0.0.0
-      - --libp2p-port
-      - ${CL_P2P_PORT:-9000}
-      - --discovery-port
-      - ${CL_P2P_PORT:-9000}
-      - --quic-port
-      - ${CL_QUIC_PORT:-9001}
-      - ${CL_MAX_PEER_COUNT:+--target-peers}
-      - ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}
-      - --eth1-rpc-urls
-      - ${EL_NODE}
-      - --jwt-secret
-      - /var/lib/grandine/ee-secret/jwtsecret
+      - /var/lib/grandine-vc
+      - --beacon-node-urls
+      - ${CL_NODE}
       - --metrics
       - --metrics-address
       - 0.0.0.0
       - --metrics-port
-      - "8008"
+      - "8009"
       - --suggested-fee-recipient
       - ${FEE_RECIPIENT}
       - --track-liveness
       - --keystore-storage-password-file
-      - /var/lib/grandine/wallet-password.txt
+      - /var/lib/grandine-vc/wallet-password.txt
       - --enable-validator-api
       - --validator-api-address
       - 0.0.0.0
@@ -110,23 +75,10 @@ services:
     labels:
       - metrics.scrape=true
       - metrics.path=/metrics
-      - metrics.port=8008
-      - metrics.instance=consensus
+      - metrics.port=8009
+      - metrics.instance=validator
       - metrics.network=${NETWORK}
       - logs.collect=true
-
-  wipe-cl-db:
-    profiles: ["tools"]
-    restart: "no"
-    image: alpine:3
-    user: "10002"
-    volumes:
-      - grandineconsensus-data:/var/lib/grandine
-      - /etc/localtime:/etc/localtime:ro
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        rm -rf /var/lib/grandine/${NETWORK}/beacon/*
 
   validator-keys:
     profiles: ["tools"]
@@ -141,7 +93,7 @@ services:
     # for the "keys delete" command.
     user: root
     volumes:
-      - grandineconsensus-data:/var/lib/grandine
+      - grandinevalidator-data:/var/lib/grandine-vc
       - ./.eth/validator_keys:/validator_keys
       - ./.eth/exit_messages:/exit_messages
       - /etc/localtime:/etc/localtime:ro
@@ -152,15 +104,14 @@ services:
       - W3S_NODE=${W3S_NODE}
       - CL_NODE=${CL_NODE}
     depends_on:
-      - consensus
+      - validator
     entrypoint:
       - keymanager.sh
-      - /var/lib/grandine/${NETWORK}/validator/api-token.txt
-      - consensus
+      - /var/lib/grandine-vc/${NETWORK}/validator/api-token.txt
+      - validator
 
 volumes:
-  grandineconsensus-data:
-  jwtsecret:
+  grandinevalidator-data:
 
 networks:
   default:

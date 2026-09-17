@@ -41,7 +41,7 @@ if [[ -O /var/lib/grandine/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/grandine/ee-secret/jwtsecret
 fi
 
-if [[ ! -f /var/lib/grandine/wallet-password.txt ]]; then
+if [[ "${EMBEDDED_VC}" = "true" && ! -f /var/lib/grandine/wallet-password.txt ]]; then
   echo "Creating password for Grandine key wallet"
   head -c 32 /dev/urandom | sha256sum | cut -d' ' -f1 > /var/lib/grandine/wallet-password.txt
 fi
@@ -214,6 +214,9 @@ while true; do
   fi
 done
 
+# Belt and suspenders. Already blanked in the compose yaml, but be sure
+[[ "${EMBEDDED_VC}" = "true" ]] || VC_EXTRAS=""
+
 # Word splitting is desired for the command line parameters
-# shellcheck disable=SC2086
+# shellcheck disable=SC2086,SC2153
 exec "$@" ${__network} ${__w3s_url} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__checkpoint_sync} ${__prune} ${__beacon_stats} ${__ipv6} ${__doppel} ${__trace} ${CL_EXTRAS} ${VC_EXTRAS}

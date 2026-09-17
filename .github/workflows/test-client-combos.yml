@@ -72,15 +72,15 @@ jobs:
           - label1: test-grandine
             label2: test-nimbus-el
             env: |-
-              CORE_FILES=grandine-allin1.yml:nimbus-el.yml:mev-boost.yml
+              CORE_FILES=grandine.yml:nimbus-el.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
-            test_vc: false
+            test_vc: true
           - label1: test-grandine
             label2: na
             env: |-
-              CORE_FILES=grandine-cl-only.yml:lighthouse-vc-only.yml:nimbus-el.yml:mev-boost.yml
+              CORE_FILES=grandine-cl-only.yml:grandine-vc-only.yml:nimbus-el.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
@@ -88,7 +88,7 @@ jobs:
           - label1: test-grandine-plugin
             label2: na
             env: |-
-              CORE_FILES=grandine-plugin.yml:lighthouse-vc-only.yml:nethermind.yml:mev-boost.yml
+              CORE_FILES=grandine-plugin.yml:grandine-vc-only.yml:nethermind.yml:mev-boost.yml
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
               NM_DOCKER_REPO=sifrai/grandine
               NM_DOCKER_TAG=unstable-nethermind

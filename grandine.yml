@@ -103,8 +103,102 @@ services:
       - metrics.network=${NETWORK}
       - logs.collect=true
 
+  validator:
+    restart: "unless-stopped"
+    build:
+      <<: *gr-build
+    image: grandine:local
+    pull_policy: never
+    user: gdvalidator
+    stop_grace_period: 1m
+    volumes:
+      - grandinevalidator-data:/var/lib/grandine-vc
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - MEV_BOOST=${MEV_BOOST}
+      - EPBS_BUILDERS=${EPBS_BUILDERS}
+      - EPBS_BUILDER_URLS=${EPBS_BUILDER_URLS}
+      - EPBS_BUILD_FACTOR=${EPBS_BUILD_FACTOR}
+      - VC_EXTRAS=${VC_EXTRAS:-}
+      - GRAFFITI=${GRAFFITI:-}
+      - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
+      - WEB3SIGNER=${WEB3SIGNER:-false}
+      - W3S_NODE=${W3S_NODE}
+      - DOPPELGANGER=${DOPPELGANGER:-false}
+      - NETWORK=${NETWORK}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - RUST_LOG=${LOG_LEVEL:-info}
+    networks:
+      default:
+        aliases:
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${VC_ALIAS:-vc}
+    <<: *logging
+    entrypoint:
+      - docker-entrypoint-vc.sh
+      - grandine
+      - vc
+      - --data-dir
+      - /var/lib/grandine-vc
+      - --beacon-node-urls
+      - ${CL_NODE}
+      - --metrics
+      - --metrics-address
+      - 0.0.0.0
+      - --metrics-port
+      - "8009"
+      - --suggested-fee-recipient
+      - ${FEE_RECIPIENT}
+      - --track-liveness
+      - --keystore-storage-password-file
+      - /var/lib/grandine-vc/wallet-password.txt
+      - --enable-validator-api
+      - --validator-api-address
+      - 0.0.0.0
+      - --validator-api-port
+      - ${KEY_API_PORT:-7500}
+      - --validator-api-allowed-origins=*
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=8009
+      - metrics.instance=validator
+      - metrics.network=${NETWORK}
+      - logs.collect=true
+
+  validator-keys:
+    profiles: ["tools"]
+    restart: "no"
+    build:
+      context: ./vc-utils
+    image: vc-utils:local
+    pull_policy: never
+    # The API token has 640 permissions. Root copies it,
+    # then switches to the local user's UID or if not provided,
+    # 1000. The UID has to be able to write .eth/validator_keys
+    # for the "keys delete" command.
+    user: root
+    volumes:
+      - grandinevalidator-data:/var/lib/grandine-vc
+      - ./.eth/validator_keys:/validator_keys
+      - ./.eth/exit_messages:/exit_messages
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
+      - KEY_API_PORT=${KEY_API_PORT:-7500}
+      - WEB3SIGNER=${WEB3SIGNER:-false}
+      - W3S_NODE=${W3S_NODE}
+      - CL_NODE=${CL_NODE}
+    depends_on:
+      - validator
+    entrypoint:
+      - keymanager.sh
+      - /var/lib/grandine-vc/${NETWORK}/validator/api-token.txt
+      - validator
+
 volumes:
   grandineconsensus-data:
+  grandinevalidator-data:
   jwtsecret:
 
 networks:
