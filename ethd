@@ -2111,6 +2111,7 @@ __migrate_env() {
   local index
   local var
   local varname
+  local lido_network
 
   if [[ ! -f "${__env_file}" ]]; then
     return 0
@@ -2218,8 +2219,10 @@ __migrate_env() {
       fi
       # Remove after Glamsterdam
       if [[ "${__source_ver}" -lt "69" && "${var}" = "VE_ORACLE_ADDRESSES_ALLOWLIST" && -n "${__value}" ]]; then
-        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
-        __value="$(__lido_oracle_allowlist)"
+        __get_value_from_env "NETWORK" "${__env_file}.source" "lido_network"
+        if [[ "${lido_network}" =~ ^(mainnet|hoodi)$ ]]; then
+          __value="$(__lido_oracle_allowlist "${lido_network}")"
+        fi
       fi
       # Remove after Glamsterdam
       if [[ "${__source_ver}" -lt "59" && "${var}" = "CL_NODE_TYPE" && "${__value}" = "archive"
@@ -5977,10 +5980,11 @@ __set_nethermind_log_index() {
 
 # Lido oracle signer allowlist for the validator-ejector. Since EDF (LIP-37) the oracle members are
 # DelegationContracts and reports are signed by their delegate EOAs, which is what the ejector verifies.
+# Takes the network as an optional argument, defaults to NETWORK.
 __lido_oracle_allowlist() {
   local allowlist
 
-  case "${NETWORK}" in
+  case "${1:-${NETWORK}}" in
     mainnet)
       allowlist='["0x73181107c8D9ED4ce0bbeF7A0b4ccf3320C41d12","0x4118DAD7f348A4063bD15786c299De2f3B1333F3","0x404335BcE530400a5814375E7Ec1FB55fAff3eA2","0x8dB977C13CAA938BC58464bFD622DF0570564b78","0x007DE4a5F7bc37E2F26c0cb2E8A95006EE9B89b5","0xc79F702202E3A6B0B6310B537E786B9ACAA19BAf","0x61c91ECd902EB56e314bB2D5c5C07785444Ea1c8","0xe57B3792aDCc5da47EF4fF588883F0ee0c9835C9","0x042a9e5acCfa17e28300F1b5967f20891E973922","0x5595033F304217aFDB8ffB35E42C22B72184730b","0x82A821E8a2585D1AC8f346BE7Da6995490d21Ca6","0x7abC999C7E1f22a7E12b2A1024bC17676FE18b4b","0x5416CAAb6f37BF81cb2dc7ce0a363AfB9DD92d57","0x565F04cB319EC2295E1fcbBbe5F708687FFcCE75","0x4D3aD7E8e591d389B612Fc063f53837E284d3F86","0x375ABa35EA2011Af97b51bd395494C827d1C39BD","0xC10258969442c7957351A0ddc8194D2685B2a2c2","0x2aE828F10DfeE5b4c42f6E61D3d30033D4520753"]'
       ;;
