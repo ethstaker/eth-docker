@@ -37,8 +37,8 @@ services:
       - nimbus-unified-data:/var/lib/nimbus
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
-      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
+      - ${HOST_IP:-}:${CL_DISC_PORT:-9000}:${CL_DISC_PORT:-9000}/udp
+      - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/tcp
       - ${HOST_IP:-}:${EL_P2P_PORT:-30303}:${EL_P2P_PORT:-30303}/udp
     networks:
@@ -63,7 +63,12 @@ services:
       - --http-port=${EL_RPC_PORT:-8545}
       - --ws=true
       - --execution-tcp-port=${EL_P2P_PORT:-30303}
-      - --beacon-tcp-port=${CL_P2P_PORT:-9000}
+      - --beacon-udp-port=${CL_DISC_PORT:-9000}
+      - --quic-port=${CL_QUIC_PORT:-9001}
+      # --quic-port is the flag that currently takes effect
+      # Drop it once --beacon-quic-port is in a release.
+      # https://github.com/status-im/nimbus-eth1/issues/4814
+      #- --beacon-quic-port=${CL_QUIC_PORT:-9001}
       - --enr-auto-update=true
       - --metrics=true
       - --metrics-port=8008

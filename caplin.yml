@@ -3,8 +3,8 @@ services:
   execution:
     ports:
       # Caplin consensus P2P ports
-      - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp"
-      - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp"
+      - "${HOST_IP:-}:${CL_DISC_PORT:-9000}:${CL_DISC_PORT:-9000}/udp"
+      - "${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp"
 
   wipe-cl-db:
     profiles: ["tools"]

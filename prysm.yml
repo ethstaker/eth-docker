@@ -49,8 +49,7 @@ services:
       - NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - NETWORK=${NETWORK}
     ports:
-      - ${HOST_IP:-}:${PRYSM_PORT}:${PRYSM_PORT}/tcp
-      - ${HOST_IP:-}:${PRYSM_UDP_PORT}:${PRYSM_UDP_PORT}/udp
+      - ${HOST_IP:-}:${CL_DISC_PORT:-9000}:${CL_DISC_PORT:-9000}/udp
       - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp
     networks:
       default:
@@ -80,10 +79,8 @@ services:
       - ${EL_NODE}
       - --jwt-secret
       - /var/lib/prysm/ee-secret/jwtsecret
-      - --p2p-tcp-port
-      - ${PRYSM_PORT}
       - --p2p-udp-port
-      - ${PRYSM_UDP_PORT}
+      - ${CL_DISC_PORT}
       - --p2p-quic-port
       - ${CL_QUIC_PORT}
       - ${CL_MAX_PEER_COUNT:+--p2p-max-peers}

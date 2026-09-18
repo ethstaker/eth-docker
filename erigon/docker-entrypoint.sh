@@ -122,8 +122,8 @@ if [[ ! "${COMPOSE_FILE}" =~ "caplin.yml" ]]; then
   __caplin="--externalcl=true"
 else
   echo "Running Erigon with internal Caplin consensus layer client"
-  __caplin="--caplin.discovery.addr=0.0.0.0 --caplin.discovery.port=${CL_P2P_PORT} --caplin.blobs-immediate-backfill=true"
-  __caplin+=" --caplin.discovery.tcpport=${CL_P2P_PORT} --caplin.validator-monitor=true"
+  __caplin="--caplin.discovery.addr=0.0.0.0 --caplin.discovery.port=${CL_DISC_PORT} --caplin.blobs-immediate-backfill=true"
+  __caplin+=" --caplin.discovery.quicport=${CL_QUIC_PORT} --caplin.validator-monitor=true"
   __caplin+=" --caplin.max-peer-count=${CL_MAX_PEER_COUNT}"
   __caplin+=" --beacon.api=beacon,builder,config,debug,events,node,validator,lighthouse"
   __caplin+=" --beacon.api.addr=0.0.0.0 --beacon.api.port=${CL_REST_PORT} --beacon.api.cors.allow-origins=*"

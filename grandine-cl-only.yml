@@ -45,15 +45,14 @@ services:
       - DEFAULT_GRAFFITI=true
       - NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - IPV6=${IPV6:-false}
-      - CL_P2P_PORT=${CL_P2P_PORT:-9000}
+      - CL_DISC_PORT=${CL_DISC_PORT:-9000}
       - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}
       - NETWORK=${NETWORK}
       - COMPOSE_FILE=${COMPOSE_FILE}
       - LOG_LEVEL=${LOG_LEVEL}
       - RUST_LOG=${LOG_LEVEL:-info}
     ports:
-      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
-      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
+      - ${HOST_IP:-}:${CL_DISC_PORT:-9000}:${CL_DISC_PORT:-9000}/udp
       - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp
     networks:
       default:
@@ -75,10 +74,8 @@ services:
       - --http-allowed-origins=*
       - --listen-address
       - 0.0.0.0
-      - --libp2p-port
-      - ${CL_P2P_PORT:-9000}
       - --discovery-port
-      - ${CL_P2P_PORT:-9000}
+      - ${CL_DISC_PORT:-9000}
       - --quic-port
       - ${CL_QUIC_PORT:-9001}
       - ${CL_MAX_PEER_COUNT:+--target-peers}

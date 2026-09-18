@@ -2104,8 +2104,8 @@ __update_value_in_env() {
 
 
 __migrate_env() {
-  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL CB_PBS_DOCKER_TAG CB_PBS_DOCKER_REPO MEV_MIN_BID MEV_BUILD_FACTOR )
-  local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS CB_DOCKER_TAG CB_DOCKER_REPO EPBS_MIN_BID EPBS_BUILD_FACTOR )
+  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL CB_PBS_DOCKER_TAG CB_PBS_DOCKER_REPO MEV_MIN_BID MEV_BUILD_FACTOR CL_P2P_PORT )
+  local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS CB_DOCKER_TAG CB_DOCKER_REPO EPBS_MIN_BID EPBS_BUILD_FACTOR CL_DISC_PORT )
   local error
   local line
   local index
@@ -2282,8 +2282,13 @@ __migrate_env() {
     var=${old_vars[index]}
     __get_value_from_env "${var}" "${__env_file}.source" "__value"
     # Remove after Glamsterdam
-    if [[ "${__source_ver}" -lt "67" && "${var}" = "CB_PBS_DOCKER_REPO" && ${__value} = "ghcr.io/commit-boost/pbs" ]]; then
+    if [[ "${__source_ver}" -lt "67" && "${var}" = "CB_PBS_DOCKER_REPO" && "${__value}" = "ghcr.io/commit-boost/pbs" ]]; then
       __value="ghcr.io/commit-boost/commit-boost"
+    fi
+    # Remove after Hegotá
+    if [[ "${__source_ver}" -lt "71" && "${var}" = "CL_P2P_PORT" && "${COMPOSE_FILE}" =~ prysm(-cl-only)?\.yml ]]; then
+      __get_value_from_env "PRYSM_UDP_PORT" "${__env_file}.source" "PRYSM_UDP_PORT"
+      __value="${PRYSM_UDP_PORT}"
     fi
     if [[ "${__found}" -eq 1 ]]; then
       __update_value_in_env "${new_vars[index]}" "${__value}" "${__env_file}"
