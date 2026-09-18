@@ -1,0 +1,125 @@
+name: Test ethd port-check
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Everything port-check derives from an ENR is text handling, which is where a BSD tool and a
+  # GNU one part ways. None of it needs Docker or a running client, so it can be checked on a
+  # macOS runner in a minute instead of the half hour the full job below wants.
+  test-port-check-fixtures:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'check-ethd-port-check') ||
+      contains(github.event.pull_request.labels.*.name, 'test-all') ||
+      github.event_name == 'push'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prerequisites on macOS
+        if: ${{ startsWith(matrix.os, 'macos-') }}
+        run: brew install bash
+      - name: Test the port-check helpers
+        run: ./.github/test-port-check.sh fixtures
+
+  test-port-check:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'check-ethd-port-check') ||
+      contains(github.event.pull_request.labels.*.name, 'test-all') ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Prerequisites
+        run: |
+          sudo apt-get install -y whiptail
+          sudo apt-get remove -y podman
+      - name: Use default.env
+        run: cp default.env .env
+      - name: Set env variables
+        run: |
+          source ./.github/helper.sh
+          # CORE_FILES, not COMPOSE_FILE: __get_compose_file rebuilds COMPOSE_FILE from
+          # CORE_FILES and CUSTOM_FILES on every command, so setting it directly is ignored
+          CORE_FILES=nimbus-cl-only.yml:nethermind.yml
+          var=CORE_FILES
+          set_value_in_env
+          CHECKPOINT_SYNC_URL=
+          var=CHECKPOINT_SYNC_URL
+          set_value_in_env
+          FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+          var=FEE_RECIPIENT
+          set_value_in_env
+      - name: Test port-check without a running client
+        run: ./.github/test-port-check.sh offline
+      - name: Start the client pair
+        run: ./ethd up
+      - name: Wait for the Beacon API
+        run: ./.github/wait-for-beacon-api.sh consensus 5052 300
+      - name: Test port-check against the running client
+        run: ./.github/test-port-check.sh online
+      - name: Dump client logs on failure
+        if: ${{ failure() }}
+        run: docker compose logs consensus execution
+
+  # The whole thing on macOS, Colima and a syncing client pair included. It does not fit in the
+  # half hour the Ubuntu job takes, and Colima is slow enough that it is not worth running on
+  # every push - so it waits for its own label.
+  test-port-check-macos:
+    if: contains(github.event.pull_request.labels.*.name, 'check-ethd-port-check-macos')
+    runs-on: macos-26-intel
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Docker on macOS
+        uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
+      - name: Prerequisites
+        run: brew install bash newt coreutils gawk
+      - name: Use default.env
+        run: cp default.env .env
+      - name: Set env variables
+        run: |
+          source ./.github/helper.sh
+          CORE_FILES=nimbus-cl-only.yml:nethermind.yml
+          var=CORE_FILES
+          set_value_in_env
+          CHECKPOINT_SYNC_URL=
+          var=CHECKPOINT_SYNC_URL
+          set_value_in_env
+          FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+          var=FEE_RECIPIENT
+          set_value_in_env
+      - name: Test port-check without a running client
+        run: ./.github/test-port-check.sh offline
+      - name: Start the client pair
+        run: ./ethd up
+      - name: Wait for the Beacon API
+        run: ./.github/wait-for-beacon-api.sh consensus 5052 600
+      - name: Test port-check against the running client
+        run: ./.github/test-port-check.sh online
+      - name: Dump client logs on failure
+        if: ${{ failure() }}
+        run: docker compose logs consensus execution
