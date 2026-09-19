@@ -5,12 +5,15 @@ completions() {
 
     case ${COMP_CWORD} in
         1)
-            COMPREPLY=($(compgen -W "install config keys update up start down stop restart version logs cmd terminate prune-geth prune-nethermind prune-history prune-reth prune-lighthouse prune-besu repair-reth resync-execution resync-consensus space attach-geth" -- ${cur}))
+            COMPREPLY=($(compgen -W "install config keys update up start down stop restart version logs cmd terminate prune-geth prune-nethermind prune-history prune-reth prune-lighthouse prune-besu repair-reth resync-execution resync-consensus space port-check attach-geth" -- ${cur}))
             ;;
         2)
             case ${prev} in
                 logs|restart|down|stop)
                     COMPREPLY=($(docker container ls --filter "name=eth-docker-*" --format "{{.Names}}" | sed 's/eth-docker-\(.*\)-[0-9]/\1/'))
+                ;;
+                port-check)
+                    COMPREPLY=($(compgen -W "--troubleshoot --debug" -- ${cur}))
                 ;;
                 keys)
                     COMPREPLY=($(compgen -W "list import delete register get-recipient set-recipient delete-recipient get-gas set-gas delete-gas get-api-token create-prysm-wallet get-prysm-wallet prepare-address-change send-address-change sign-exit send-exit" -- ${cur}))

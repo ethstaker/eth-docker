@@ -71,6 +71,10 @@ __free_space=0
 __docker_dir="/var/lib/docker"
 __keys_args=""
 __final_msg=""
+__cl_rest_port=""  # These four are port-check's configuration, also read by __cl_api_query
+__cl_service=""
+__cl_alias=""
+__el_alias=""
 
 
 __dodocker() {
@@ -82,6 +86,46 @@ __docompose() {
 # I want word splitting here
 # shellcheck disable=SC2086
   ${__docker_sudo} ${__compose_exe} "$@"
+}
+
+
+__compose_network_name() {
+# Echoes the name of this stack's Compose network, as Compose itself resolves it.
+  __docompose config | awk '
+    BEGIN {
+        found_networks=0;
+        found_default=0;
+    }
+    /networks:/ {
+        found_networks=1;
+        next;
+    }
+    found_networks && /default:/ {
+        found_default=1;
+        next;
+    }
+    found_default && /^ *name:/ {
+        print $2;
+        exit;
+    }
+    '
+}
+
+
+__ensure_vc_utils_image() {
+# Builds the vc-utils:local image when it is not already present.
+  __dodocker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q "vc-utils:local" && return 0
+  if ! dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
+    __dodocker build -t vc-utils:local ./vc-utils
+  else
+    if ! dpkg-query -W -f='${Status}' docker-buildx-plugin 2>/dev/null | grep -q "ok installed"; then
+      ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y docker-buildx-plugin
+    fi
+    # "--load" so the image lands in the image store and not only in the build cache. A
+    # buildx builder on the docker-container driver, which is what CI installs, writes
+    # nowhere the presence check above or a later "docker run" can see it otherwise
+    __dodocker buildx build --load -t vc-utils:local ./vc-utils
+  fi
 }
 
 
@@ -1303,6 +1347,785 @@ space() {
       echo "Your user cannot sudo. ${__project_name} cannot show the size of ${ANCIENT_DIR}."
     fi
   fi
+}
+
+
+# Call with a Beacon API path and the names of two variables to receive the response body and
+# the route that worked, the latter empty on failure. Returns non-zero when the call failed.
+__cl_api_query() {
+  local path="$1"
+  local out_body="$2"
+  local out_via="$3"
+  local url="http://localhost:${__cl_rest_port}${path}"
+  local body=""
+  local via=""
+  local errexit=0
+  local exitstatus
+  local network_name
+  local cl_host
+
+  # Not every client image ships both wget and curl, so try either one
+  [[ "$-" =~ e ]] && errexit=1
+  set +e
+  via="docker compose exec ${__cl_service}"
+  body=$(__docompose exec -T "${__cl_service}" sh -c \
+    "wget -qO- '${url}' 2>/dev/null || curl -sf '${url}'" 2>/dev/null)
+  exitstatus=$?
+  if [[ "${exitstatus}" -ne 0 ]]; then
+    # Some images, such as Lodestar's, ship neither. Fall back to a throwaway
+    # container with curl, on the stack's own network, reaching the client by
+    # its CL_ALIAS/EL_ALIAS network alias instead of localhost.
+    __ensure_vc_utils_image
+    network_name=$(__compose_network_name)
+    cl_host="${__cl_alias}"
+    [[ "${__cl_service}" = "execution" ]] && cl_host="${__el_alias}"
+    via="throwaway container on ${network_name}, reaching ${cl_host}"
+    body=$(__dodocker run --rm --network "${network_name}" \
+      vc-utils:local curl -sf -m 10 "http://${cl_host}:${__cl_rest_port}${path}" 2>/dev/null)
+    exitstatus=$?
+  fi
+  [[ "${exitstatus}" -ne 0 ]] && via=""
+  printf -v "${out_body}" '%s' "${body}"
+  printf -v "${out_via}" '%s' "${via}"
+  [[ "${errexit}" -eq 1 ]] && set -e
+  return "${exitstatus}"
+}
+
+
+# Call with peer entries and "inbound" or "outbound". Echoes the connected ones.
+# Teku and Grandine ignore the state and direction query parameters the Beacon API
+# spec defines, so the filtering happens here rather than in the request. A peer is
+# dropped only when it says it is not connected, so a client that omits "state" counts.
+__peers_in_direction() {
+  local entries="$1"
+  local want="$2"
+
+  grep -E "\"direction\"[[:space:]]*:[[:space:]]*\"${want}\"" <<< "${entries}" \
+    | grep -Ev '"state"[[:space:]]*:[[:space:]]*"(disconnected|disconnecting|connecting)"' || true
+}
+
+
+# Call with newline-separated text. Echoes the number of non-empty lines.
+__count_lines() {
+  local text="$1"
+
+  grep -c . <<< "${text}" || true
+}
+
+
+# Call with peer entries. Echoes one peer multiaddr per line. A client may leave the
+# address off a peer, so there can be fewer addresses than entries.
+__peer_addresses() {
+  local entries="$1"
+
+  grep -oE '"last_seen_p2p_address"[[:space:]]*:[[:space:]]*"[^"]*"' <<< "${entries}" \
+    | sed 's/.*"\([^"]*\)"$/\1/' || true
+}
+
+
+# Call with newline-separated multiaddrs and one or two extended regexes to match on
+__count_matching() {
+  local addresses="$1"
+  local first="$2"
+  local second="${3:-.}"
+
+  grep -E "${first}" <<< "${addresses}" | grep -cE "${second}" || true
+}
+
+
+# Call with an even number of hex characters. Writes them to stdout as the bytes they spell.
+__hex_to_binary() {
+  local hex="$1"
+  local index
+
+  for (( index = 0; index < ${#hex}; index += 2 )); do
+    printf '%b' "\\x${hex:index:2}"
+  done
+}
+
+
+# Call with an ENR. Echoes its RLP as hex with the signature stripped. When that cannot be
+# done it echoes nothing and says why on stderr - never on stdout, which is the result - so
+# that a report missing every ENR-derived row explains itself instead of looking empty.
+__enr_to_hex() {
+  local enr="${1#enr:}"
+  local padding
+  local hex
+
+  enr=$(tr -- '-_' '+/' <<< "${enr}")
+  padding=$(( (4 - ${#enr} % 4) % 4 ))
+  while [[ "${padding}" -gt 0 ]]; do
+    enr="${enr}="
+    padding=$(( padding - 1 ))
+  done
+  if ! hex=$(base64 -d <<< "${enr}" | od -An -tx1 -v | tr -d ' \n'); then
+    echo "Warning: could not decode this node's ENR, so nothing it carries can be shown." >&2
+    return 0
+  fi
+  # The record is [signature, seq, k, v, ...]. Drop the 64-byte signature, so that its
+  # random bytes cannot be mistaken for a key, and search the key/value pairs only.
+  if [[ "${hex}" != *b840* ]]; then
+    echo "Warning: this node's ENR does not start with a 64-byte signature, so it cannot be read." >&2
+    return 0
+  fi
+  hex="${hex#*b840}"
+  echo "${hex:128}"
+}
+
+
+# Call with the hex from __enr_to_hex and the hex of an RLP-encoded ENR key, such as
+# 826970 for "ip". Echoes the hex of that key's value, or nothing when the key is absent.
+__enr_value() {
+  local hex="$1"
+  local key="$2"
+  local rest
+  local length
+
+  [[ "${hex}" = *"${key}"* ]] || return 0
+  rest="${hex#*"${key}"}"
+  length="${rest:0:2}"
+  # Only an RLP short string, 0x80 through 0xb7, is a valid ENR value here
+  [[ "${length}" =~ ^(8[0-9a-f]|9[0-9a-f]|a[0-9a-f]|b[0-7])$ ]] || return 0
+  length=$(( 16#${length} - 16#80 ))
+  echo "${rest:2:$(( length * 2 ))}"
+}
+
+
+# Call with the hex of an ENR "ip" or "ip6" value. Echoes it as an IP address.
+__enr_ip() {
+  local hex="$1"
+  local group
+  local address
+  local index
+
+  case "${#hex}" in
+    8)
+      printf '%d.%d.%d.%d' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}" "0x${hex:6:2}"
+      ;;
+    32)
+      for index in 0 4 8 12 16 20 24 28; do
+        group=$(printf '%x' "0x${hex:${index}:4}")
+        address="${address:+${address}:}${group}"
+      done
+      sed -E 's/(^|:)(0:)+0(:|$)/::/' <<< "${address}"  # Collapse a run of zero groups
+      ;;
+    *) ;;
+  esac
+}
+
+
+# Call with the hex of an ENR port value. Echoes it as a decimal port number.
+__enr_port() {
+  local hex="$1"
+
+  [[ -n "${hex}" ]] || return 0
+  printf '%d' "0x${hex}"
+}
+
+
+# Call with the hex from __enr_to_hex. Echoes the node's public key, as the 128 hex characters
+# an "enode://" URL wants, and the tool that read it, separated by a space - and nothing at all
+# when the key cannot be had. The ENR stores the key compressed, as one coordinate and a sign;
+# recovering the other coordinate is curve math that bash cannot do, so this borrows a tool that
+# can. Both paths agree with "devp2p enrdump".
+__enr_pubkey() {
+  local compressed
+  local key=""
+
+  compressed=$(__enr_value "$1" 89736563703235366b31)  # RLP of the ENR key "secp256k1"
+  [[ "${#compressed}" -eq 66 ]] || return 0
+
+  if type -P openssl >/dev/null 2>&1; then
+    # Wrapped in the DER header a secp256k1 public key file has, openssl will read the bare point
+    key=$(__hex_to_binary "3036301006072a8648ce3d020106052b8104000a032200${compressed}" \
+      | openssl ec -pubin -inform DER -outform DER -conv_form uncompressed 2>/dev/null \
+      | od -An -tx1 -v | tr -d ' \n') || key=""
+    if [[ "${#key}" -ge 128 ]]; then
+      echo "${key: -128} openssl"
+      return 0
+    fi
+  fi
+
+  if type -P python3 >/dev/null 2>&1; then
+    key=$(python3 -c '
+import sys
+
+point = bytes.fromhex(sys.argv[1])
+p = 2**256 - 2**32 - 977
+x = int.from_bytes(point[1:], "big")
+y = pow((x * x * x + 7) % p, (p + 1) // 4, p)
+if y % 2 != point[0] % 2:
+    y = p - y
+print("%064x%064x" % (x, y))
+' "${compressed}" 2>/dev/null) || key=""
+    if [[ "${#key}" -eq 128 ]]; then
+      echo "${key} python3"
+      return 0
+    fi
+  fi
+
+  return 0
+}
+
+
+# Call with an IPv4 address. Returns 0 when it is not usable on the Internet.
+__is_private_v4() {
+  case "$1" in
+    10.*|127.*|0.*|169.254.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*) return 0;;
+    *) return 1;;
+  esac
+}
+
+
+# Call with an IPv6 address. Returns 0 when it is not usable on the Internet:
+# the loopback and unspecified addresses, link-local fe80::/10, unique local fc00::/7.
+__is_private_v6() {
+  local address
+
+  address=$(tr '[:upper:]' '[:lower:]' <<< "$1")
+  case "${address}" in
+    ::1|::|fe8*|fe9*|fea*|feb*|f[cd]*) return 0;;
+    *) return 1;;
+  esac
+}
+
+
+# Call with an IPv4 address. Returns 0 when it is in the carrier-grade NAT range 100.64.0.0/10.
+__is_cgnat_v4() {
+  case "$1" in
+    100.6[4-9].*|100.[7-9][0-9].*|100.1[01][0-9].*|100.12[0-7].*) return 0;;
+    *) return 1;;
+  esac
+}
+
+
+# Call with newline-separated listen multiaddrs and an address family, ip4 or ip6.
+# Returns 0 when the client listens on an address of that family that the Internet can reach.
+__listens_globally() {
+  local addresses="$1"
+  local family="$2"
+  local address
+
+  [[ -n "${addresses}" ]] || return 1
+  while read -r address; do
+    [[ "${address}" = "/${family}/"* ]] || continue
+    address="${address#"/${family}/"}"
+    address="${address%%/*}"
+    if [[ "${family}" = "ip4" ]]; then
+      __is_private_v4 "${address}" || return 0
+    else
+      __is_private_v6 "${address}" || return 0
+    fi
+  done <<< "${addresses}"
+  return 1
+}
+
+
+# Call with a row label and the newline-separated multiaddrs of peers in that direction
+__peer_row() {
+  local label="$1"
+  local addresses="$2"
+  local quic_total
+  local quic_v6
+  local tcp_total
+  local tcp_v6
+
+  quic_total=$(__count_matching "${addresses}" '/quic')
+  quic_v6=$(__count_matching "${addresses}" '/quic' '/ip6/')
+  tcp_total=$(__count_matching "${addresses}" '/tcp/')
+  tcp_v6=$(__count_matching "${addresses}" '/tcp/' '/ip6/')
+  printf '  %-12s %-10s %8d %8d %8d %8d\n' "" "${label}" \
+    "$(( quic_total - quic_v6 ))" "${quic_v6}" "$(( tcp_total - tcp_v6 ))" "${tcp_v6}"
+}
+
+
+# Call with a row label and a value too long for one line. Prints it in 64-character pieces, so
+# that a public key breaks between its two coordinates instead of wherever the terminal folds it.
+__wrapped_row() {
+  local label="$1"
+  local value="$2"
+
+  while [[ -n "${value}" ]]; do
+    printf '  %-12s %s\n' "${label}" "${value:0:64}"
+    value="${value:64}"
+    label=""
+  done
+}
+
+
+# Call with a row label and newline-separated values. Prints one per line, label on the first,
+# and the word "none" when there is nothing to print - an empty row would read as a bug.
+__diag_lines() {
+  local label="$1"
+  local values="$2"
+  local line
+
+  if [[ -z "${values}" ]]; then
+    printf '  %-12s %s\n' "${label}" "none"
+    return 0
+  fi
+  while read -r line; do
+    printf '  %-12s %s\n' "${label}" "${line}"
+    label=""
+  done <<< "${values}"
+}
+
+
+# Returns 0 when this host can reach the IPv6 Internet, 1 when it cannot, 2 when untested
+__host_has_v6() {
+  type -P ping >/dev/null 2>&1 || return 2
+  ping -c1 -W2 2001:4860:4860::8888 >/dev/null 2>&1 || return 1
+  return 0
+}
+
+
+# Call with the node's public key, its ENR, the address to test - an IPv6 address in brackets -
+# and a UDP port. Echoes a self-contained docker command that pings discv5 at that address.
+# The key travels as a variable, the way the address and port do, so that the command can be
+# shared with the address blanked out. Only a node whose key could not be read falls back to
+# handing the container the ENR, which has the address inside it.
+__probe_discv5() {
+  local key="$1"
+  local enr="$2"
+  local ip="$3"
+  local port="$4"
+  local setup=""
+  local network=""
+
+  # Docker's default bridge has no IPv6 route out, so a v6 probe needs a network that does
+  [[ "${ip}" = *:* ]] && { setup="docker network create --ipv6 ethd-v6-probe >/dev/null 2>&1; "; network=" --network ethd-v6-probe"; }
+
+  if [[ "${#key}" -eq 128 ]]; then
+    cat <<EOF
+  ${setup}docker run --rm${network} -e IP="${ip}" -e PORT="${port}" -e PUBKEY="${key}" ethereum/client-go:alltools-latest sh -c '
+    out=\$(devp2p discv5 ping "enode://\${PUBKEY}@\${IP}:\${PORT}" 2>&1 | tail -n1)
+    if [ "\$out" = "<nil>" ]; then echo "PASS - \$IP:\$PORT is reachable over discv5"; else echo "FAIL - \$IP:\$PORT - \$out"; fi
+  '
+EOF
+  else
+    cat <<EOF
+  ${setup}docker run --rm${network} -e IP="${ip}" -e PORT="${port}" ethereum/client-go:alltools-latest sh -c '
+    pk=\$(devp2p enrdump ${enr} | sed -n "s#^URLv4:.*enode://\\([0-9a-f]*\\).*#\\1#p")
+    out=\$(devp2p discv5 ping "enode://\${pk}@\${IP}:\${PORT}" 2>&1 | tail -n1)
+    if [ "\$out" = "<nil>" ]; then echo "PASS - \$IP:\$PORT is reachable over discv5"; else echo "FAIL - \$IP:\$PORT - \$out"; fi
+  '
+EOF
+  fi
+}
+
+
+# Call with the address to test - an IPv6 address without brackets, as quicmap wants a bare
+# host - and a UDP port. Echoes a self-contained docker command that probes QUIC there.
+__probe_quic() {
+  local ip="$1"
+  local port="$2"
+  local setup=""
+  local network=""
+  local show="\$IP:\$PORT"
+
+  # Docker's default bridge has no IPv6 route out, so a v6 probe needs a network that does
+  [[ "${ip}" = *:* ]] && { setup="docker network create --ipv6 ethd-v6-probe >/dev/null 2>&1; "; network=" --network ethd-v6-probe"; show="[\$IP]:\$PORT"; }
+
+  cat <<EOF
+  ${setup}docker run --rm${network} -e IP="${ip}" -e PORT="${port}" -e PIP_ROOT_USER_ACTION=ignore -e DEBIAN_FRONTEND=noninteractive python:3-slim sh -c '
+    apt-get update -qq &&
+    apt-get install -y -qq curl >/dev/null &&
+    pip install --quiet --no-cache-dir aioquic cryptography tqdm &&
+    curl -sL https://raw.githubusercontent.com/bojanisc/quicmap/main/quicmap.py -o /tmp/q.py &&
+    out=\$(python3 /tmp/q.py -p "\$PORT" "\$IP" 2>&1)
+    echo "\$out"
+    if echo "\$out" | grep -q endpoint; then echo; echo "PASS - ${show} responded to QUIC"; else echo; echo "FAIL - ${show} did not respond to QUIC"; fi
+  '
+EOF
+}
+
+
+port-check() {
+  local var
+  local cl_client
+  local network
+  local p2p_port
+  local quic_port
+  local ipv6
+  local cl_api_body cl_api_via
+  local enr
+  local enr_hex
+  local pubkey pubkey_via
+  local peer_id
+  local ip4 tcp4 udp4 quic4
+  local ip6 udp6 quic6
+  local listen_addresses
+  local listens_v4=0
+  local listens_v6=0
+  local route=""
+  local local_v4 gateway_v4
+  local peer_entries inbound_entries outbound_entries
+  local inbound_addresses="" outbound_addresses=""
+  local inbound outbound inbound_v6 inbound_tcp_v4
+  local cgnat dual_stack
+  local peers
+  local show_inbound=0
+  local show_outbound=0
+  local probe_ip
+  local detail
+  local troubleshoot=0
+
+  while :
+  do
+    if [[ -z "${1+x}" ]]; then
+      break
+    fi
+    case "$1" in
+      --troubleshoot | --debug)
+        troubleshoot=1
+        shift
+        ;;
+      *)
+        echo "Error: Unknown option: $1" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  # Caplin and the Grandine plugin run inside the execution client and serve the
+  # Beacon API from there. Every other consensus client has its own service.
+  case "${COMPOSE_FILE}" in
+    *caplin.yml*) __cl_service="execution"; cl_client="Caplin";;
+    *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) __cl_service="execution"; cl_client="Grandine";;
+    *lighthouse.yml*|*lighthouse-cl-only.yml*) __cl_service="consensus"; cl_client="Lighthouse";;
+    *teku.yml*|*teku-cl-only.yml*|*teku-allin1.yml*) __cl_service="consensus"; cl_client="Teku";;
+    *nimbus-unified.yml*) __cl_service="consensus"; cl_client="Nimbus Unified";;
+    *nimbus.yml*|*nimbus-cl-only.yml*|*nimbus-allin1.yml*) __cl_service="consensus"; cl_client="Nimbus";;
+    *lodestar.yml*|*lodestar-cl-only.yml*) __cl_service="consensus"; cl_client="Lodestar";;
+    *prysm.yml*|*prysm-cl-only.yml*) __cl_service="consensus"; cl_client="Prysm";;
+    *grandine.yml*|*grandine-cl-only.yml*|*grandine-allin1.yml*) __cl_service="consensus"; cl_client="Grandine";;
+    *)
+      echo "You do not appear to be running a consensus layer client. Nothing to check."
+      return 0
+      ;;
+  esac
+
+  var="CL_REST_PORT"
+  __get_value_from_env "${var}" "${__env_file}" "__cl_rest_port"
+  __cl_rest_port="${__cl_rest_port:-5052}"
+  var="CL_P2P_PORT"
+  __get_value_from_env "${var}" "${__env_file}" "p2p_port"
+  p2p_port="${p2p_port:-9000}"
+  var="CL_QUIC_PORT"
+  __get_value_from_env "${var}" "${__env_file}" "quic_port"
+  quic_port="${quic_port:-9001}"
+  var="IPV6"
+  __get_value_from_env "${var}" "${__env_file}" "ipv6"
+  var="NETWORK"
+  __get_value_from_env "${var}" "${__env_file}" "network"
+  var="CL_ALIAS"
+  __get_value_from_env "${var}" "${__env_file}" "__cl_alias"
+  __cl_alias="${__cl_alias:-default-consensus}"
+  __cl_alias="${__cl_alias//\$\{NETWORK\}/${network}}"
+  var="EL_ALIAS"
+  __get_value_from_env "${var}" "${__env_file}" "__el_alias"
+  __el_alias="${__el_alias:-default-execution}"
+  __el_alias="${__el_alias//\$\{NETWORK\}/${network}}"
+
+  if ! __cl_api_query "/eth/v1/node/identity" "cl_api_body" "cl_api_via"; then
+    echo "Unable to reach ${cl_client}'s Beacon API on port ${__cl_rest_port}. Is it running?"
+    echo "Check with \"${__me} logs ${__cl_service}\"."
+    if [[ "${troubleshoot}" -eq 1 ]]; then
+      echo
+      echo "Tried it inside the \"${__cl_service}\" service, and from a throwaway container on"
+      echo "the stack network reaching \"${__cl_alias}\" - both on port ${__cl_rest_port}."
+    fi
+    return 1
+  fi
+
+  # The ENR is what peers discover. Clients learn their external address from
+  # their peers, so it is the address the Internet sees.
+  enr=$(sed -n 's/.*"enr":"\([^"]*\)".*/\1/p' <<< "${cl_api_body}")
+  enr_hex=$(__enr_to_hex "${enr}")
+  # The peer ID and the public key name the node without naming where it lives, unlike the ENR
+  peer_id=$(sed -n 's/.*"peer_id":"\([^"]*\)".*/\1/p' <<< "${cl_api_body}")
+  # Two values from one helper, so it echoes both rather than reaching for a global
+  read -r pubkey pubkey_via <<< "$(__enr_pubkey "${enr_hex}")"
+  ip4=$(__enr_ip "$(__enr_value "${enr_hex}" 826970)")
+  udp4=$(__enr_port "$(__enr_value "${enr_hex}" 83756470)")
+  quic4=$(__enr_port "$(__enr_value "${enr_hex}" 8471756963)")
+  tcp4=$(__enr_port "$(__enr_value "${enr_hex}" 83746370)")
+  ip6=$(__enr_ip "$(__enr_value "${enr_hex}" 83697036)")
+  udp6=$(__enr_port "$(__enr_value "${enr_hex}" 8475647036)")
+  quic6=$(__enr_port "$(__enr_value "${enr_hex}" 857175696336)")
+
+  # What the libp2p host listens on, which is a different question from what the
+  # ENR advertises. Not every client reports it, so an empty list means "unknown".
+  listen_addresses=$(tr -d ' \n' <<< "${cl_api_body}" \
+    | sed -n 's/.*"p2p_addresses":\[\([^]]*\)\].*/\1/p' | tr ',' '\n' | tr -d '"')
+  __listens_globally "${listen_addresses}" ip4 && listens_v4=1
+  __listens_globally "${listen_addresses}" ip6 && listens_v6=1
+
+  # The host's default IPv4 route, to tell a NAT apart from a direct address. No "ip" on macOS.
+  if type -P ip >/dev/null 2>&1; then
+    route=$(ip -4 route get 1.1.1.1 2>/dev/null) || route=""
+  fi
+  local_v4=$(sed -n 's/.*src \([^ ]*\).*/\1/p' <<< "${route}")
+  gateway_v4=$(sed -n 's/.*via \([^ ]*\).*/\1/p' <<< "${route}")
+
+  # Ask for every peer and sort them out here. Not every client honours the state and
+  # direction query parameters, and one that ignores them answers both directions with
+  # the same full list, which reads as a perfectly symmetrical - and wrong - table.
+  if ! __cl_api_query "/eth/v1/node/peers" "cl_api_body" "cl_api_via"; then
+    echo "Unable to list peers. Is ${cl_client} still starting up?"
+    return 1
+  fi
+  # A peer object has no nested objects, so splitting on "{" cannot split one in two
+  peer_entries=$(tr '\n' ' ' <<< "${cl_api_body}" | tr '{' '\n' | grep '"peer_id"' || true)
+  if [[ -n "${peer_entries}" ]] && ! grep -q '"direction"' <<< "${peer_entries}"; then
+    inbound="?"  # A client that does not tell us which way a peer was dialed
+    outbound="?"
+  else
+    inbound_entries=$(__peers_in_direction "${peer_entries}" inbound)
+    outbound_entries=$(__peers_in_direction "${peer_entries}" outbound)
+    inbound=$(__count_lines "${inbound_entries}")
+    outbound=$(__count_lines "${outbound_entries}")
+    inbound_addresses=$(__peer_addresses "${inbound_entries}")
+    outbound_addresses=$(__peer_addresses "${outbound_entries}")
+  fi
+  inbound_v6=$(__count_matching "${inbound_addresses}" '/ip6/')
+  inbound_tcp_v4=$(( $(__count_matching "${inbound_addresses}" '/tcp/') \
+    - $(__count_matching "${inbound_addresses}" '/tcp/' '/ip6/') ))
+
+  # Carrier-grade NAT can be proven from this host, but never ruled out from it -
+  # except that an unsolicited inbound TCP connection has no NAT hole-punch that
+  # could fake it, unlike QUIC/UDP, so it is treated as disproof too.
+  if [[ -n "${ip4}" ]] && __is_cgnat_v4 "${ip4}"; then
+    cgnat="yes - your public address ${ip4} is in the carrier-grade NAT range"
+  elif [[ -n "${gateway_v4}" ]] && __is_cgnat_v4 "${gateway_v4}"; then
+    cgnat="yes - your gateway ${gateway_v4} is in the carrier-grade NAT range"
+  elif [[ -n "${ip4}" ]] && ! __is_private_v4 "${ip4}"; then
+    cgnat="no signs of it"
+  elif [[ "${inbound_tcp_v4}" -gt 0 ]]; then
+    cgnat="no signs of it - a peer dialed you over IPv4 TCP, which CGNAT would block"
+  else
+    cgnat="cannot tell yet"
+  fi
+
+  # An inbound IPv6 peer proves IPv6 works. Whether the ENR carries an IPv6
+  # address is the separate question of whether discv5 advertises it.
+  if [[ -n "${ip6}" ]]; then
+    dual_stack="running"
+  elif [[ "${listens_v6}" -eq 1 || "${inbound_v6}" -gt 0 ]]; then
+    dual_stack="up, but not advertised in discv5"
+  elif [[ "${ipv6}" = "true" ]]; then
+    dual_stack="enabled"
+  else
+    detail=0
+    __host_has_v6 || detail=$?
+    case "${detail}" in
+      0) dual_stack="off, but this host has IPv6 - \"IPV6=true\" in \".env\" can turn it on";;
+      1) dual_stack="off, and this host has no IPv6 connectivity";;
+      *) dual_stack="off (IPV6=false)";;
+    esac
+  fi
+
+  echo
+  echo "${cl_client} port check"
+  echo
+  if [[ -n "${ip4}" ]]; then
+    detail="discv5 UDP ${udp4:-none}, QUIC UDP ${quic4:-none}"
+    [[ -n "${tcp4}" ]] && detail="${detail}, TCP ${tcp4}"
+    if __is_private_v4 "${ip4}"; then
+      printf '  %-12s %s\n' "IPv4" "${ip4} - not a public address, no peer can dial it"
+    elif [[ -n "${local_v4}" && "${local_v4}" != "${ip4}" ]]; then
+      printf '  %-12s %s\n' "IPv4" "${ip4} (behind NAT), ${detail}"
+    else
+      printf '  %-12s %s\n' "IPv4" "${ip4}, ${detail}"
+    fi
+  elif [[ "${listens_v4}" -eq 1 ]]; then
+    printf '  %-12s %s\n' "IPv4" "listening, but not advertised in discv5 - no peer can"
+    printf '  %-12s %s\n' "" "discover you over IPv4"
+  else
+    printf '  %-12s %s\n' "IPv4" "no address advertised yet"
+  fi
+  if [[ -n "${ip6}" ]]; then
+    printf '  %-12s %s\n' "IPv6" "${ip6}, discv5 UDP ${udp6:-none}, QUIC UDP ${quic6:-none}"
+  elif [[ "${listens_v6}" -eq 1 ]]; then
+    printf '  %-12s %s\n' "IPv6" "listening, but not advertised in discv5 - no peer can"
+    printf '  %-12s %s\n' "" "discover you over IPv6. Inbound IPv6 then only works"
+    printf '  %-12s %s\n' "" "for peers that already know you."
+  elif [[ "${ipv6}" = "true" ]]; then
+    printf '  %-12s %s\n' "IPv6" "no address advertised yet"
+  fi
+  printf '  %-12s %s\n' "CGNAT" "${cgnat}"
+  printf '  %-12s %s\n' "Dual-stack" "${dual_stack}"
+  [[ -n "${peer_id}" ]] && printf '  %-12s %s\n' "Peer ID" "${peer_id}"
+  [[ -n "${pubkey}" ]] && __wrapped_row "Public key" "${pubkey}"
+
+  peers="you dialed ${outbound}"
+  [[ "${outbound}" = "?" ]] && peers=""
+  if [[ "${inbound}" = "?" ]]; then
+    detail="cannot tell - ${cl_client} does not report peer direction"
+  elif [[ "${inbound}" -eq 1 ]]; then
+    detail="working - 1 peer dialed you"
+  elif [[ "${inbound}" -gt 0 ]]; then
+    detail="working - ${inbound} peers dialed you"
+  else
+    detail="not working - no peer has dialed you"
+  fi
+  printf '  %-12s %s\n' "Inbound" "${detail}${peers:+, ${peers}}"
+
+  # Zeros are the truth when there are no peers in that direction. A client that reports
+  # peers but no addresses for them is the one case where a row would lie, so it gets none.
+  [[ -n "${inbound_addresses}" || "${inbound}" = "0" ]] && show_inbound=1
+  [[ -n "${outbound_addresses}" || "${outbound}" = "0" ]] && show_outbound=1
+  if [[ "${show_inbound}" -eq 1 || "${show_outbound}" -eq 1 ]]; then
+    printf '  %-12s %-10s %8s %8s %8s %8s\n' "Peers" "direction" "QUIC v4" "QUIC v6" "TCP v4" "TCP v6"
+    [[ "${show_inbound}" -eq 1 ]] && __peer_row "inbound" "${inbound_addresses}"
+    [[ "${show_outbound}" -eq 1 ]] && __peer_row "outbound" "${outbound_addresses}"
+    printf '  %-12s %s\n' "" "counts as your client reports them"
+  fi
+  echo
+
+  # The guidance below is written for a node nothing can dial. --troubleshoot prints it anyway,
+  # so that its wording can be checked against a client without first having to break the node.
+  if [[ "${troubleshoot}" -eq 0 ]] && { [[ "${inbound}" = "?" ]] || [[ "${inbound}" -gt 0 ]]; }; then
+    return 0
+  fi
+
+  if [[ "${troubleshoot}" -eq 1 ]]; then
+    if [[ "${inbound}" = "?" ]]; then
+      echo "${cl_client} does not report peer direction, so inbound cannot be measured."
+      echo "This guidance prints because you asked for it."
+      echo
+    elif [[ "${inbound}" -gt 0 ]]; then
+      echo "Inbound is working. This guidance prints because you asked for it, so some"
+      echo "of it will not apply."
+      echo
+    fi
+  fi
+
+  if [[ "${outbound}" != "?" && "${outbound}" -eq 0 ]]; then
+    echo "${cl_client} is not peering at all. It may still be starting up, or outbound"
+    echo "UDP ${p2p_port} is blocked as well."
+    echo
+  fi
+
+  echo "To fix inbound connectivity:"
+  if [[ "${cgnat}" = yes* ]]; then
+    echo "  - You are behind carrier-grade NAT. No port forward can work, because the"
+    echo "    public address is not yours. Working IPv6 is your way out of this: enable"
+    echo "    it with \"${__me} config\", or ask your ISP for a public IPv4 address."
+  else
+    echo "  - Forward UDP ${p2p_port} (discv5) and UDP ${quic_port} (QUIC) to this host."
+    echo "    The consensus layer needs UDP for transport. A TCP-only forward will not do."
+    echo "  - If your ISP has you behind carrier-grade NAT, no forward can work. Enabling"
+    echo "    IPv6 with \"${__me} config\" is then the way to accept inbound connections."
+  fi
+  echo
+  echo "NOTE: A node that started in the last few minutes has not had time to be dialed."
+  echo "If this is a recently started node, wait, then run the test again."
+  echo
+  probe_ip="<your-public-ip>"
+  [[ -n "${ip4}" ]] && ! __is_private_v4 "${ip4}" && probe_ip="${ip4}"
+
+  echo "No web site can test a UDP port for you - the ones that offer to only speak TCP."
+  echo "A green result from one of those proves nothing about UDP ${p2p_port} or ${quic_port}."
+  echo
+  echo "You can probe discv5 from outside - a VPS, a phone hotspot or a friend's machine"
+  echo "with Docker - and leave nothing behind there."
+  echo
+  # A packet from a LAN address is not the packet a peer sends, and some clients drop it
+  echo "Run these from a machine with a public IP address, not from this one and not"
+  echo "from anything else on your LAN. A probe sourced from a private address -"
+  echo "10.x, 172.16-31.x, 192.168.x, or a Docker bridge - reaches your node with a"
+  echo "source the Internet could never route a reply to, and some consensus clients"
+  echo "drop it without a word. It will read as a closed port when the port is fine."
+  echo
+  # Under IPv4 NAT the ENR carries the translated port, learned from peers. That is a
+  # mapping, not a forward, so the port worth probing is the configured one.
+  if [[ -n "${udp4}" && "${udp4}" != "${p2p_port}" ]]; then
+    echo "${cl_client} advertises discv5 UDP ${udp4}, the port its NAT mapping happens"
+    echo "to use. That is not the port you forward, and it can change. The port to"
+    echo "forward - and the one this pings - is ${p2p_port}, CL_P2P_PORT in \".env\"."
+    echo
+  fi
+  if [[ "${probe_ip}" = "${ip4}" ]]; then
+    echo "${cl_client}'s record advertises ${ip4}, which is the address this pings:"
+  else
+    echo "${cl_client}'s own record has no address to ping yet, so give the one to test"
+    echo "explicitly:"
+  fi
+  echo
+  __probe_discv5 "${pubkey}" "${enr}" "${probe_ip}" "${p2p_port}"
+  echo
+  echo "To probe QUIC the same way:"
+  echo
+  __probe_quic "${probe_ip}" "${quic4:-${quic_port}}"
+  echo
+  echo "The raw quicmap output prints above; PASS/FAIL summarizes it. An \"ALPN: ?\""
+  echo "line is expected - consensus clients speak the \"libp2p\" ALPN, which quicmap"
+  echo "does not probe for; \"server_versions\" appearing at all is what proves the"
+  echo "forward works."
+  echo
+  if [[ -n "${ip6}" ]] && ! __is_private_v6 "${ip6}"; then
+    echo "Your record also advertises IPv6 ${ip6}. Run these from a probing host with a"
+    echo "global IPv6 address of its own - the same rule as above, a ULA or link-local"
+    echo "source will not do. They create a small IPv6-enabled docker network for the"
+    echo "probe, since Docker's default bridge has no IPv6 route out:"
+    echo
+    __probe_discv5 "${pubkey}" "${enr}" "[${ip6}]" "${udp6:-${p2p_port}}"
+    echo
+    __probe_quic "${ip6}" "${quic6:-${quic_port}}"
+    echo
+  fi
+
+  # Only worth saying when the commands above really are free of it
+  if [[ -n "${pubkey}" ]]; then
+    echo "None of these commands carry your ENR, so blanking out the IP value is enough to"
+    echo "share them when you ask for help. Your ENR does contain your address - it is not"
+    echo "safe to paste in its place."
+    echo
+  fi
+
+  [[ "${troubleshoot}" -eq 1 ]] || return 0
+
+  # Everything the report is derived from, so that a wrong report can be read back to its source
+  echo "Diagnostics - this names your address and your peers'. Redact before sharing."
+  echo
+  printf '  %-12s %s\n' "Client" "${cl_client}, compose service \"${__cl_service}\""
+  printf '  %-12s %s\n' "Compose" "${COMPOSE_FILE}"
+  printf '  %-12s %s\n' "Network" "${network:-unset}"
+  printf '  %-12s %s\n' "Env" \
+    "CL_P2P_PORT ${p2p_port}, CL_QUIC_PORT ${quic_port}, CL_REST_PORT ${__cl_rest_port}, IPV6 ${ipv6:-unset}"
+  printf '  %-12s %s\n' "Aliases" "${__cl_alias} / ${__el_alias}"
+  printf '  %-12s %s\n' "Beacon API" "${cl_api_via:-unknown}"
+  printf '  %-12s %s\n' "Peer ID" "${peer_id:-none}"
+  if [[ -n "${pubkey}" ]]; then
+    __wrapped_row "Public key" "${pubkey}"
+    printf '  %-12s %s\n' "" "decompressed with ${pubkey_via}"
+  else
+    printf '  %-12s %s\n' "Public key" "not readable - no openssl and no python3 on this host"
+  fi
+  __wrapped_row "ENR" "${enr:-none}"
+  __wrapped_row "ENR hex" "${enr_hex:-none}"
+  printf '  %-12s %s\n' "ENR keys" \
+    "ip ${ip4:-absent}, tcp ${tcp4:-absent}, udp ${udp4:-absent}, quic ${quic4:-absent}"
+  printf '  %-12s %s\n' "" \
+    "ip6 ${ip6:-absent}, udp6 ${udp6:-absent}, quic6 ${quic6:-absent}"
+  __diag_lines "Listening" "${listen_addresses}"
+  printf '  %-12s %s\n' "Host route" "src ${local_v4:-unknown} via ${gateway_v4:-unknown}"
+  detail=0
+  __host_has_v6 || detail=$?
+  case "${detail}" in
+    0) printf '  %-12s %s\n' "Host IPv6" "reachable";;
+    1) printf '  %-12s %s\n' "Host IPv6" "unreachable";;
+    *) printf '  %-12s %s\n' "Host IPv6" "untested - no ping on this host";;
+  esac
+  detail="direction reported"
+  [[ "${inbound}" = "?" ]] && detail="direction not reported"
+  [[ -z "${peer_entries}" ]] && detail="no peers to tell from"
+  printf '  %-12s %s\n' "Peers" \
+    "$(__count_lines "${peer_entries}") entries from /eth/v1/node/peers, ${detail}"
+  __diag_lines "Inbound" "${inbound_addresses}"
+  __diag_lines "Outbound" "${outbound_addresses}"
+  echo
 }
 
 
@@ -4493,34 +5316,8 @@ keys() {
     var="CL_NODE"
     __get_value_from_env "${var}" "${__env_file}" "CL_NODE"
     CL_NODE="${CL_NODE%%,*}"
-    network_name="$(__docompose config | awk '
-      BEGIN {
-          found_networks=0;
-          found_default=0;
-      }
-      /networks:/ {
-          found_networks=1;
-          next;
-      }
-      found_networks && /default:/ {
-          found_default=1;
-          next;
-      }
-      found_default && /^ *name:/ {
-          print $2;
-          exit;
-      }
-      ')"
-    if ! __dodocker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q "vc-utils:local"; then
-      if ! dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
-        __dodocker build -t vc-utils:local ./vc-utils
-      else
-        if ! dpkg-query -W -f='${Status}' docker-buildx-plugin 2>/dev/null | grep -q "ok installed"; then
-          ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y docker-buildx-plugin
-        fi
-        __dodocker buildx build -t vc-utils:local ./vc-utils
-      fi
-    fi
+    network_name="$(__compose_network_name)"
+    __ensure_vc_utils_image
     __dodocker run --rm \
       -u 1000:1000 \
       --network "${network_name}" \
@@ -6990,6 +7787,9 @@ __full_help() {
   echo "    removes the consensus layer database and forces a resync."
   echo "  space"
   echo "    show Docker volume space usage"
+  echo "  port-check [--troubleshoot|--debug]"
+  echo "    checks whether peers on the Internet can reach your consensus client"
+  echo "    --troubleshoot prints the guidance and a diagnostics block even when inbound works"
   echo "  attach-geth"
   echo "    launches an interactive geth attach repl"
   echo "  help"
@@ -7138,7 +7938,7 @@ case "${__command}" in
     ;;
   keys|up|start|down|stop|restart|version|logs|prune-nethermind\
 |prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
-|repair-reth|migrate-reth|migrate-geth|space)
+|repair-reth|migrate-reth|migrate-geth|space|port-check)
     __verify_env_file --enforce-min
     __get_compose_file
     ${__command} "$@"

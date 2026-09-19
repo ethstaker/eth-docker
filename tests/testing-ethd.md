@@ -118,3 +118,28 @@ Test scenarios
 - Likewise config files, same ownership expectations, and o+r permissions
 - `./ethd space` a second time, no message that `.env` permissions are being fixed should be seen
 - Ditto check ownership and permissions of bind-mounted files in alloy, alloy-obol, prometheus, loki, tempo, ssv-config. They need to be `other` readable.
+
+## ethd port-check
+
+The `Test ethd port-check` workflow, label `check-ethd-port-check`, already covers part of this
+list on Ubuntu and macOS: option parsing, the unreachable-client path, the `Peer ID` and
+`Public key` rows, the openssl and python3 key paths agreeing, and no `enr:` appearing in the
+printed probe commands. It runs Nimbus against hoodi with no inbound, so everything below that
+needs real peers, a NAT, IPv6, or a specific client is still manual. The Teku and Grandine
+direction-split check in particular cannot be automated: a freshly started node has no peers, and
+a table of all zeroes is mirrored whether or not the split works.
+
+- `./ethd port-check` on a node with no inbound peers: the discv5 and QUIC probe commands print, and both run clean when pasted on another machine with Docker
+- `./ethd port-check` on a node behind port-translating NAT: the discv5 probe command must carry `CL_P2P_PORT`, not the port the ENR advertises, and the report must say why the two differ
+- `./ethd port-check` on a dual-stack node: the IPv6 pair prints as well, creating an `ethd-v6-probe` docker network instead of using `--network host`
+- `./ethd port-check` on Teku or Grandine: the inbound and outbound rows must not be identical. Both clients ignore the `state` and `direction` query parameters on `/eth/v1/node/peers`, so a mirrored table means the direction split regressed to trusting the API's filters
+- `./ethd port-check` on any node: the `Peer ID` and `Public key` rows print, healthy or not. The key must match the one geth reads out of the same ENR: `docker run --rm ethereum/client-go:alltools-latest devp2p enrdump <enr> | grep URLv4`
+- `./ethd port-check` with inbound not working: no command it prints may contain an `enr:` string, and the closing note about blanking out the IP must appear
+- `./ethd port-check` on a host without `openssl`: the python3 path must produce the same public key. Without `python3` either, the discv5 command falls back to carrying the ENR and the closing note does not print
+- `./ethd port-check` with any option other than `--troubleshoot` or `--debug` exits 1 with `Error: Unknown option:`
+- On a node whose inbound works, the flag prints a preamble saying so, then the guidance verbatim, then the diagnostics block. Without the flag the output ends at the peers table
+- On a client that does not report peer direction, the preamble names that rather than claiming inbound works, and the `Peers` diagnostics row says `direction not reported`
+- The diagnostics `Beacon API` row says `throwaway container` on Lodestar, whose image ships neither wget nor curl, and `docker compose exec` elsewhere. `Public key` names openssl or python3, whichever read it
+- With the consensus client unreachable, `--troubleshoot` prints both routes it tried before exiting 1
+- The guidance must tell the reader to probe from a public IP address and warn that a probe sourced from an RFC1918 or Docker-bridge address can be dropped silently by the consensus client. Verified against Teku 26.8.0: it answers public peers but never replies to a discv5 PING sourced from 172.18.0.0/16, with no ICMP and nothing in its debug log, so the probe reads as a closed port on a port that is open
+- Cross-check the counts against the client's own gauge, which is the independent source of truth: `./ethd cmd exec consensus sh -c 'wget -qO- http://localhost:8008/metrics' | grep beacon_peer_count` for Teku, the equivalent gauge for other clients
