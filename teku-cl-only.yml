@@ -47,12 +47,15 @@ services:
       - WEB3SIGNER=false
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
-      - CL_P2P_PORT=${CL_P2P_PORT:-9000}
-      - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}
+      - CL_IPV6_P2P_PORT=${CL_IPV6_P2P_PORT:-9010}
+      - CL_IPV6_QUIC_PORT=${CL_IPV6_QUIC_PORT:-9011}
     ports:
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
       - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp
+      - ${HOST_IP:-}:${CL_IPV6_P2P_PORT:-9010}:${CL_IPV6_P2P_PORT:-9010}/tcp
+      - ${HOST_IP:-}:${CL_IPV6_P2P_PORT:-9010}:${CL_IPV6_P2P_PORT:-9010}/udp
+      - ${HOST_IP:-}:${CL_IPV6_QUIC_PORT:-9011}:${CL_IPV6_QUIC_PORT:-9011}/udp
     networks:
       default:
         aliases:
