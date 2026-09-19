@@ -81,31 +81,20 @@ else
   __network="--config ${NETWORK}"
 fi
 
-if [[ "${NODE_TYPE}" = "archive" ]]; then
-  __flat=""
-else
-  case "${NM_FLATDB}" in
-    "")
-      __flat=""
-      ;;
-    flat)
-      echo "Enabling Nethermind FlatDB with Layout Flat"
-      #__flat="--FlatDb.Enabled=true --FlatDb.ImportFromPruningTrieState=true"
-      __flat="--FlatDb.Enabled=true"
-      ;;
-    flatintrie)
-      echo "Enabling Nethermind FlatDB with Layout FlatInTrie"
-      #__flat="--FlatDb.Enabled=true --FlatDb.ImportFromPruningTrieState=true --FlatDb.Layout=FlatInTrie"
-      __flat="--FlatDb.Enabled=true --FlatDb.Layout=FlatInTrie"
-      ;;
-    *)
-      __flat=""
-      echo "Unknown value ${NM_FLATDB} for \"NETHERMIND_FLATDB\". Continuing without FlatDB."
-      ;;
-  esac
+# Determine the state DB layout. Flat is the Nethermind 2.0 default for a fresh DB; an existing
+# DB keeps the layout it was created with. A fresh sync that opts out of flat counts as Patricia.
+__patricia=0
+if [[ -d /var/lib/nethermind/nethermind_db || -d /var/lib/nethermind-og/nethermind_db ]]; then
+  if [[ -z "$(find /var/lib/nethermind/nethermind_db /var/lib/nethermind-og/nethermind_db \
+              -mindepth 3 -maxdepth 3 -path '*/flat/*' -name '*.sst' -print -quit 2>/dev/null)" ]]; then
+    __patricia=1
+  fi
+elif [[ "${EL_EXTRAS,,}" =~ (flatdb\.enabled|flatdb-enabled)[[:space:]=]+false ]]; then
+  __patricia=1
 fi
 
-if [[ ! "${NETWORK}" =~ ^https?:// && "${NODE_TYPE}" != "archive" && -z "${__flat}" ]]; then  # Only configure prune parameters for named networks, non-archive and HalfPath DB
+# Only configure prune parameters for named networks, non-archive and Patricia DB
+if [[ ! "${NETWORK}" =~ ^https?:// && "${NODE_TYPE}" != "archive" && "${__patricia}" -eq 1 ]]; then
   memtotal=$(awk '/MemTotal/ {printf "%d", int($2/1024/1024)}' /proc/meminfo)
   parallel=$(($(nproc)/4))
   if [[ "${parallel}" -lt 2 ]]; then
@@ -127,8 +116,16 @@ fi
 
 case "${NODE_TYPE}" in
   archive)
-    echo "Nethermind archive node without pruning"
-    __prune="--Sync.DownloadBodiesInFastSync=false --Sync.DownloadReceiptsInFastSync=false --Sync.FastSync=false --Sync.SnapSync=false --Sync.FastBlocks=false --Pruning.Mode=None --Sync.PivotNumber=0"
+    # Nethermind's own "<network>_archive" config is this set plus the FlatDb keys below. We cannot
+    # use that config: its Init.BaseDbPath would move every existing archive user's datadir.
+    __prune="--Sync.DownloadBodiesInFastSync=false --Sync.DownloadReceiptsInFastSync=false --Sync.FastSync=false --Sync.SnapSync=false --Sync.FastBlocks=false --Pruning.Mode=None --Sync.PivotNumber=0 --Receipt.TxLookupLimit=0"
+    if [[ "${__patricia}" -eq 0 ]]; then
+      echo "Nethermind FlatDB archive node without pruning"
+      __prune+=" --FlatDb.HistoryEnabled=true --FlatDb.PersistenceWriteBufferFloor=67108864"
+    else
+      echo "Nethermind legacy archive node without pruning"
+      echo "Consider a FlatDB archive node instead"
+    fi
     __ere_from=0
     ;;
   full)
@@ -184,7 +181,6 @@ case "${NODE_TYPE}" in
     ;;
   custom)
     echo "Nethermind default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
-    echo "NB: \"AUTOPRUNE_NM\" has no effect; if auto-pruning is desired, add the parameters yourself"
     __prune=""
     __ere_from=0
     ;;
@@ -224,10 +220,6 @@ echo "${__prune}"
 if [[ -n "${__ere}" ]]; then
   echo "Using EraE import parameters:"
   echo "${__ere}"
-fi
-if [[ -n "${__flat}" ]]; then
-  echo "Using FlatDB parameters:"
-  echo "${__flat}"
 fi
 
 if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
@@ -386,4 +378,4 @@ set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__datadir} ${__network} ${__prune} ${__ere} ${__flat} ${__grandine} "${__grandine_graffiti_args[@]}" ${EL_EXTRAS}
+exec "$@" ${__datadir} ${__network} ${__prune} ${__ere} ${__grandine} "${__grandine_graffiti_args[@]}" ${EL_EXTRAS}

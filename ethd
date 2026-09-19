@@ -1749,6 +1749,55 @@ __check_teku_db_version() {
 }
 
 
+# Remove after Hegotá
+__nethermind_is_patricia() {
+  local vol="$1"
+
+  __dodocker volume inspect "${vol}" >/dev/null 2>&1 || return 1
+
+  __dodocker run --rm -v "${vol}:/var/lib/nethermind" alpine:3 sh -c '
+    [ -d /var/lib/nethermind/nethermind_db ] || exit 1
+    find /var/lib/nethermind/nethermind_db -mindepth 3 -maxdepth 3 \
+         -path "*/flat/*" -name "*.sst" -print -quit | grep -q . && exit 1
+    exit 0'
+}
+
+
+# Remove after Hegotá
+__nethermind_has_db() {
+  local vol="$1"
+
+  __dodocker volume inspect "${vol}" >/dev/null 2>&1 || return 1
+
+  __dodocker run --rm -v "${vol}:/var/lib/nethermind" alpine:3 [ -d /var/lib/nethermind/nethermind_db ]
+}
+
+
+# Remove after Hegotá
+__check_nethermind_flat() {
+  local project_prefix
+  local volume_name
+  local og_volume_name
+
+  if [[ ! "${COMPOSE_FILE}" =~ nethermind\.yml ]]; then
+    return 0
+  fi
+
+  project_prefix="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')"
+  volume_name="${project_prefix}_nethermind-el-data"
+  og_volume_name="${project_prefix}_nm-eth1-data"
+
+  if __nethermind_has_db "${og_volume_name}"; then
+    __final_msg+="\nWARNING: Your Nethermind database is in the legacy \"nm-eth1-data\" Docker volume. ${__project_name} will stop supporting that volume with the Hegotá hard fork in 2027.\n"
+    __final_msg+="\nYou can move to the current volume by running \"${__me} resync-execution\".\n"
+  fi
+  if __nethermind_is_patricia "${volume_name}"; then
+    __final_msg+="\nWARNING: Your Nethermind database is using Patricia layout. This will continue to work but require manual state pruning setup with the Hegotá hard fork in 2027.\n"
+    __final_msg+="\nYou can switch to Flat layout by running \"${__me} resync-execution\".\n"
+  fi
+}
+
+
 # Remove RIGHT after Glamsterdam
 __check_mev_boost() {
   local var
@@ -2235,6 +2284,17 @@ __migrate_env() {
           __value="--LogIndex.Enabled true"
         elif [[ ! "${__value}" =~ Logindex\.Enabled|logindex-enabled ]]; then
           __value+=" --LogIndex.Enabled true"
+        fi
+      fi
+      # Remove after Glamsterdam
+      if [[ "${__source_ver}" -lt "69" && "${var}" = "EL_EXTRAS" && "${COMPOSE_FILE}" =~ nethermind\.yml ]]; then
+        __get_value_from_env "NETHERMIND_FLATDB" "${__env_file}.source" "NETHERMIND_FLATDB"
+        if [[ "${NETHERMIND_FLATDB}" = "flatintrie" ]]; then
+          if [[ -z "${__value}" ]]; then
+            __value="--FlatDb.Layout=FlatInTrie"
+          elif [[ ! "${__value}" =~ --FlatDb\.Layout|flatdb-layout ]]; then
+            __value+=" --FlatDb.Layout=FlatInTrie"
+          fi
         fi
       fi
 
@@ -2878,6 +2938,8 @@ update() {
   __check_teku_db_version
   # Remove RIGHT after Glamsterdam
   __check_mev_boost
+  # Remove after Hegotá
+  __check_nethermind_flat
 
   echo
   if [[ "${__env_migrated}" -eq 1 ]] && ! cmp -s "${__env_file}" "${__env_file}".source; then
@@ -3410,6 +3472,7 @@ prune-reth() {
 
 prune-nethermind() {
   local exitstatus
+  local project_prefix
   local var
   local min_free
   local min_gib
@@ -3456,10 +3519,11 @@ prune-nethermind() {
   fi
 
   # Check for FlatDB
-  var="NETHERMIND_FLATDB"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ -n "${__value}" ]]; then
-    echo "Nethermind is configured for FlatDB, which need not and cannot be pruned. Aborting."
+  project_prefix="$(basename "$(realpath .)" | tr '[:upper:]' '[:lower:]')"
+  if ! __nethermind_is_patricia "${project_prefix}_nethermind-el-data" \
+     && ! __nethermind_is_patricia "${project_prefix}_nm-eth1-data"; then
+    echo "Nethermind is not using Patricia layout - it is either on FlatDB, which need not and"
+    echo "cannot be pruned, or it has no database yet. Aborting."
     exit 1
   fi
 
