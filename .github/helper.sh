@@ -6,7 +6,7 @@ set_value_in_env() {
     if ! grep -qF "${var}" .env 2>/dev/null ; then
       echo "${var}=${!var}" >> .env
     else
-      sed -i'.original' -e "s~^\(${var}\s*=\s*\).*$~\1${!var}~" .env
+      sed -i'.original' -e "s~^\(${var}[[:space:]]*=[[:space:]]*\).*$~\1${!var}~" .env
     fi
   fi
 }

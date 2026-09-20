@@ -88,6 +88,25 @@ __docompose() {
 }
 
 
+# Echoes the project name Compose resolved for this directory, or nothing.
+# The YAML emitter quotes a name that would otherwise parse as another type -
+# a directory named "123" comes back as: name: "123" - so strip the quotes.
+# \042 and \047 are " and ', spelled in octal to keep the awk program quotable.
+__compose_config_project_name() {
+  local awk_exe
+
+  if [[ "$OSTYPE" = "darwin"* ]]; then
+    awk_exe="gawk"  # Built-in awk is BSD and may behave in ways I do not code for
+  else
+    awk_exe="awk"
+  fi
+
+#shellcheck disable=SC2016
+  __docompose config 2>/dev/null \
+    | ${awk_exe} -F': ' '/^name:/{ gsub(/^[\042\047]|[\042\047]$/, "", $2); print $2; exit }'
+}
+
+
 # Sets __compose_project to this install's Compose project name, which is what
 # prefixes the name of every volume Compose creates here.
 #
@@ -108,8 +127,7 @@ __get_compose_project_name() {
     return 0
   fi
 
-  name=$(__docompose config 2>/dev/null \
-    | awk -F': ' '/^name:/{print $2; exit}') || name=""
+  name=$(__compose_config_project_name) || name=""
   if [[ -n "${name}" ]]; then
     __compose_project="${name}"
     __compose_project_exact=1
@@ -592,7 +610,7 @@ __upgrade_docker() {
   if (( __docker_major_version < 28 )) ||
       (( __docker_major_version == 28 && __docker_minor_version < 5 )) ||
       (( __docker_major_version == 28 && __docker_minor_version == 5 && __docker_patch_version < 2 )); then
-    runc_version=$(runc --version | awk '{ gsub(/[-\+~]/, " ", $3); $0=$0; print $3 }')
+    runc_version=$(runc --version | awk '{ gsub(/[-+~]/, " ", $3); $0=$0; print $3 }')
     runc_major_version=$(echo "${runc_version}" | awk '{ split($1, version, "."); print version[1]; }')
     runc_minor_version=$(echo "${runc_version}" | awk '{ split($1, version, "."); print version[2]; }')
     runc_patch_version=$(echo "${runc_version}" | awk '{ split($1, version, "."); print version[3]; }')
@@ -4540,7 +4558,7 @@ keys() {
         done
       fi
 
-      pubkey="$(sed -E 's/.*"pubkey":\s*"([0-9a-fA-F]+)".*/\1/' < "${keyfile}")"
+      pubkey="$(sed -E 's/.*"pubkey":[[:space:]]*"([0-9a-fA-F]+)".*/\1/' < "${keyfile}")"
       if [[ -z "${pubkey}" ]]; then
         echo "Unable to read public key from ${keyfile}. Is it the right format?"
         continue
@@ -4707,7 +4725,7 @@ __set_alloy_project_name() {
   var=ALLOY_FILTER_BY_PROJECT_NAME
   __get_value_from_env "${var}" "${__env_file}" "__value"
   if [[ "${__value}" = "true" ]]; then
-    ALLOY_PROJECT_NAME=$(__docompose config 2>/dev/null | awk -F': ' '/^name:/{print $2; exit}') || ALLOY_PROJECT_NAME=""
+    ALLOY_PROJECT_NAME=$(__compose_config_project_name) || ALLOY_PROJECT_NAME=""
   else
     ALLOY_PROJECT_NAME=""
   fi
