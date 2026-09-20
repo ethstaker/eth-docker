@@ -243,7 +243,7 @@ __compose_network_name() {
 
 # Builds the vc-utils:local image when it is not already present.
 __ensure_vc_utils_image() {
-  __dodocker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q "vc-utils:local" && return 0
+  __dodocker image ls --format "{{.Repository}}:{{.Tag}}" | grep -qxF "vc-utils:local" && return 0
   # Docker Desktop and Colima both ship buildx, so macOS wants the plain build. It would reach
   # it anyway, for want of a "dpkg-query", but by accident rather than because this says so.
   if [[ "$OSTYPE" = "darwin"* ]] \
