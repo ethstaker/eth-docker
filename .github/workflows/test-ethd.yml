@@ -21,28 +21,60 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'check-ethd') ||
       contains(github.event.pull_request.labels.*.name, 'test-all') ||
       github.event_name == 'push'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-26-intel]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Set up Docker buildx
-        if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         uses: docker/setup-buildx-action@v4
-      - name: Set up Docker on macOS
-        if: ${{ startsWith(matrix.os, 'macos-') }}
-        uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
       - name: Prerequisites on Ubuntu
-        if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         run: |
           sudo apt-get install -y expect whiptail
           sudo apt-get remove -y podman
+      - name: Use default.env
+        run: cp default.env .env
+      - name: Set old .env version
+        run: |
+          source ./.github/helper.sh
+          ENV_VERSION=42
+          var=ENV_VERSION
+          set_value_in_env
+          COMPOSE_FILE=teku.yml:besu.yml
+          var=COMPOSE_FILE
+          set_value_in_env
+      - name: Test ethd update
+        run: ./ethd update --debug --non-interactive
+      - name: Remove .env
+        run: rm .env
+      - name: Test ethd config defaults
+        run: expect -d ./.github/test-ethd-config.exp all-defaults
+        env:
+          TERM: xterm
+      - name: Test ethd config no epbs
+        run: expect -d ./.github/test-ethd-config.exp no-epbs
+        env:
+          TERM: xterm
+      - name: Test ethd config no grafana
+        run: expect -d ./.github/test-ethd-config.exp no-grafana
+        env:
+          TERM: xterm
+
+  # The whole thing on macOS, Colima and a syncing client pair included. It does not fit in the
+  # half hour the Ubuntu job takes, and Colima is slow enough that it is not worth running on
+  # every push - so it waits for its own label.
+  test-ethd-macos:
+    if: contains(github.event.pull_request.labels.*.name, 'check-ethd-macos')
+    runs-on: macos-26-intel
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Docker on macOS
+        uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
       - name: Prerequisites on macOS
-        if: ${{ startsWith(matrix.os, 'macos-') }}
         run: brew install bash newt coreutils expect gawk
       - name: Use default.env
         run: cp default.env .env
@@ -58,20 +90,16 @@ jobs:
       - name: Test ethd update
         run: ./ethd update --debug --non-interactive
       - name: Remove .env
-        if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         run: rm .env
       - name: Test ethd config defaults
-        if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         run: expect -d ./.github/test-ethd-config.exp all-defaults
         env:
           TERM: xterm
       - name: Test ethd config no epbs
-        if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         run: expect -d ./.github/test-ethd-config.exp no-epbs
         env:
           TERM: xterm
       - name: Test ethd config no grafana
-        if: ${{ startsWith(matrix.os, 'ubuntu-') }}
         run: expect -d ./.github/test-ethd-config.exp no-grafana
         env:
           TERM: xterm
