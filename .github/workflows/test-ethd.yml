@@ -76,6 +76,31 @@ jobs:
         uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
       - name: Prerequisites on macOS
         run: brew install bash newt coreutils expect gawk
+      # Does whiptail draw at all under a pty on macOS, with ethd out of the picture?
+      # newt emits its alternate-screen preamble the moment it initializes, so a match
+      # here means the expect side is healthy and any later timeout is ethd being slow.
+      - name: Probe expect and whiptail
+        run: |
+          type -a expect whiptail bash
+          expect -v
+          bash --version | head -1
+          expect -c '
+            set timeout 20
+            spawn whiptail --notags --title "Select Network" --menu "Which network?" 15 65 2 hoodi Hoodi mainnet Mainnet
+            expect {
+              "Select Network" { puts "\nPROBE OK" ; exit 0 }
+              timeout          { puts "\nPROBE TIMEOUT" ; exit 1 }
+              eof              { puts "\nPROBE EOF" ; exit 1 }
+            }'
+        env:
+          TERM: xterm
+      # With stdin on /dev/null whiptail fails immediately, so this times exactly the
+      # Docker and Compose preflight that runs before the first prompt.
+      - name: Time ethd to first whiptail
+        run: |
+          cp default.env .env
+          time ./ethd config --ci </dev/null || true
+          rm -f .env
       - name: Use default.env
         run: cp default.env .env
       - name: Set old .env version

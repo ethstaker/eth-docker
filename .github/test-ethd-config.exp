@@ -65,7 +65,17 @@ proc expect_eof {{t ""}} {
         set ::timeout $t
     }
     expect {
-        eof {}
+        eof {
+            set wait_result [wait]
+            if {[lindex $wait_result 2] != 0} {
+                puts "Error waiting for ethd: [lindex $wait_result 3]"
+                exit 1
+            }
+            if {[lindex $wait_result 3] != 0} {
+                puts "ethd exited with status [lindex $wait_result 3]"
+                exit 1
+            }
+        }
         timeout {
             if {$t ne ""} {
                 puts "Timeout waiting for EOF"
@@ -77,7 +87,7 @@ proc expect_eof {{t ""}} {
 }
 
 proc default-deployment {} {
-    expect_or_fail "Select Network" accept_default
+    expect_or_fail "Select Network" accept_default $::startup_timeout
     expect_or_fail "Select deployment type" accept_default
     expect_or_fail "Select consensus client" accept_default
     expect_optional "Web3signer" yes 5
@@ -99,7 +109,7 @@ proc all-defaults {} {
     expect_or_fail "Configure Graffiti" accept_default
     expect_or_fail "Default Graffiti" yes
 
-    expect_eof 15
+    expect_eof $::finish_timeout
 }
 
 # Called after all-defaults, existing .env
@@ -114,7 +124,7 @@ proc no-epbs {} {
     expect_or_fail "Configure Graffiti" accept_default
     expect_or_fail "Default Graffiti" yes
 
-    expect_eof 15
+    expect_eof $::finish_timeout
 }
 
 # Called after all-defaults, existing .env
@@ -131,10 +141,18 @@ proc no-grafana {} {
     expect_or_fail "Configure Graffiti" accept_default
     expect_or_fail "Default Graffiti" yes
 
-    expect_eof 15
+    expect_eof $::finish_timeout
 }
 
-set timeout 5
+# Between prompts ethd only runs bash, but macOS CI runners are slow
+set timeout 15
+# ethd talks to Docker and Compose several times before the first whiptail screen.
+# That is fast natively and slow through Colima on macOS.
+set startup_timeout 120
+# After the last prompt, __detect_v6 creates a Docker network and runs a container
+set finish_timeout 120
+# Pin the pty size rather than relying on newt's fallback
+set stty_init "rows 24 columns 80"
 spawn ./ethd config --ci
 
 # Check for the command-line argument
