@@ -2002,6 +2002,7 @@ port-check() {
   local probe_ip
   local detail
   local troubleshoot=0
+  local debug=0
 
   while :
   do
@@ -2009,8 +2010,13 @@ port-check() {
       break
     fi
     case "$1" in
-      --troubleshoot | --debug)
+      --troubleshoot)
         troubleshoot=1
+        shift
+        ;;
+      --debug)
+        troubleshoot=1
+        debug=1
         shift
         ;;
       *)
@@ -2219,22 +2225,31 @@ port-check() {
   fi
   echo
 
-  # The guidance below is written for a node nothing can dial. --troubleshoot prints it anyway,
-  # so that its wording can be checked against a client without first having to break the node.
-  if [[ "${troubleshoot}" -eq 0 ]] && { [[ "${inbound}" = "?" ]] || [[ "${inbound}" -gt 0 ]]; }; then
-    return 0
-  fi
-
-  if [[ "${troubleshoot}" -eq 1 ]]; then
+  if [[ "${inbound}" = "?" || "${inbound}" = 0 ]]; then
     if [[ "${inbound}" = "?" ]]; then
       echo "${cl_client} does not report peer direction, so inbound cannot be measured."
-      echo "This guidance prints because you asked for it."
-      echo
-    elif [[ "${inbound}" -gt 0 ]]; then
-      echo "Inbound is working. This guidance prints because you asked for it, so some"
-      echo "of it will not apply."
-      echo
+    else
+      echo "You do not appear to have inbound peer connections."
     fi
+    # Pointing at the flag the reader already used would only be noise
+    if [[ "${troubleshoot}" -eq 0 ]]; then
+      echo "You can get instructions to verify inbound connectivity with"
+      echo "\"${__me} port-check --troubleshoot\"."
+    fi
+    echo
+  fi
+
+  # The guidance below is written for a node nothing can dial. --troubleshoot prints it anyway,
+  # so that its wording can be checked against a client without first having to break the node.
+  [[ "${troubleshoot}" -eq 1 ]] || return 0
+
+  if [[ "${inbound}" != "?" && "${inbound}" -gt 0 ]]; then
+    echo "Inbound peering is working. This guidance prints because you asked for it."
+    echo
+  else
+    echo "NOTE: A node that started in the last few minutes has not had time to be dialed."
+    echo "If this is a recently started node, wait, then run the test again."
+    echo
   fi
 
   if [[ "${outbound}" != "?" && "${outbound}" -eq 0 ]]; then
@@ -2243,7 +2258,7 @@ port-check() {
     echo
   fi
 
-  echo "To fix inbound connectivity:"
+  echo "To ensure inbound peer connectivity:"
   if [[ "${cgnat}" = yes* ]]; then
     echo "  - You are behind carrier-grade NAT. No port forward can work, because the"
     echo "    public address is not yours. Working IPv6 is your way out of this: enable"
@@ -2254,9 +2269,6 @@ port-check() {
     echo "  - If your ISP has you behind carrier-grade NAT, no forward can work. Enabling"
     echo "    IPv6 with \"${__me} config\" is then the way to accept inbound connections."
   fi
-  echo
-  echo "NOTE: A node that started in the last few minutes has not had time to be dialed."
-  echo "If this is a recently started node, wait, then run the test again."
   echo
   probe_ip="<your-public-ip>"
   [[ -n "${ip4}" ]] && ! __is_private_v4 "${ip4}" && probe_ip="${ip4}"
@@ -2273,6 +2285,8 @@ port-check() {
   echo "10.x, 172.16-31.x, 192.168.x, or a Docker bridge - reaches your node with a"
   echo "source the Internet could never route a reply to, and some consensus clients"
   echo "drop it without a word. It will read as a closed port when the port is fine."
+  echo
+  echo "=================== IPv4 - test incoming ports are open ======================"
   echo
   # Under IPv4 NAT the ENR carries the translated port, learned from peers. That is a
   # mapping, not a forward, so the port worth probing is the configured one.
@@ -2295,35 +2309,48 @@ port-check() {
   echo
   __probe_quic "${probe_ip}" "${quic4:-${quic_port}}"
   echo
-  echo "The raw quicmap output prints above; PASS/FAIL summarizes it. An \"ALPN: ?\""
-  echo "line is expected - consensus clients speak the \"libp2p\" ALPN, which quicmap"
-  echo "does not probe for; \"server_versions\" appearing at all is what proves the"
+  echo "The above command prints the raw quicmap output and gives you a PASS/FAIL."
+  echo "An \"ALPN: ?\" line is expected. \"server_versions\" appearing shows the"
   echo "forward works."
+  echo
+  echo "=================== IPv6 - test incoming ports are open ======================"
   echo
   if [[ -n "${ip6}" ]] && ! __is_private_v6 "${ip6}"; then
     echo "Your record also advertises IPv6 ${ip6}. Run these from a probing host with a"
-    echo "global IPv6 address of its own - the same rule as above, a ULA or link-local"
-    echo "source will not do. They create a small IPv6-enabled docker network for the"
-    echo "probe, since Docker's default bridge has no IPv6 route out:"
+    echo "global (public) IPv6 address of its own. Just as with IPv4, a ULA or link-local"
+    echo "source will not do."
+    echo "The following probe commands create a small IPv6-enabled docker network for the probe,"
+    echo "since Docker's default bridge network is not guaranteed to be IPv6-enabled:"
     echo
     __probe_discv5 "${pubkey}" "${enr}" "[${ip6}]" "${udp6:-${p2p_port}}"
     echo
     __probe_quic "${ip6}" "${quic6:-${quic_port}}"
     echo
-  fi
-
-  # Only worth saying when the commands above really are free of it
-  if [[ -n "${pubkey}" ]]; then
-    echo "None of these commands carry your ENR, so blanking out the IP value is enough to"
-    echo "share them when you ask for help. Your ENR does contain your address - it is not"
-    echo "safe to paste in its place."
+  else
+    echo "Your record advertises no global (public) IPv6 address, so there is nothing to test here."
     echo
   fi
 
-  [[ "${troubleshoot}" -eq 1 ]] || return 0
+  echo "=================== Sharing these instructions  =============================="
+  echo
+  # Only worth saying when the commands above really are free of it
+  if [[ -n "${pubkey}" ]]; then
+    echo "None of these commands carry your ENR, so blanking out the IP value is enough to"
+    echo "share them when you ask for help."
+    echo "Your ENR does contain your IP address. Do not share it alongside these commands."
+    echo
+  else
+    echo "These commands carry your ENR."
+    echo "Your ENR does contain your IP address. It is not safe to share it."
+    echo
+  fi
 
+  [[ "${debug}" -eq 1 ]] || return 0
+
+  echo "=================== Diagnostics and full peer list ==========================="
+  echo
   # Everything the report is derived from, so that a wrong report can be read back to its source
-  echo "Diagnostics - this names your address and your peers'. Redact before sharing."
+  echo "Diagnostics - this names your address, your ENR and your peers' addresses. Redact before sharing."
   echo
   printf '  %-12s %s\n' "Client" "${cl_client}, compose service \"${__cl_service}\""
   printf '  %-12s %s\n' "Compose" "${COMPOSE_FILE}"
@@ -8169,9 +8196,10 @@ __full_help() {
   echo "    removes the consensus layer database and forces a resync."
   echo "  space"
   echo "    show Docker volume space usage"
-  echo "  port-check [--troubleshoot|--debug]"
+  echo "  port-check [--troubleshoot] [--debug]"
   echo "    checks whether peers on the Internet can reach your consensus client"
-  echo "    --troubleshoot prints the guidance and a diagnostics block even when inbound works"
+  echo "    --troubleshoot prints guidance to test incoming P2P ports"
+  echo "    --debug adds a diagnostics block to that guidance"
   echo "  attach-geth"
   echo "    launches an interactive geth attach repl"
   echo "  help"

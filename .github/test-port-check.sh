@@ -127,6 +127,14 @@ test_offline() {
     "Tried it inside the \"consensus\" service" "${output}"
   assert_contains "--troubleshoot names the throwaway container route" \
     "throwaway container" "${output}"
+
+  # --debug implies --troubleshoot, so the unreachable path must read the same
+  run_port_check --debug
+  assert_status "unreachable API with --debug exits 1" 1 "${status}" "${output}"
+  assert_contains "--debug names the compose exec route" \
+    "Tried it inside the \"consensus\" service" "${output}"
+  assert_contains "--debug names the throwaway container route" \
+    "throwaway container" "${output}"
 }
 
 
@@ -155,13 +163,30 @@ test_online() {
     fail "public key is not 128 hex characters - got \"${pubkey}\"" "${plain_output}"
   fi
 
-  # A runner has no inbound, so the guidance with the probe commands prints - the case
-  # the privacy rule is about. The --troubleshoot diagnostics do carry the ENR by design.
-  assert_lacks "no ENR in the probe commands" "enr:" "${plain_output}"
+  # The three tiers. A runner has no inbound, so the plain report is the one that points at
+  # --troubleshoot, and --troubleshoot is the one that prints the probe commands.
+  assert_lacks "plain output stops short of the guidance" \
+    "To ensure inbound peer connectivity:" "${plain_output}"
+  assert_contains "plain output points at --troubleshoot" \
+    "port-check --troubleshoot" "${plain_output}"
+  assert_lacks "no ENR in the plain report" "enr:" "${plain_output}"
 
   run_port_check --troubleshoot
   assert_status "--troubleshoot exits 0" 0 "${status}" "${output}"
-  assert_contains "--troubleshoot prints diagnostics" "Diagnostics" "${output}"
+  assert_contains "--troubleshoot prints the guidance" \
+    "To ensure inbound peer connectivity:" "${output}"
+  assert_contains "--troubleshoot prints the IPv4 probe section" \
+    "IPv4 - test incoming ports are open" "${output}"
+  assert_lacks "--troubleshoot stops short of the diagnostics" "Diagnostics" "${output}"
+  # The privacy rule, on the tier that actually carries the probe commands. Only the --debug
+  # diagnostics may name the ENR, and by design.
+  assert_lacks "no ENR in the probe commands" "enr:" "${output}"
+
+  run_port_check --debug
+  assert_status "--debug exits 0" 0 "${status}" "${output}"
+  assert_contains "--debug prints the guidance too" \
+    "To ensure inbound peer connectivity:" "${output}"
+  assert_contains "--debug prints diagnostics" "Diagnostics" "${output}"
   assert_contains "Beacon API row names the compose exec route" \
     "docker compose exec consensus" "${output}"
 
@@ -186,7 +211,7 @@ test_online() {
   mkdir -p "${shimdir}"
   printf '#!/bin/sh\nexit 1\n' > "${shimdir}/openssl"
   chmod +x "${shimdir}/openssl"
-  output="$(PATH="${shimdir}:${PATH}" ./ethd port-check --troubleshoot 2>&1)"
+  output="$(PATH="${shimdir}:${PATH}" ./ethd port-check --debug 2>&1)"
   status=$?
   assert_status "port-check exits 0 without a working openssl" 0 "${status}" "${output}"
   assert_contains "python3 reads the key when openssl cannot" \
