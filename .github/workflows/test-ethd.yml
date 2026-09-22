@@ -46,6 +46,8 @@ jobs:
           set_value_in_env
       - name: Test ethd update
         run: ./ethd update --debug --non-interactive
+      - name: Test .env migration edge cases
+        run: ./.github/test-ethd-migrate.sh
       - name: Remove .env
         run: rm .env
       - name: Test ethd config defaults
@@ -89,6 +91,8 @@ jobs:
           set_value_in_env
       - name: Test ethd update
         run: ./ethd update --debug --non-interactive
+      - name: Test .env migration edge cases
+        run: ./.github/test-ethd-migrate.sh
       - name: Remove .env
         run: rm .env
       - name: Test ethd config defaults

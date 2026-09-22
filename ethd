@@ -3229,6 +3229,47 @@ __update_value_in_env() {
 }
 
 
+# Remove after Glamsterdam
+# Repair a CORE_FILES that an earlier pre-54 migration overwrote with the COMPOSE_FILE indirection.
+# The yml files are not recoverable from the damaged file itself, so take them from the newest
+# backup that still has a sane value. Runs against .env.source, so the migration picks it up.
+__repair_core_files() {
+  local candidate
+  local repaired
+  local good_value=""
+  local good_file=""
+
+  __get_value_from_env "CORE_FILES" "${__env_file}.source" "__value"
+  if [[ "${__found}" -eq 0 ]] || [[ "${__value}" != *'$'* && "${__value}" != *'{'* ]]; then
+    return 0
+  fi
+
+# Backups are named .bak.<epoch>, so the last glob match is the most recent one
+  for candidate in "${__env_file}".bak.*; do
+    if [[ ! -f "${candidate}" ]]; then
+      continue
+    fi
+    __get_value_from_env "CORE_FILES" "${candidate}" "repaired"
+    if [[ "${__found}" -eq 1 && -n "${repaired}" && "${repaired}" != *'$'* && "${repaired}" != *'{'* ]]; then
+      good_value="${repaired}"
+      good_file="${candidate}"
+    fi
+  done
+
+  if [[ -n "${good_value}" ]]; then
+    echo "Repaired a corrupted CORE_FILES in ${__env_file}, recovered from ${good_file}"
+    __update_value_in_env "CORE_FILES" "${good_value}" "${__env_file}.source"
+    __final_msg+="\nCORE_FILES in ${__env_file} was corrupted and has been restored from ${good_file}."
+    __final_msg+="\nIt now reads \"${good_value}\". Please check that this is the client choice you expect.\n"
+    return 0
+  fi
+
+  echo "Error: CORE_FILES in ${__env_file} is corrupted, and no usable backup of it was found."
+  echo "Please run \"${__me} config\" to choose your clients again and rebuild CORE_FILES."
+  exit 1
+}
+
+
 __migrate_env() {
   local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL CB_PBS_DOCKER_TAG CB_PBS_DOCKER_REPO MEV_MIN_BID MEV_BUILD_FACTOR )
   local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS CB_DOCKER_TAG CB_DOCKER_REPO EPBS_MIN_BID EPBS_BUILD_FACTOR )
@@ -3280,6 +3321,21 @@ __migrate_env() {
   __get_value_from_env "${var}" "default.env" "__target_ver"
   __get_value_from_env "${var}" "${__env_file}" "__source_ver"
 
+# An unreadable ENV_VERSION reads as an empty string, and "" is 0 in arithmetic tests. That would
+# silently re-run every old migration against a current file, so work out a sane version instead.
+  if [[ ! "${__source_ver}" =~ ^[0-9]+$ ]]; then
+    echo "Warning: could not read a valid ENV_VERSION from ${__env_file}."
+    if grep -q "^[ \t]*CORE_FILES=" "${__env_file}"; then
+      __source_ver=54  # It has CORE_FILES, so it is version 54 or later
+    else
+      __source_ver=1
+    fi
+    echo "Assuming version ${__source_ver}. Please check ${__env_file} after the update."
+    __final_msg+="\nWARNING: ${__env_file} has no readable ENV_VERSION, so ${__me} assumed version ${__source_ver}."
+    __final_msg+="\nPlease check ${__env_file} against default.env. If you provision it with staging tooling"
+    __final_msg+="\nsuch as Ansible, or from a template in your own repository, make sure ENV_VERSION is kept.\n"
+  fi
+
 # shellcheck disable=SC2154
   if [[ "${__keep_targets}" -eq 1 && "${__target_ver}" -le "${__source_ver}" ]]; then  # No changes in template, do nothing
     return 0
@@ -3297,6 +3353,15 @@ __migrate_env() {
   __during_env_migrate=1
   __env_migrated=1
   ${__as_owner} cp default.env "${__env_file}"
+
+  # Remove after Glamsterdam
+  __repair_core_files
+
+# A pre-54 .env has no CORE_FILES, so __get_compose_file came up empty and the version-gated
+# migrations below that test ${COMPOSE_FILE} would never fire. Take it from the old file instead.
+  if [[ -z "${COMPOSE_FILE}" ]]; then
+    __get_value_from_env "COMPOSE_FILE" "${__env_file}.source" "COMPOSE_FILE"
+  fi
 
   # Migrate over user settings
   while IFS= read -r line; do  # read default.env and process all variables in it
@@ -3318,8 +3383,24 @@ __migrate_env() {
         __migrate_compose_files
       fi
       # Remove after Glamsterdam
+      # A pre-54 .env had no CORE_FILES and COMPOSE_FILE held the yml files. Only split it up when
+      # it really looks like that - a version 54 or later COMPOSE_FILE refers to CORE_FILES, and
+      # copying that into CORE_FILES makes it self-referential and loses the client choice.
       if [[ "${__source_ver}" -lt "54" && "${var}" = "COMPOSE_FILE" ]]; then
-        __update_value_in_env "CORE_FILES" "${__value}" "${__env_file}"
+        if [[ "${__value}" == *'$'* || "${__value}" == *'{'* ]]; then
+          echo "Warning: ENV_VERSION in ${__env_file} is ${__source_ver}, but COMPOSE_FILE already is"
+          echo "in the version 54 or later format. Not deriving CORE_FILES from it."
+          __final_msg+="\nWARNING: Your ${__env_file} had ENV_VERSION ${__source_ver} with a COMPOSE_FILE of"
+          __final_msg+="\n\"${__value}\", which is the format used from ENV_VERSION 54 onwards."
+          __final_msg+="\n${__me} does not create that combination, so something else wrote your ${__env_file}."
+          __final_msg+="\nPlease check ${__env_file} against default.env, and confirm CORE_FILES lists the yml"
+          __final_msg+="\nfiles you expect - \"${__me} config\" will rebuild it for you if it does not."
+          __final_msg+="\nIf you provision ${__env_file} with staging tooling such as Ansible, or from a template"
+          __final_msg+="\nin your own repository, check that it keeps ENV_VERSION in step with the rest of the"
+          __final_msg+="\nfile. A stale ENV_VERSION makes ${__me} re-run old migrations against a current file.\n"
+        else
+          __update_value_in_env "CORE_FILES" "${__value}" "${__env_file}"
+        fi
 # shellcheck disable=SC2016
         __value='${CORE_FILES}${CUSTOM_FILES:+:${CUSTOM_FILES}}'
       fi
