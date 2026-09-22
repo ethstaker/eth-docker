@@ -162,7 +162,6 @@ jobs:
               TEKU_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             vc-env: |-
-              CL_NODE=consensus:4000
               CORE_FILES=teku-cl-only.yml:teku-vc-only.yml:besu.yml
             test_cl: true
             test_el: true

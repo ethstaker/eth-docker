@@ -3508,6 +3508,23 @@ __migrate_env() {
           fi
         fi
       fi
+      # Remove after HARDFORK TBD
+      if [[ "${__source_ver}" -lt "72" && "${var}" = "CL_NODE" && "${__value}" = "consensus:4000" ]]; then
+        __get_value_from_env "CL_REST_PORT" "${__env_file}.source" "CL_REST_PORT"
+        if [[ -z "${CL_REST_PORT}" ]]; then
+          CL_REST_PORT=5052
+        fi
+        __value="http://consensus:${CL_REST_PORT}"
+        __final_msg+="\nPrysm's validator client now uses the beacon REST API instead of gRPC.\n"
+        __final_msg+="\"CL_NODE\" has been changed from \"consensus:4000\" to \"${__value}\".\n"
+      elif [[ "${__source_ver}" -lt "72" && "${var}" = "CL_NODE" && "${__value}" =~ ^[^/]+:4000$ ]]; then
+        __final_msg+="\nWARNING: \"CL_NODE\" is set to \"${__value}\", which looks like a Prysm gRPC endpoint.\n"
+        __final_msg+="${__project_name} now defaults to the beacon REST API for the Prysm validator client,\n"
+        __final_msg+="and passes \"CL_NODE\" to \"--beacon-rest\". \"CL_NODE\" has been left unchanged.\n"
+        __final_msg+="If you meant to use REST, point \"CL_NODE\" at the REST API of a beacon node instead,\n"
+        __final_msg+="for example \"http://your-consensus-host:5052\". If you meant to keep using gRPC,\n"
+        __final_msg+="make sure \"CL_NODE\" points at a Prysm beacon node that still serves gRPC.\n"
+      fi
 
       if [[ "${var}" = "CL_QUIC_PORT" ]]; then
         __get_value_from_env "CL_P2P_PORT" "${__env_file}.source" "CL_P2P_PORT"

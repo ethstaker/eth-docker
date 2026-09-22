@@ -173,7 +173,6 @@ jobs:
             label2: na
             env: |-
               CORE_FILES=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml:mev-boost.yml
-              CL_NODE=consensus:4000
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
             test_cl: true
             test_el: true
