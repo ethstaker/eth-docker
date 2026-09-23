@@ -36,211 +36,149 @@ jobs:
         with:
           extra_args: --all-files --show-diff-on-failure
 
+  # Turns the labels into the matrix, so combos without a matching label never get a runner.
+  # A combo runs for either of its labels, for "test-all", and on every push to main.
+  select:
+    if: |
+      contains(join(github.event.pull_request.labels.*.name, ','), 'test-')
+      || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      include: ${{ steps.select.outputs.include }}
+    steps:
+      - name: Select combos from labels
+        id: select
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          combos='[
+            {"labels": ["test-vero"],
+             "env": ["CORE_FILES=nimbus-cl-only.yml:vero-vc-only.yml:nethermind.yml:web3signer.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86",
+                     "WEB3SIGNER=true"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-caplin"],
+             "env": ["CORE_FILES=caplin.yml:erigon.yml:lodestar-vc-only.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86",
+                     "CL_NODE=http://execution:5052",
+                     "EL_EXTRAS=--torrent.download.rate 1mb"],
+             "test_cl": false, "test_el": true, "test_vc": true},
+            {"labels": ["test-nimbus-unified"],
+             "env": ["CORE_FILES=nimbus-unified.yml:nimbus-vc-only.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": false, "test_vc": true},
+            {"labels": ["test-grandine", "test-nimbus-el"],
+             "env": ["CORE_FILES=grandine-allin1.yml:nimbus-el.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": false},
+            {"labels": ["test-grandine"],
+             "env": ["CORE_FILES=grandine-cl-only.yml:lighthouse-vc-only.yml:nimbus-el.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-grandine-plugin"],
+             "env": ["CORE_FILES=grandine-plugin.yml:lighthouse-vc-only.yml:nethermind.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86",
+                     "NM_DOCKER_REPO=sifrai/grandine",
+                     "NM_DOCKER_TAG=unstable-nethermind"],
+             "test_cl": false, "test_el": true, "test_vc": true},
+            {"labels": ["test-grandine-plugin"],
+             "env": ["CORE_FILES=grandine-plugin-allin1.yml:nethermind.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86",
+                     "NM_DOCKER_REPO=sifrai/grandine",
+                     "NM_DOCKER_TAG=unstable-nethermind"],
+             "test_cl": false, "test_el": true, "test_vc": false},
+            {"labels": ["test-ethrex"],
+             "env": ["CORE_FILES=lighthouse.yml:ethrex.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-lighthouse", "test-reth"],
+             "env": ["CORE_FILES=lighthouse.yml:reth.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-lighthouse"],
+             "env": ["CORE_FILES=lighthouse-cl-only.yml:lighthouse-vc-only.yml:reth.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-lodestar", "test-erigon"],
+             "env": ["CORE_FILES=lodestar.yml:erigon.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-lodestar"],
+             "env": ["CORE_FILES=lodestar-cl-only.yml:lodestar-vc-only.yml:erigon.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-nimbus", "test-nethermind"],
+             "env": ["CORE_FILES=nimbus.yml:nethermind.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-nimbus"],
+             "env": ["CORE_FILES=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-prysm", "test-geth"],
+             "env": ["CORE_FILES=prysm.yml:geth.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-prysm"],
+             "env": ["CORE_FILES=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml:mev-boost.yml",
+                     "CL_NODE=consensus:4000",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-teku", "test-besu"],
+             "env": ["CORE_FILES=teku.yml:besu.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-teku"],
+             "env": ["CORE_FILES=teku-cl-only.yml:teku-vc-only.yml:besu.yml:mev-boost.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "test_cl": true, "test_el": true, "test_vc": true}
+          ]'
+          env_vars='[
+            "MEV_BOOST=false EPBS_BUILDERS=false",
+            "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=",
+            "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=90",
+            "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=100",
+            "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=0",
+            "MAX_BLOBS=6",
+            "CL_MAX_PEER_COUNT=100 CL_MIN_PEER_COUNT=20 EL_MAX_PEER_COUNT=10",
+            "IPV6=true",
+            "IPV6=false",
+            "EL_NODE_TYPE=full",
+            "CHECKPOINT_SYNC_URL="
+          ]'
+          include="$(jq -c --argjson labels "${LABELS}" --arg event "${EVENT}" --argjson env_vars "${env_vars}" '
+            ($labels // []) as $l
+            | [ .[] | . as $c
+                | select($event == "push" or any($l[]; . == "test-all" or IN($c.labels[])))
+                | $env_vars[] as $v
+                | $c + {"env-var": $v, name: ($c.env[0] | sub("^CORE_FILES="; ""))} ]' <<< "${combos}")"
+          echo "Selected $(jq length <<< "${include}") jobs:"
+          jq -r '.[] | "  \(.name) \(."env-var")"' <<< "${include}"
+          echo "include=${include}" >> "$GITHUB_OUTPUT"
+
   test-client-combo:
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, select]
+    if: needs.select.outputs.include != '[]'
     strategy:
       matrix:
-        combo:
-          - label1: test-vero
-            label2: na
-            env: |-
-              CORE_FILES=nimbus-cl-only.yml:vero-vc-only.yml:nethermind.yml:web3signer.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-              WEB3SIGNER=true
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-caplin
-            label2: na
-            env: |-
-              CORE_FILES=caplin.yml:erigon.yml:lodestar-vc-only.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-              CL_NODE=http://execution:5052
-              EL_EXTRAS=--torrent.download.rate 1mb
-            test_cl: false
-            test_el: true
-            test_vc: true
-          - label1: test-nimbus-unified
-            label2: na
-            env: |-
-              CORE_FILES=nimbus-unified.yml:nimbus-vc-only.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: false
-            test_vc: true
-          - label1: test-grandine
-            label2: test-nimbus-el
-            env: |-
-              CORE_FILES=grandine-allin1.yml:nimbus-el.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: false
-          - label1: test-grandine
-            label2: na
-            env: |-
-              CORE_FILES=grandine-cl-only.yml:lighthouse-vc-only.yml:nimbus-el.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-grandine-plugin
-            label2: na
-            env: |-
-              CORE_FILES=grandine-plugin.yml:lighthouse-vc-only.yml:nethermind.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-              NM_DOCKER_REPO=sifrai/grandine
-              NM_DOCKER_TAG=unstable-nethermind
-            test_cl: false
-            test_el: true
-            test_vc: true
-          - label1: test-grandine-plugin
-            label2: na
-            env: |-
-              CORE_FILES=grandine-plugin-allin1.yml:nethermind.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-              NM_DOCKER_REPO=sifrai/grandine
-              NM_DOCKER_TAG=unstable-nethermind
-            test_cl: false
-            test_el: true
-            test_vc: false
-          - label1: test-ethrex
-            label2: na
-            env: |-
-              CORE_FILES=lighthouse.yml:ethrex.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-lighthouse
-            label2: test-reth
-            env: |-
-              CORE_FILES=lighthouse.yml:reth.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-lighthouse
-            label2: na
-            env: |-
-              CORE_FILES=lighthouse-cl-only.yml:lighthouse-vc-only.yml:reth.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-lodestar
-            label2: test-erigon
-            env: |-
-              CORE_FILES=lodestar.yml:erigon.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-lodestar
-            label2: na
-            env: |-
-              CORE_FILES=lodestar-cl-only.yml:lodestar-vc-only.yml:erigon.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-nimbus
-            label2: test-nethermind
-            env: |-
-              CORE_FILES=nimbus.yml:nethermind.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-nimbus
-            label2: na
-            env: |-
-              CORE_FILES=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-prysm
-            label2: test-geth
-            env: |-
-              CORE_FILES=prysm.yml:geth.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-prysm
-            label2: na
-            env: |-
-              CORE_FILES=prysm-cl-only.yml:prysm-vc-only.yml:geth.yml:mev-boost.yml
-              CL_NODE=consensus:4000
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-teku
-            label2: test-besu
-            env: |-
-              CORE_FILES=teku.yml:besu.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - label1: test-teku
-            label2: na
-            env: |-
-              CORE_FILES=teku-cl-only.yml:teku-vc-only.yml:besu.yml:mev-boost.yml
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            test_cl: true
-            test_el: true
-            test_vc: true
-        env-var:
-          - "MEV_BOOST=false EPBS_BUILDERS=false"
-          - "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR="
-          - "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=90"
-          - "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=100"
-          - "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=0"
-          - MAX_BLOBS=6
-          - "CL_MAX_PEER_COUNT=100 CL_MIN_PEER_COUNT=20 EL_MAX_PEER_COUNT=10"
-          - IPV6=true
-          - IPV6=false
-          - EL_NODE_TYPE=full
-          - CHECKPOINT_SYNC_URL=
+        include: ${{ fromJSON(needs.select.outputs.include) }}
+    name: ${{ matrix.name }} ${{ matrix.env-var }}
     steps:
       - name: Checkout
-        if: >
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
-          contains(github.event.pull_request.labels.*.name, 'test-all') ||
-          github.event_name == 'push'
         uses: actions/checkout@v7
       - name: Set up Docker buildx
-        if: >
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
-          contains(github.event.pull_request.labels.*.name, 'test-all') ||
-          github.event_name == 'push'
         uses: docker/setup-buildx-action@v4
       - name: Remove podman
-        if: >
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
-          contains(github.event.pull_request.labels.*.name, 'test-all') ||
-          github.event_name == 'push'
         run: sudo apt-get remove -y podman
       - name: Create .env file
-        if: >
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
-          contains(github.event.pull_request.labels.*.name, 'test-all') ||
-          github.event_name == 'push'
         run: cp default.env .env
       - name: Set env variables
-        if: >
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
-          contains(github.event.pull_request.labels.*.name, 'test-all') ||
-          github.event_name == 'push'
+        env:
+          COMBO_ENV: ${{ toJSON(matrix.env) }}
+          ENV_VAR: ${{ matrix.env-var }}
         run: |
           source ./.github/helper.sh
           while IFS= read -r varpair; do
@@ -248,21 +186,17 @@ jobs:
             export "$var=$val"
             var=$var
             set_value_in_env
-          done <<< "${{ matrix.combo.env }}"
-          for varpair in ${{ matrix.env-var }}; do
+          done < <(jq -r '.[]' <<< "${COMBO_ENV}")
+          # Word splitting is intended: one env-var entry can set several variables
+          for varpair in ${ENV_VAR}; do
             IFS="=" read var val <<< "$varpair"
             export "$var=$val"
             var=$var
             set_value_in_env
           done
       - name: Test the stack
-        if: >
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label1) ||
-          contains(github.event.pull_request.labels.*.name, matrix.combo.label2) ||
-          contains(github.event.pull_request.labels.*.name, 'test-all') ||
-          github.event_name == 'push'
         uses: ./.github/actions/test_client_stack
         with:
-          test_cl: ${{ matrix.combo.test_cl }}
-          test_el: ${{ matrix.combo.test_el }}
-          test_vc: ${{ matrix.combo.test_vc }}
+          test_cl: ${{ matrix.test_cl }}
+          test_el: ${{ matrix.test_el }}
+          test_vc: ${{ matrix.test_vc }}
