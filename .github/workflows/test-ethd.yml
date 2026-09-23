@@ -4,6 +4,10 @@ defaults:
   run:
     shell: bash
 
+# ethd skips the warnings it prints after a command
+env:
+  ETHD_FRONTEND: ci
+
 on:
   push:
     branches: [main]
@@ -44,6 +48,8 @@ jobs:
           set_value_in_env
       - name: Test ethd update
         run: ./ethd update --debug --non-interactive
+        env:
+          ETHD_FRONTEND: ""  # Exercise the warnings ethd prints after a command
       - name: Test .env migration edge cases
         run: ./.github/test-ethd-migrate.sh
       - name: Remove .env

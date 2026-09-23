@@ -162,7 +162,7 @@ set startup_timeout 120
 set finish_timeout 120
 # Pin the pty size rather than relying on newt's fallback
 set stty_init "rows 24 columns 80"
-spawn ./ethd config --ci
+spawn ./ethd config
 
 # Check for the command-line argument
 if {$argc > 0} {

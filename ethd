@@ -8059,7 +8059,7 @@ config() {
   __final_msg+="\nYou are using these service files: ${CORE_FILES}${CUSTOM_FILES:+:${CUSTOM_FILES}}"
 
   __get_compose_file
-  if [[ ! "$*" =~ --ci ]]; then
+  if [[ "${ETHD_FRONTEND:-}" != "ci" ]]; then  # CI does not pull or build images after config
     __pull_and_build
   fi
   __nag_os_version
@@ -8445,6 +8445,11 @@ fi
 __command="$1"
 shift
 __params=$*
+
+# ETHD_FRONTEND=ci is for CI runs: no warnings after the command, and config does not pull or build
+if [[ "${ETHD_FRONTEND:-}" = "ci" ]]; then
+  __no_warnings=1
+fi
 
 __handle_ownership
 __determine_distro

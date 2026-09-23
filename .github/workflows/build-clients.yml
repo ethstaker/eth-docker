@@ -4,6 +4,10 @@ defaults:
   run:
     shell: bash
 
+# ethd skips the warnings it prints after a command
+env:
+  ETHD_FRONTEND: ci
+
 on:
   schedule:
     - cron: "42 7 * * 2"  # Weekly Tuesday at 7:42 AM UTC
