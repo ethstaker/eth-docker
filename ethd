@@ -6326,6 +6326,7 @@ __query_consensus_client() {
   elif [[ "${NETWORK}" = "ephemery" ]]; then
     choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
     choices+=("teku.yml" "Teku (Java) - consensus and validator client")
+    choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
@@ -6415,6 +6416,7 @@ __query_consensus_only_client() {
   elif [[ "${NETWORK}" = "ephemery" ]]; then
     choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
     choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
+    choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
@@ -6538,6 +6540,7 @@ __query_execution_client() {
   elif [[ "${NETWORK}" = "ephemery" ]]; then
     if [[ "${arch}" != *"riscv64"* ]]; then
       choices+=("besu.yml" "Besu (Java)")
+      choices+=("geth.yml" "Geth (Go)")
     else
       echo "Epheremy testnet is not supported on ${arch}"
       exit 1
