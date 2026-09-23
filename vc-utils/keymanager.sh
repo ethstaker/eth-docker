@@ -359,6 +359,28 @@ gas-delete() {
 }
 
 
+# Some clients, Lighthouse among them, return the graffiti as the raw 32-byte block field in hex.
+# Plain-text graffiti is at most 32 bytes, so "0x" and 64 hex digits can only be that encoding.
+__graffiti_text() {
+  local graffiti=$1
+  local hex
+  local bytes=""
+  local i
+
+  if [[ ! "${graffiti}" =~ ^0x[0-9a-fA-F]{64}$ ]]; then
+    printf '%s\n' "${graffiti}"
+    return
+  fi
+  hex=${graffiti#0x}
+# Zero bytes are the padding, and would print as invisible NULs anywhere else
+  for (( i=0; i<${#hex}; i+=2 )); do
+    [[ "${hex:i:2}" = "00" ]] && continue
+    bytes+="\\x${hex:i:2}"
+  done
+  printf '%b\n' "${bytes}"
+}
+
+
 graffiti-get() {
   __check_pubkey "${__pubkey}"
   __get_token
@@ -367,7 +389,7 @@ graffiti-get() {
   __http_method=GET
   __call_api
   case "${__code}" in
-    200) echo "The graffiti for the validator with public key ${__pubkey} is:"; echo "${__result}" | jq -r '.data.graffiti'; exit 0;;
+    200) echo "The graffiti for the validator with public key ${__pubkey} is:"; __graffiti_text "$(echo "${__result}" | jq -r '.data.graffiti')"; exit 0;;
     400) echo "The pubkey was formatted wrong. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
     401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
     403) echo "The authorization token is invalid. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
@@ -394,7 +416,8 @@ graffiti-set() {
   __http_method=POST
   __call_api
   case "${__code}" in
-    202) echo "The graffiti for the validator with public key ${__pubkey} was updated."; exit 0;;
+# The spec asks for 202. Prysm answers 200 and Teku 204; drop those once they are fixed.
+    200|202|204) echo "The graffiti for the validator with public key ${__pubkey} was updated."; exit 0;;
     400) echo "The pubkey or limit was formatted wrong. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
     401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
     403) echo "The authorization token is invalid. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
@@ -413,7 +436,8 @@ graffiti-delete() {
   __http_method=DELETE
   __call_api
   case "${__code}" in
-    204) echo "The graffiti for the validator with public key ${__pubkey} was set back to default."; exit 0;;
+# Prysm answers 200 instead of the 204 the spec asks for. Drop the 200 once Prysm is fixed.
+    200|204) echo "The graffiti for the validator with public key ${__pubkey} was set back to default."; exit 0;;
     400) echo "The pubkey was formatted wrong. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
     401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
     403) echo "A graffiti was found, but cannot be deleted. It may be in a configuration file. Message: $(__print_jq_message "${__result}" '.message')"; exit 0;;
@@ -704,6 +728,16 @@ __parse_builder_args() {
 }
 
 
+# Prysm answers any path it does not serve with 200 and an empty body, instead of 404. For the
+# builder configuration API an empty 200 therefore means "not served", as a 404 would.
+# Drop this once Prysm is fixed.
+__builder_empty_as_unserved() {
+  if [[ "${__code}" = "200" && -z "${__result//[[:space:]]/}" ]]; then
+    __code=501
+  fi
+}
+
+
 builder-get() {
   __check_pubkey "${__pubkey}"
   __get_token
@@ -711,6 +745,7 @@ builder-get() {
   __api_data=""
   __http_method=GET
   __call_api
+  __builder_empty_as_unserved
   case "${__code}" in
     200)
       if [[ "${__json_out}" -eq 1 ]]; then
@@ -780,9 +815,14 @@ builder-set() {
       __api_data=""
       __http_method=GET
       __call_api
+      __builder_empty_as_unserved
       case "${__code}" in
         200) echo "${__result}" | jq '.data' >/tmp/builder-current.json;;
         404) echo '{}' >/tmp/builder-current.json;;
+        405|501)
+          echo "The ${__service} client did not serve the builder configuration API."
+          echo "Either it does not support it yet, or the validator with public key ${__pubkey} is not known to it."
+          exit 0;;
         401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
         403) echo "The authorization token is invalid. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
         *) echo "Unexpected return code ${__code} while reading the builder configuration for ${__pubkey}. Result: ${__result}"; exit 1;;
@@ -796,6 +836,7 @@ builder-set() {
     __api_data=@/tmp/apidata.txt
     __http_method=POST
     __call_api
+    __builder_empty_as_unserved
     case "${__code}" in
       202)
         echo "The builder configuration for the validator with public key ${__pubkey} was updated."
@@ -833,6 +874,7 @@ builder-delete() {
     __api_data=""
     __http_method=DELETE
     __call_api
+    __builder_empty_as_unserved
     case "${__code}" in
       204) echo "The builder configuration for the validator with public key ${__pubkey} was removed, and it follows EPBS_* in .env again."; (( deleted++ ));;
       400) echo "The pubkey was formatted wrong. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
@@ -864,6 +906,7 @@ exit-sign() {
   local vc_api_port
   local vc_api_tls
   local exitstatus
+  local val_status
 
   if [[ -z "${__pubkey}" ]]; then
     echo "Please specify a validator public key to sign an exit message for, or \"all\""
@@ -909,6 +952,31 @@ exit-sign() {
 
   __get_token
   for __pubkey in "${pubkeys[@]}"; do
+# Ask the beacon node first. Validator clients differ in how they report a key that is not in
+# state - Lodestar answers 500 - so this keeps the skip path the same on every client.
+    __api_path="eth/v1/beacon/states/head/validators/${__pubkey}"
+    __api_data=""
+    __http_method=GET
+    __call_cl_api
+    case "${__code}" in
+      200)
+        val_status=$(echo "${__result}" | jq -r '.data.status')
+        case "${val_status}" in
+          active_exiting|active_slashed|exited_*|withdrawal_*)
+            echo "The key ${__pubkey} is already exiting or has exited, status ${val_status}. No exit message needed."
+            (( skipped+=1 ))
+            continue
+            ;;
+        esac
+        ;;
+      404)
+        echo "The key ${__pubkey} is not on the beacon chain. It has to be active with an index on the beacon chain to be able to sign an exit message."
+        (( skipped+=1 ))
+        continue
+        ;;
+      *) echo "Unexpected return code ${__code} from the consensus client while looking up ${__pubkey}. Result: ${__result}"; exit 1;;
+    esac
+
     __api_data=""
     __http_method=POST
     __api_path="eth/v1/validator/${__pubkey}/voluntary_exit"
@@ -942,7 +1010,7 @@ exit-sign() {
   done
 
   echo "Signed exit messages for ${signed} keys"
-  echo "Skipped ${skipped} keys because they weren't found or were not active on the beacon chain"
+  echo "Skipped ${skipped} keys because they weren't found, were not active, or were already exiting on the beacon chain"
 }
 
 

@@ -1,0 +1,268 @@
+name: Test Keymanager
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# "check-keymanager" together with a "test-<client>" label tests "ethd keys" against that client's
+# validator client, with and without web3signer. The select job turns the labels into the matrix,
+# so clients without a label never get a runner. The three Hoodi keys in .github/keymanager-keys
+# are not deposited, which test-keymanager.sh checks, so the jobs can run in parallel.
+# Each client names its execution client in "files". Geth is along only because the consensus
+# clients want its JWT secret; nothing waits for it to sync.
+
+jobs:
+  select:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'check-keymanager') ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      include: ${{ steps.select.outputs.include }}
+    steps:
+      - name: Select clients from labels
+        id: select
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          # Only Lodestar serves the builder configuration API so far. Delete a client's
+          # no_builder_api line once it does.
+          # w3s_only clients get just the web3signer leg: Vero only signs through a remote signer.
+          # Prysm runs on Ephemery: its VC only answers once the EL is fully synced, which a Hoodi
+          # EL is not within a job, and an Ephemery Geth is in about a minute. It needs builder
+          # mode (MEV_BOOST=true) because it refuses per-key gas limits otherwise.
+          # Optional: "env" adds VAR=value lines to .env, "cl_service" is the service serving the
+          # beacon API (consensus by default), "beacon_wait" how long to wait for it (300 seconds).
+          clients='[
+            {"label": "test-lighthouse", "files": "lighthouse.yml:geth.yml",
+             "no_builder_api": true},
+            {"label": "test-lodestar", "files": "lodestar.yml:geth.yml"},
+            {"label": "test-nimbus", "files": "nimbus.yml:geth.yml",
+             "no_builder_api": true},
+            {"label": "test-prysm", "files": "prysm.yml:geth.yml", "prysm_wallet": true,
+             "no_builder_api": true,
+             "env": ["NETWORK=ephemery",
+                     "CHECKPOINT_SYNC_URL=https://ephemery.beaconstate.ethstaker.cc",
+                     "MEV_BOOST=true"]},
+            {"label": "test-teku", "files": "teku.yml:geth.yml",
+             "no_builder_api": true},
+            {"label": "test-grandine", "files": "grandine-allin1.yml:geth.yml", "grandine_wallet": true,
+             "no_builder_api": true},
+            {"label": "test-vero", "files": "nimbus-cl-only.yml:vero-vc-only.yml:geth.yml", "w3s_only": true,
+             "no_builder_api": true},
+            {"label": "test-grandine-plugin", "files": "grandine-plugin-allin1.yml:nethermind.yml",
+             "grandine_wallet": true, "no_builder_api": true,
+             "cl_service": "execution", "beacon_wait": 600,
+             "env": ["NM_DOCKER_REPO=sifrai/grandine", "NM_DOCKER_TAG=unstable-nethermind",
+                     "CL_NODE=http://execution:5052"]}
+          ]'
+          include="$(jq -c --argjson labels "${LABELS}" --arg event "${EVENT}" '
+            ($labels // []) as $l
+            | [ .[] | . as $c
+                | select($event == "push" or any($l[]; . == "test-all" or . == $c.label))
+                | (if $c.w3s_only then [true] else [false, true] end)[] as $w
+                | $c + {web3signer: $w} ]' <<< "${clients}")"
+          echo "Selected:"
+          jq -r '.[] | "  \(.label) web3signer=\(.web3signer)"' <<< "${include}"
+          echo "include=${include}" >> "$GITHUB_OUTPUT"
+
+  test-keymanager:
+    needs: select
+    if: needs.select.outputs.include != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.select.outputs.include) }}
+    name: keymanager ${{ matrix.label }} web3signer=${{ matrix.web3signer }}
+    env:
+      KEYSTORE_PASSWORD: ClippityClop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Remove podman
+        run: sudo apt-get remove -y podman
+      - name: Create .env file
+        run: cp default.env .env
+      - name: Set env variables
+        env:
+          EXTRA_ENV: ${{ toJSON(matrix.env) }}
+        run: |
+          source ./.github/helper.sh
+          CORE_FILES=${{ matrix.files }}
+          if [[ "${{ matrix.web3signer }}" = "true" ]]; then
+            CORE_FILES+=":web3signer.yml"
+          fi
+          var=CORE_FILES
+          set_value_in_env
+          WEB3SIGNER=${{ matrix.web3signer }}
+          var=WEB3SIGNER
+          set_value_in_env
+          FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+          var=FEE_RECIPIENT
+          set_value_in_env
+          # A process-wide default, so get-graffiti has something to return after delete-graffiti
+          DEFAULT_GRAFFITI=false
+          var=DEFAULT_GRAFFITI
+          set_value_in_env
+          GRAFFITI=eth-docker-default
+          var=GRAFFITI
+          set_value_in_env
+          while IFS= read -r varpair; do
+            IFS='=' read -r var val <<< "$varpair"
+            export "$var=$val"
+            set_value_in_env
+          done < <(jq -r '.[]?' <<< "${EXTRA_ENV}")
+      - name: Copy test keys
+        run: cp .github/keymanager-keys/*.json .eth/validator_keys/
+      - name: Start the stack
+        timeout-minutes: 20
+        run: |
+          # One retry for a runner hiccup, such as a slow registry pull
+          if ! ./ethd up; then
+            echo "ethd up failed, retrying in 30 seconds"
+            sleep 30
+            ./ethd up
+          fi
+      - name: Wait for the beacon node
+        env:
+          CL_SERVICE: ${{ matrix.cl_service || 'consensus' }}
+          BEACON_WAIT: ${{ matrix.beacon_wait || 300 }}
+        run: ./.github/wait-for-beacon-api.sh "${CL_SERVICE}" 5052 "${BEACON_WAIT}"
+      - name: Create Prysm wallet
+        if: matrix.prysm_wallet
+        run: |
+          set -o pipefail
+          ./ethd keys create-prysm-wallet </dev/null | tee create-wallet.log
+          if [[ "${{ matrix.web3signer }}" = "true" ]]; then
+            grep -q "No need to create a permanent wallet" create-wallet.log
+          else
+            grep -q "Wallet password stored" create-wallet.log
+          fi
+      - name: Wait for the keymanager API
+        run: ./.github/wait-for-keymanager.sh 300
+      - name: Test validator client
+        if: ${{ !startsWith(matrix.files, 'grandine') }}
+        run: ./.github/check-service.sh validator
+      - name: Test web3signer
+        if: matrix.web3signer
+        run: ./.github/check-service.sh web3signer
+      - name: Test keymanager
+        run: ./.github/test-keymanager.sh
+        env:
+          W3S: ${{ matrix.web3signer }}
+          PRYSM_WALLET: ${{ matrix.prysm_wallet || false }}
+          GRANDINE_WALLET: ${{ matrix.grandine_wallet || false }}
+          NO_BUILDER_API: ${{ matrix.no_builder_api || false }}
+          CL_SERVICE: ${{ matrix.cl_service || 'consensus' }}
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 300
+
+  # The bash scripting on macOS, with its BSD tools and Colima. One client is enough for that;
+  # the Ubuntu job covers the clients. Prysm on Ephemery, as in the Ubuntu job: Lodestar's built-in
+  # Ephemery config makes its VC reject its own beacon node.
+  test-keymanager-macos:
+    if: contains(github.event.pull_request.labels.*.name, 'check-keymanager-macos')
+    runs-on: macos-26-intel
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        web3signer: [false, true]
+    name: keymanager macOS prysm web3signer=${{ matrix.web3signer }}
+    env:
+      KEYSTORE_PASSWORD: ClippityClop
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Docker on macOS
+        uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
+      - name: Prerequisites on macOS
+        run: brew install bash newt coreutils gawk
+      - name: Create .env file
+        run: cp default.env .env
+      - name: Set env variables
+        run: |
+          source ./.github/helper.sh
+          CORE_FILES=prysm.yml:geth.yml
+          if [[ "${{ matrix.web3signer }}" = "true" ]]; then
+            CORE_FILES+=":web3signer.yml"
+          fi
+          var=CORE_FILES
+          set_value_in_env
+          WEB3SIGNER=${{ matrix.web3signer }}
+          var=WEB3SIGNER
+          set_value_in_env
+          FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
+          var=FEE_RECIPIENT
+          set_value_in_env
+          # A process-wide default, so get-graffiti has something to return after delete-graffiti
+          DEFAULT_GRAFFITI=false
+          var=DEFAULT_GRAFFITI
+          set_value_in_env
+          GRAFFITI=eth-docker-default
+          var=GRAFFITI
+          set_value_in_env
+          # Ephemery keeps the sync load small: this job tests ethd's bash on macOS, not the clients
+          NETWORK=ephemery
+          var=NETWORK
+          set_value_in_env
+          CHECKPOINT_SYNC_URL=https://ephemery.beaconstate.ethstaker.cc
+          var=CHECKPOINT_SYNC_URL
+          set_value_in_env
+          # Prysm refuses per-key gas limits unless it runs in builder mode
+          MEV_BOOST=true
+          var=MEV_BOOST
+          set_value_in_env
+      - name: Copy test keys
+        run: cp .github/keymanager-keys/*.json .eth/validator_keys/
+      - name: Start the stack
+        timeout-minutes: 30
+        run: |
+          # One retry for a runner hiccup, such as a slow registry pull
+          if ! ./ethd up; then
+            echo "ethd up failed, retrying in 30 seconds"
+            sleep 30
+            ./ethd up
+          fi
+      - name: Wait for the beacon node
+        run: ./.github/wait-for-beacon-api.sh consensus 5052 600
+      - name: Create Prysm wallet
+        run: |
+          set -o pipefail
+          ./ethd keys create-prysm-wallet </dev/null | tee create-wallet.log
+          if [[ "${{ matrix.web3signer }}" = "true" ]]; then
+            grep -q "No need to create a permanent wallet" create-wallet.log
+          else
+            grep -q "Wallet password stored" create-wallet.log
+          fi
+      - name: Wait for the keymanager API
+        run: ./.github/wait-for-keymanager.sh 600
+      - name: Test validator client
+        run: ./.github/check-service.sh validator
+      - name: Test web3signer
+        if: matrix.web3signer
+        run: ./.github/check-service.sh web3signer
+      - name: Test keymanager
+        run: ./.github/test-keymanager.sh
+        env:
+          W3S: ${{ matrix.web3signer }}
+          PRYSM_WALLET: true
+          NO_BUILDER_API: true
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 300

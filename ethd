@@ -72,6 +72,7 @@ __docker_dir="/var/lib/docker"
 __keys_args=""
 __builder_args=()
 __keys_tty=""
+__no_warnings=0  # 1 skips the warnings after the command, for machine-readable output
 __final_msg=""
 __compose_project=""  # Compose project name, set by __get_compose_project_name
 __compose_project_exact=0  # 1 once read back from Compose itself
@@ -1427,6 +1428,13 @@ __display_docker_dir() {
 
 __display_docker_volumes() {
   local names
+  local awk_exe
+
+  if [[ "$OSTYPE" = "darwin"* ]]; then
+    awk_exe="gawk"  # Built-in awk can't take a multi-line -v value. Does require brew install gawk
+  else
+    awk_exe="awk"
+  fi
 
   echo
   __project_volumes
@@ -1438,7 +1446,8 @@ __display_docker_volumes() {
     # Match the volume column against the names we already resolved, rather than
     # regexing the table. "grep -A 500" also truncated it on a busy host.
     names=$(printf '%s\n' "${__volumes[@]}")
-    __dodocker system df -v | awk -v names="${names}" '
+#shellcheck disable=SC2016
+    __dodocker system df -v | ${awk_exe} -v names="${names}" '
       BEGIN { n = split(names, a, "\n"); for (i = 1; i <= n; i++) want[a[i]] = 1 }
       /^VOLUME NAME/ { in_volumes = 1; next }
       in_volumes && NF == 0 { in_volumes = 0; next }
@@ -5584,21 +5593,37 @@ __get_github_release() {
   local dirname=$3
   local targetname=$4
 
+# curl, not wget: macOS does not ship wget. A minimal Debian or Ubuntu may lack curl, so install it
+# the way update() does.
+  if [[ "${__distro}" =~ (debian|ubuntu) ]] \
+      && ! dpkg-query -W -f='${Status}' curl 2>/dev/null | grep -q "ok installed"; then
+    if [[ "${__cannot_sudo}" -eq 0 ]]; then
+      echo "Installing curl"
+      ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y --no-install-recommends curl
+    else
+      echo "Cannot install curl, which is needed to download '${suffix}' from github '${repo}'."
+      echo "Please install curl manually, and try again."
+      return 1
+    fi
+  fi
+
   ${__as_owner} mkdir -p "${dirname}"
   if [[ "${targetname}" = "__untar__" ]]; then
-    wget -q -O- https://api.github.com/repos/"${repo}"/releases/latest | grep "browser_download_url.*${suffix}" \
+    curl -fsSL https://api.github.com/repos/"${repo}"/releases/latest | grep "browser_download_url.*${suffix}" \
       | head -1 \
       | cut -d : -f 2,3 \
       | tr -d \" \
-      | wget -qi- -O- \
+      | xargs curl -fsSL \
       | ${__as_owner} tar zxf - -C "${dirname}" \
       || echo "-> Could not download the latest version of '${suffix}' from github '${repo}'."
   else
-    wget -q -O- https://api.github.com/repos/"${repo}"/releases/latest | grep "browser_download_url.*${suffix}" \
+# __as_owner is empty or "sudo -u owner", and has to split
+# shellcheck disable=SC2086
+    curl -fsSL https://api.github.com/repos/"${repo}"/releases/latest | grep "browser_download_url.*${suffix}" \
       | head -1 \
       | cut -d : -f 2,3 \
       | tr -d \" \
-      | ${__as_owner} wget -qi- -O "${dirname}/${targetname}" \
+      | xargs ${__as_owner} curl -fsSL -o "${dirname}/${targetname}" \
       && ${__chmod_sudo} chmod +x "${dirname}/${targetname}" \
       || echo "-> Could not download the latest version of '${suffix}' from github '${repo}'."
   fi
@@ -5820,6 +5845,7 @@ keys() {
 # The container only has ./.eth/validator_keys and ./.eth/exit_messages bind mounted, so read
 # --from-json here on the host and hand the contents to keymanager.sh as one argument.
 # Also suppress the TTY when JSON goes to stdout, so redirecting it does not add carriage returns.
+# JSON output is meant to be redirected, so also skip the warnings ethd prints after the command.
 __prep-builder-args() {
   local json_file
   local json_body
@@ -5866,6 +5892,7 @@ __prep-builder-args() {
       --json)
         __builder_args+=( "$1" )
         __keys_tty="-T"
+        __no_warnings=1
         shift
         ;;
       *)
@@ -8518,48 +8545,51 @@ case "${__command}" in
     ;;
 esac
 
-__check_disk_space
-__check_traefik_version
+# Machine-readable output, such as "keys ... --json", has to stay parseable
+if [[ "${__no_warnings}" -eq 0 ]]; then
+  __check_disk_space
+  __check_traefik_version
 
-if [[ "${__compose_upgraded}" -eq 1 ]]; then
-  echo
-  echo "You updated Docker Compose to V2."
-  echo "The \"docker-compose\" command is gone and replaced with \"docker compose\"."
-  echo
-  echo "Optionally, you can switch to docker-ce."
-  echo "Please see https://ethdocker.com/Usage/Prerequisites#switching-from-dockerio-to-docker-ce for instructions."
-fi
-
-if [[ "${__old_compose}" -eq 1 && "${__compose_major}" -eq 2 ]]; then
-  echo "You are using Docker Compose ${__compose_version}, which has been shown to cause issues with new features"
-  echo "${__project_name} requires Compose v2.18 or later"
-  echo
-  echo "It is recommended that you update Compose."
-  if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
-    echo "Please do so by running: \"sudo apt update && sudo apt dist-upgrade\""
+  if [[ "${__compose_upgraded}" -eq 1 ]]; then
+    echo
+    echo "You updated Docker Compose to V2."
+    echo "The \"docker-compose\" command is gone and replaced with \"docker compose\"."
+    echo
+    echo "Optionally, you can switch to docker-ce."
+    echo "Please see https://ethdocker.com/Usage/Prerequisites#switching-from-dockerio-to-docker-ce for instructions."
   fi
-fi
 
-if [[ "${__oldish_docker}" -eq 1 ]]; then
-  echo "You are using Docker-CE version ${__docker_version}, which is not current."
-  current_docker_release=$(curl -m5 -s -H "User-Agent: eth-docker" "https://api.github.com/repos/moby/moby/releases/latest" 2>/dev/null | jq -r '.name // empty' 2>/dev/null) || true
-  if [[ -n "${current_docker_release}" && "${current_docker_release}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "The current Docker-CE release is ${current_docker_release}"
+  if [[ "${__old_compose}" -eq 1 && "${__compose_major}" -eq 2 ]]; then
+    echo "You are using Docker Compose ${__compose_version}, which has been shown to cause issues with new features"
+    echo "${__project_name} requires Compose v2.18 or later"
+    echo
+    echo "It is recommended that you update Compose."
+    if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
+      echo "Please do so by running: \"sudo apt update && sudo apt dist-upgrade\""
+    fi
   fi
-  echo "Try a \"sudo apt update && sudo apt dist-upgrade\". If that does not bring in an updated Docker-CE,"
-  echo "its repo file may have become disabled during an OS upgrade. Check \"/etc/apt/sources.list.d\" for"
-  echo "your Docker repo \".list\" or \".sources\", and if it's been disabled, recreate it or re-enable it."
-  echo "See https://docs.docker.com/engine/install/ for instructions."
-fi
 
-if [[ "${__old_rootless_docker}" -eq 1 ]]; then
-  echo "You are using Docker version ${__docker_version} in rootless mode."
-  echo "Rootless support has been greatly improved since version \"29.5.0\"."
-  echo "Consider upgrading Docker, and reinstalling the rootless support after the upgrade."
-fi
+  if [[ "${__oldish_docker}" -eq 1 ]]; then
+    echo "You are using Docker-CE version ${__docker_version}, which is not current."
+    current_docker_release=$(curl -m5 -s -H "User-Agent: eth-docker" "https://api.github.com/repos/moby/moby/releases/latest" 2>/dev/null | jq -r '.name // empty' 2>/dev/null) || true
+    if [[ -n "${current_docker_release}" && "${current_docker_release}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "The current Docker-CE release is ${current_docker_release}"
+    fi
+    echo "Try a \"sudo apt update && sudo apt dist-upgrade\". If that does not bring in an updated Docker-CE,"
+    echo "its repo file may have become disabled during an OS upgrade. Check \"/etc/apt/sources.list.d\" for"
+    echo "your Docker repo \".list\" or \".sources\", and if it's been disabled, recreate it or re-enable it."
+    echo "See https://docs.docker.com/engine/install/ for instructions."
+  fi
 
-if [[ "${__old_traefik}" -eq 1 ]]; then
-  echo "You are using the Traefik tag \"${__traefik_tag}\"."
-  echo "This version of Traefik does not support current Docker releases."
-  echo "You can run \"${__me} update --refresh-targets\" or manually change \"TRAEFIK_TAG\" in \"${__env_file}\"."
+  if [[ "${__old_rootless_docker}" -eq 1 ]]; then
+    echo "You are using Docker version ${__docker_version} in rootless mode."
+    echo "Rootless support has been greatly improved since version \"29.5.0\"."
+    echo "Consider upgrading Docker, and reinstalling the rootless support after the upgrade."
+  fi
+
+  if [[ "${__old_traefik}" -eq 1 ]]; then
+    echo "You are using the Traefik tag \"${__traefik_tag}\"."
+    echo "This version of Traefik does not support current Docker releases."
+    echo "You can run \"${__me} update --refresh-targets\" or manually change \"TRAEFIK_TAG\" in \"${__env_file}\"."
+  fi
 fi

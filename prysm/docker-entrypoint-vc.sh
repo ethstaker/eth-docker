@@ -6,7 +6,9 @@ if [[ "$(id -u)" -eq 0 ]]; then
   exec gosu prysmvalidator docker-entrypoint-vc.sh "$@"
 fi
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  __network="--chain-config-file=$(ephemery-config.sh /var/lib/prysm/testnet/ephemery)/config.yaml"
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)

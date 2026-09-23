@@ -89,6 +89,13 @@ jobs:
           set_value_in_env
       - name: Test ethd update
         run: ./ethd update --debug --non-interactive
+      # The space report is the only path that always shows the Docker volume table, which is
+      # otherwise only printed when the disk runs low. On macOS it uses gawk and busybox df.
+      - name: Test ethd space
+        run: ./ethd space
+      # "keys prepare-address-change" downloads ethdo and jq on the host; macOS has no wget
+      - name: Test GitHub release downloads
+        run: ./.github/test-get-github-release.sh
       - name: Test .env migration edge cases
         run: ./.github/test-ethd-migrate.sh
       - name: Remove .env

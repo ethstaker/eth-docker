@@ -207,8 +207,6 @@ services:
     # 1000. The UID has to be able to write .eth/validator_keys
     # for the "keys delete" command.
     user: root
-    depends_on:
-      - validator
     volumes:
       - lhvalidator-data:/var/lib/lighthouse
       - ./.eth/validator_keys:/validator_keys

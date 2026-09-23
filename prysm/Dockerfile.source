@@ -76,6 +76,7 @@ COPY --from=builder --chown=${USER}:${USER} /go/src/prysm/dist/beacon-chain /usr
 COPY --from=builder --chown=${USER}:${USER} /go/src/prysm/dist/validator /usr/local/bin/
 COPY --from=builder --chown=${USER}:${USER} /go/src/prysm/dist/client-stats /usr/local/bin/
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+COPY --chown=${USER}:${USER} ./ephemery-config.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 

@@ -240,8 +240,6 @@ services:
     image: vc-utils:local
     pull_policy: never
     user: root
-    depends_on:
-      - validator
     volumes:
       - prysmvalidator-data:/var/lib/prysm
       - ./.eth/validator_keys:/validator_keys

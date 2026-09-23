@@ -1,6 +1,15 @@
 #!/bin/bash
 set -Eeuo pipefail
 
+# "wallet create" only knows the networks built into Prysm, and does not take a chain config.
+# With an explicit --wallet-dir the network makes no difference, so Ephemery and custom networks
+# leave it out.
+if [[ "${NETWORK}" = "ephemery" || "${NETWORK}" =~ ^https?:// ]]; then
+  __network=()
+else
+  __network=( "--${NETWORK}" )
+fi
+
 __password=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
 
 echo "${__password}" >/tmp/password.txt
@@ -13,7 +22,7 @@ if [[ "${WEB3SIGNER}" = "true" ]]; then
 else
     __kind=imported
 fi
-__result=$(validator --datadir=/var/lib/prysm wallet create --"${NETWORK}" --wallet-dir=/var/lib/prysm --keymanager-kind=${__kind} --accept-terms-of-use --wallet-password-file=/tmp/password.txt 2>&1)
+__result=$(validator --datadir=/var/lib/prysm wallet create "${__network[@]}" --wallet-dir=/var/lib/prysm --keymanager-kind=${__kind} --accept-terms-of-use --wallet-password-file=/tmp/password.txt 2>&1)
 if echo "${__result}" | grep -qi error; then
     echo "An error occurred while attempting to create a Prysm wallet"
     echo "${__result}"

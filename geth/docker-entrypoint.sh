@@ -123,7 +123,19 @@ if [[ -n "${ANCIENT_DIR}" && ! "${ANCIENT_DIR}" = ".nada" ]]; then
   __ancient="--datadir.ancient /var/lib/ancient"
 fi
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+config_dir_path=""
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/geth/testnet/ephemery)"
+  # A new iteration has a new genesis, and the chain data of the old one is for a dead chain
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -d /var/lib/geth/geth/chaindata/ && -f /var/lib/geth/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/geth/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old chain data"
+      rm -rf /var/lib/geth/geth/chaindata /var/lib/geth/geth/nodes
+    fi
+  fi
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -139,6 +151,8 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/geth/testnet/${config_dir}"
+fi
+if [[ -n "${config_dir_path}" ]]; then
   if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
     bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
   else
@@ -148,6 +162,9 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   __network="--bootnodes=${bootnodes} --networkid=${networkid}"
   if [[ ! -d /var/lib/geth/geth/chaindata/ ]]; then
     geth init --datadir /var/lib/geth "${config_dir_path}/genesis.json"
+  fi
+  if [[ -n "${__iteration:-}" ]]; then
+    echo "${__iteration}" > /var/lib/geth/ephemery-iteration
   fi
 else
   __network="--${NETWORK}"
@@ -242,7 +259,8 @@ case "${NODE_TYPE}" in
 esac
 
 # EraE import
-if [[ -n "${ERE_URL}" && ! -f /var/lib/geth/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+if [[ -n "${ERE_URL}" && ! -f /var/lib/geth/ere-import-complete && ! "${NETWORK}" =~ ^https?:// \
+    && ! "${NETWORK}" = "ephemery" ]]; then  # Fresh sync and named network
   if [[ "${NODE_TYPE}" =~ ^(full|archive|custom)$ ]]; then
     echo "Starting EraE history import from ${ERE_URL}"
     if [[ ! -f /var/lib/geth/ere-download-complete ]]; then

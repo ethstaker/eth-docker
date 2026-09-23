@@ -32,7 +32,10 @@ if [[ -O /var/lib/prysm/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/prysm/ee-secret/jwtsecret
 fi
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+config_dir_path=""
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/prysm/testnet/ephemery)"
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -48,6 +51,8 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/prysm/testnet/${config_dir}"
+fi
+if [[ -n "${config_dir_path}" ]]; then
   if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
     bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
   else

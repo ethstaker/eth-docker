@@ -122,8 +122,6 @@ services:
       - WEB3SIGNER=${WEB3SIGNER:-false}
       - W3S_NODE=${W3S_NODE}
       - CL_NODE=${CL_NODE}
-    depends_on:
-      - validator
     entrypoint:
       - keymanager.sh
       - /var/lib/teku/validator/key-manager/validator-api-bearer

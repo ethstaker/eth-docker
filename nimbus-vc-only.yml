@@ -89,8 +89,6 @@ services:
     image: vc-utils:local
     pull_policy: never
     user: root
-    depends_on:
-      - validator
     volumes:
       - nimbus-vc-data:/var/lib/nimbus
       - ./.eth/validator_keys:/validator_keys

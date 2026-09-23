@@ -124,8 +124,6 @@ services:
     image: vc-utils:local
     pull_policy: never
     user: root
-    depends_on:
-      - validator
     volumes:
       - lsvalidator-data:/var/lib/lodestar/validators
       - ./.eth/validator_keys:/validator_keys

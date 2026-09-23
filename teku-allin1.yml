@@ -156,8 +156,6 @@ services:
     image: vc-utils:local
     pull_policy: never
     user: root
-    depends_on:
-      - consensus
     volumes:
       - teku-data:/var/lib/teku
       - ./.eth/validator_keys:/validator_keys
