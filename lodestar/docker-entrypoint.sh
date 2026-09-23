@@ -118,7 +118,7 @@ fi
 if [[ "${IPV6}" = "true" ]]; then
   echo "Configuring Lodestar to listen on IPv6 ports"
   echo "IPv6 ENR will be auto-discovered. Please make sure the v6 P2P ports are reachable \"from Internet\""
-  __ipv6="--listenAddress 0.0.0.0 --listenAddress6 :: --port6 ${CL_P2P_PORT:-9000} --quicPort6 ${CL_QUIC_PORT:-9001}"
+  __ipv6="--listenAddress 0.0.0.0 --listenAddress6 :: --discoveryPort6 ${CL_DISC_PORT:-9000} --quicPort6 ${CL_QUIC_PORT:-9001}"
 else
   __ipv6="--listenAddress 0.0.0.0"
 fi

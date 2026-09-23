@@ -243,7 +243,7 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
     head -c 32 /dev/urandom | sha256sum | cut -d' ' -f1 > /var/lib/grandine/wallet-password.txt
   fi
   __grandine="--grandine-disable-upnp --grandine-data-dir /var/lib/grandine --grandine-http-address 0.0.0.0 --grandine-http-port ${CL_REST_PORT:-5052}"
-  __grandine+=" --grandine-http-allowed-origins=* --grandine-listen-address 0.0.0.0 --grandine-libp2p-port ${CL_P2P_PORT:-9000} --grandine-discovery-port ${CL_P2P_PORT:-9000}"
+  __grandine+=" --grandine-http-allowed-origins=* --grandine-listen-address 0.0.0.0 --grandine-discovery-port ${CL_DISC_PORT:-9000}"
   __grandine+=" --grandine-quic-port ${CL_QUIC_PORT:-9001} ${CL_MAX_PEER_COUNT:+--grandine-target-peers} ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}"
   __grandine+=" --grandine-metrics --grandine-metrics-address 0.0.0.0 --grandine-metrics-port 8008 --grandine-suggested-fee-recipient ${FEE_RECIPIENT}"
   __grandine+=" --grandine-track-liveness"
@@ -343,7 +343,7 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
 
   if [[ "${IPV6}" = "true" ]]; then
     echo "Configuring Grandine to listen on IPv6 ports"
-    __grandine+=" --grandine-listen-address-ipv6 :: --grandine-libp2p-port-ipv6 ${CL_P2P_PORT:-9000} --grandine-discovery-port-ipv6 ${CL_P2P_PORT:-9000} \
+    __grandine+=" --grandine-listen-address-ipv6 :: --grandine-discovery-port-ipv6 ${CL_DISC_PORT:-9000} \
   --grandine-quic-port-ipv6 ${CL_QUIC_PORT:-9001}"
   fi
 
