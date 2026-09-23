@@ -170,8 +170,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Set up Docker buildx
-        uses: docker/setup-buildx-action@v4
       - name: Remove podman
         run: sudo apt-get remove -y podman
       - name: Create .env file

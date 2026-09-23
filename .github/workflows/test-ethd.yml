@@ -27,8 +27,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Set up Docker buildx
-        uses: docker/setup-buildx-action@v4
       - name: Prerequisites on Ubuntu
         run: |
           sudo apt-get install -y expect whiptail
