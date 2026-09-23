@@ -1,0 +1,36 @@
+port = 3000
+# Dummy to satisfy config requirements - if this is a Geth or Reth instead with debug_ namespace,
+# zkboost will read debug_chainConfig
+el_endpoint = "http://localhost:1"
+# Chain config downloaded by entrypoint, means el_endpoint won't be used at startup
+chain_config_path = "/var/lib/zkboost/network/config/genesis.json"
+
+[[zkvm]]
+kind = "verifier"
+proof_type = "ethrex-openvm"
+program_vk_url = "https://github.com/eth-act/ere-guests/releases/download/v0.13.0/stateless-validator-ethrex-openvm.vk"
+
+[[zkvm]]
+kind = "verifier"
+proof_type = "ethrex-sp1"
+program_vk_url = "https://github.com/eth-act/ere-guests/releases/download/v0.13.0/stateless-validator-ethrex-sp1.vk"
+
+[[zkvm]]
+kind = "verifier"
+proof_type = "ethrex-zisk"
+program_vk_url = "https://github.com/eth-act/ere-guests/releases/download/v0.13.0/stateless-validator-ethrex-zisk.vk"
+
+[[zkvm]]
+kind = "verifier"
+proof_type = "reth-openvm"
+program_vk_url = "https://github.com/eth-act/ere-guests/releases/download/v0.13.0/stateless-validator-reth-openvm.vk"
+
+[[zkvm]]
+kind = "verifier"
+proof_type = "reth-sp1"
+program_vk_url = "https://github.com/eth-act/ere-guests/releases/download/v0.13.0/stateless-validator-reth-sp1.vk"
+
+[[zkvm]]
+kind = "verifier"
+proof_type = "reth-zisk"
+program_vk_url = "https://github.com/eth-act/ere-guests/releases/download/v0.13.0/stateless-validator-reth-zisk.vk"

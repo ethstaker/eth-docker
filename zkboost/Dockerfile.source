@@ -1,0 +1,81 @@
+# hadolint global ignore=DL3007,DL3008,DL3059,DL4006
+# Build zkboost in a stock Rust build container
+FROM rust:trixie AS builder
+
+# Unused, this is here to avoid build time complaints
+ARG DOCKER_TAG
+ARG DOCKER_REPO
+
+ARG BUILD_TARGET
+ARG SRC_REPO
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  clang \
+  libclang-dev \
+  protobuf-compiler \
+  libprotobuf-dev \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ARG SRC_DIR=zkboost
+ENV CC=clang
+ENV CXX=clang++
+RUN --mount=type=cache,sharing=locked,id=zkboost-target,target=/app/target/ \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/git/db \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry/ \
+  bash <<'EOF'
+set -Eeuo pipefail
+git clone "$SRC_REPO" "$SRC_DIR"
+cd "$SRC_DIR"
+git config advice.detachedHead false
+git fetch --all --tags
+CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+TARGET=$(eval echo "$CLEANED")
+if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
+  git fetch origin pull/${TARGET#pr-}/head:build-pr
+  git checkout build-pr
+else
+  git checkout "$TARGET"
+fi
+CARGO_TARGET_DIR=/app/target cargo build --release --features otel --bin zkboost
+mkdir -p /app/bin
+cp /app/target/release/zkboost /app/bin/
+EOF
+
+# Pull all binaries into a second stage deploy container
+FROM debian:trixie-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  adduser \
+  libssl3 \
+  bash \
+  git \
+  git-lfs \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ARG USER=zkboost
+ARG UID=10667
+
+# See https://stackoverflow.com/a/55757473/12429735RUN
+RUN adduser \
+  --disabled-password \
+  --gecos "" \
+  --shell "/sbin/nologin" \
+  --uid "${UID}" \
+  "${USER}"
+
+RUN mkdir -p /app && chown -R ${USER}:${USER} /app
+RUN mkdir -p /var/lib/zkboost && chown -R ${USER}:${USER} /var/lib/zkboost && chmod -R 700 /var/lib/zkboost
+
+# Cannot assume buildkit, hence no chmod
+COPY --from=builder --chown=${USER}:${USER} /app/bin/zkboost /usr/local/bin/
+COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
+USER ${USER}
+
+ENTRYPOINT ["zkboost"]
