@@ -5532,7 +5532,7 @@ __keys_usage() {
   echo "      back fixes those values, instead of leaving them to follow .env"
   echo "  set-builder 0xPUBKEY | all | 0xPUBKEY,0xPUBKEY URL[,URL...] | none [OPTIONS]"
   echo "      Set the builders for the validator with public key 0xPUBKEY, from a comma-separated"
-  echo "      list of URLs, in the same format as EPBS_BUILDER_URLS in .env"
+  echo "      list of URLs"
   echo "      \"all\" sets all detected validators, and a comma-separated list of public keys"
   echo "      sets just those"
   echo "      \"none\" stores a configuration that uses no builders, so the validator uses p2p"
@@ -6927,25 +6927,39 @@ __query_epbs() {
   local -a choices=()
   local num_items
   local menu_height
-  local relay
+  local builder
   local message
   local default
+  local message_mandatory=""
+  local aestus_default="ON"
+  local agnostic_default="ON"
+  local bloxroute_default="ON"
+  local flashbots_default="ON"
+  local titan_global_default="ON"
+  local titan_regional_default="ON"
+  local ultrasound_default="ON"
+  local ultrasound_filtered_default="ON"
 
   __write_vars+=("EPBS_BUILDERS")
+  __write_vars+=("EPBS_BUILDER_URLS")
 
 
-  if [[ ! "${__deployment}" =~ (node|validator|rocket|lido_) ]]; then
+  if [[ ! "${__deployment}" =~ (node|validator|rocket|lido_) ]]; then  # No VC
     EPBS_BUILDERS="false"
     EPBS_BUILDER_URLS=""
     return 0
   fi
 
+  var="EPBS_BUILDERS"
+  __get_value_from_env "${var}" "${__env_file}" "__value"
+
   message="Do you want to use ePBS Builders?"
-  if [[ "${MEV_BOOST}" = "false" ]]; then
+  if [[ "${MEV_BOOST}" = "false" && "${__value}" = "false" ]]; then
     default="--defaultno"
   else
     default=""
   fi
+
   if ! whiptail --title "ePBS Builders" --yesno "${message}" 10 65 "${default}"; then
     EPBS_BUILDERS="false"
     EPBS_BUILDER_URLS=""
@@ -6960,24 +6974,155 @@ __query_epbs() {
     __final_msg+="\nYou are configured to get ePBS block building bids via P2P."
   fi
 
+  var="EPBS_BUILDER_URLS"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+
   if [[ ! "${NETWORK}" =~ ^(mainnet|hoodi|sepolia|plataberget)$ ]]; then
     if [[ "${__network_change}" -eq 1 ]]; then
-      __write_vars+=("EPBS_BUILDER_URLS")
       EPBS_BUILDER_URLS=""
     fi
     return 0
   fi
 
-  var="EPBS_BUILDER_URLS"
-  __get_value_from_env "${var}" "${__env_file}" "${var}"
+# Plataberget has titanrelay and ultrasound live. Rest placeholders and tbd
+  if [[ "${__value}" = "true" && "${__network_change}" -eq 0 ]]; then  #  EPBS was already configured, default disable anything the user hadn't chosen previously
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ aestus ]]; then
+      aestus_default="OFF"
+    fi
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ agnostic ]]; then
+      agnostic_default="OFF"
+    fi
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ bloxroute ]]; then
+      bloxroute_default="OFF"
+    fi
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ flashbots ]]; then
+      flashbots_default="OFF"
+    fi
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ (plataberget\.titanrelay|hoodi\.titanrelay|global\.titanrelay) ]]; then
+      titan_global_default="OFF"
+    fi
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ regional\.titanrelay ]]; then
+      titan_regional_default="OFF"
+    fi
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ (relay-plataberget\.ultrasound|relay-hoodi\.ultrasound|relay\.ultrasound) ]]; then
+      ultrasound_default="OFF"
+    fi
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ relay-filtered.*\.ultrasound ]]; then
+      ultrasound_filtered_default="OFF"
+    fi
+  fi
+
+# Lido: once Lido publishes its ePBS builder list, add an "if [[ "${__deployment}" =~ lido_ ]]" branch per network,
+# with mandatory builders in builders(), optional ones in optional_builders(), and message_mandatory="mandatory "
+  case "${NETWORK}" in
+    plataberget)
+      builders=(
+        ['Titan']="https://plataberget.titanrelay.xyz"
+        ['Ultra Sound']="https://relay-plataberget.ultrasound.money"
+      )
+      choices=(
+        "Titan" "(unfiltered)" "${titan_global_default}"
+        "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+      )
+      ;;
+    sepolia)
+#      builders=(
+#        ['Flashbots']="https://boost-relay-sepolia.flashbots.net"
+#      )
+#      choices=(
+#        "Flashbots" "" "${flashbots_default}"
+#      )
+      ;;
+    hoodi)
+#      builders=(
+#        ['Aestus']="https://hoodi.aestus.live"
+#        ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
+#        ['Titan']="https://hoodi.titanrelay.xyz"
+#        ['Ultra Sound']="https://relay-hoodi.ultrasound.money"
+#        ['Ultra Sound Filtered']="https://relay-filtered-hoodi.ultrasound.money"
+#      )
+#      choices=(
+#        "Aestus" "(unfiltered)" "${aestus_default}"
+#        "Flashbots" "" "${flashbots_default}"
+#        "Titan" "(unfiltered)" "${titan_global_default}"
+#        "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+#        "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+#      )
+      ;;
+    mainnet)
+#      builders=(
+#        ['Aestus']="https://aestus.live"
+#        ['Agnostic']="https://agnostic-relay.net"
+#        ['bloXroute']="https://bloxroute.regulated.blxrbdn.com"
+#        ['Flashbots']="https://boost-relay.flashbots.net"
+#        ['Titan Global']="https://global.titanrelay.xyz"
+#        ['Titan Regional']="https://regional.titanrelay.xyz"
+#        ['Ultra Sound']="https://relay.ultrasound.money"
+#        ['Ultra Sound Filtered']="https://relay-filtered.ultrasound.money"
+#      )
+#      choices=(
+#        "Aestus" "(unfiltered)" "${aestus_default}"
+#        "Agnostic" "(unfiltered)" "${agnostic_default}"
+#        "bloXroute" "" "${bloxroute_default}"
+#        "Flashbots" "" "${flashbots_default}"
+#        "Titan Global" "(unfiltered)" "${titan_global_default}"
+#        "Titan Regional" "" "${titan_regional_default}"
+#        "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+#        "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+#      )
+      ;;
+  esac
 
 # No builder URLs known yet
-  if [[ "${__network_change}" -eq 1 ]]; then
-    __write_vars+=("EPBS_BUILDER_URLS")
+  if [[ "${NETWORK}" =~ ^(mainnet|hoodi|sepolia)$ && "${__network_change}" -eq 1 ]]; then
     EPBS_BUILDER_URLS=""
   fi
+
+  if [ ${#choices[@]} -gt 0 ]; then
+# We have builders(), maybe optional_builders(), and choices(). Prompt user and construct EPBS_BUILDER_URLS
+    num_items=$(( ${#choices[@]} / 3 ))
+    menu_height=$(( 8 + num_items ))
+
+    while true; do
+      EPBS_BUILDER_URLS='"'$'\n'
+      selected=$(whiptail --title "Builder list" --checklist \
+        "Choose builders for direct bids (use spacebar to unselect)" "${menu_height}" 65 "${num_items}" \
+        "${choices[@]}" \
+        3>&1 1>&2 2>&3)
+
+      if [[ -z "${selected}" ]]; then
+        if [[ "${__deployment}" =~ lido_ ]]; then
+          whiptail --msgbox "At least one ${message_mandatory}builder should be chosen" 10 65
+          continue
+        fi
+        echo "You have chosen to get builder bids via P2P only"
+        EPBS_BUILDER_URLS=""
+        break
+      fi
+
+      for builder in "${!builders[@]}"; do
+        if [[ ${selected} =~ \"${builder}\" ]]; then
+          EPBS_BUILDER_URLS+="${builders[$builder]},"$'\n'
+        fi
+      done
+
+      for builder in "${!optional_builders[@]}"; do
+        if [[ ${selected} =~ \"${builder}\" ]]; then
+          EPBS_BUILDER_URLS+="${optional_builders[$builder]},"$'\n'
+        fi
+      done
+  # Remove trailing comma and add closing quote
+      EPBS_BUILDER_URLS="${EPBS_BUILDER_URLS%,$'\n'}"$'\n'
+      EPBS_BUILDER_URLS+='"'
+      break
+    done
+  fi
+
   if [[ -z "${EPBS_BUILDER_URLS}" ]]; then
     __final_msg+="\nIf you also want direct bids, please set \"EPBS_BUILDER_URLS\" in \"${__env_file}\""
+  else
+    echo "Your ePBS builder(s): ${EPBS_BUILDER_URLS}"
+    __final_msg+="\nYou are also configured to get block building bids directly from builder(s)."
   fi
 }
 
@@ -7024,6 +7169,7 @@ want to use MEV Boost?" 10 65; then
   fi
 
   if [[ "${__deployment}" = "ssv" ]]; then  # Don't give the user a choice and configure all relays that SSV knows about
+# TODO after Hoodi Glamsterdam: SSV ePBS builders. __query_epbs is not called for SSV
     MEV_BOOST="true"
     case "${NETWORK}" in
       hoodi)
@@ -7067,7 +7213,7 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
     if [[ ! "${__value}" =~ flashbots ]]; then
       flashbots_default="OFF"
     fi
-    if [[ ! "${__value}" =~ (hoodi\.titanrelay|global.\titanrelay) ]]; then
+    if [[ ! "${__value}" =~ (hoodi\.titanrelay|global\.titanrelay) ]]; then
       titan_global_default="OFF"
     fi
     if [[ ! "${__value}" =~ regional\.titanrelay ]]; then
