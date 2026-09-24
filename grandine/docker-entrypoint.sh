@@ -163,14 +163,19 @@ fi
 # Web3signer URL
 if [[ "${EMBEDDED_VC}" = "true" && "${WEB3SIGNER}" = "true" ]]; then
   __w3s_url="--web3signer-urls ${W3S_NODE}"
+  __w3s_wait=300
+  __w3s_deadline=$(( SECONDS + __w3s_wait ))
   while true; do
-    if curl -s -m 5 "${W3S_NODE}" &> /dev/null; then
-        echo "web3signer is up, starting Grandine"
-        break
-    else
-        echo "Waiting for web3signer to be reachable..."
-        sleep 5
+    if curl -sf -m 5 "${W3S_NODE}/upcheck" &> /dev/null; then
+      echo "Web3signer is up, starting Grandine"
+      break
     fi
+    if (( SECONDS >= __w3s_deadline )); then
+      echo "Web3signer at ${W3S_NODE} is not reachable after ${__w3s_wait} seconds, starting Grandine anyway"
+      break
+    fi
+    echo "Waiting for Web3signer to be reachable..."
+    sleep 5
   done
 else
   __w3s_url=""

@@ -77,6 +77,8 @@ echo "None of the test keys are on the beacon chain"
 
 default_recipient="$(sed -n 's/^FEE_RECIPIENT=//p' .env)"
 slashing_file=".eth/validator_keys/slashing_protection-${pk1::10}--${pk1:90}.json"
+slashing_file2=".eth/validator_keys/slashing_protection-${pk2::10}--${pk2:90}.json"
+slashing_file3=".eth/validator_keys/slashing_protection-${pk3::10}--${pk3:90}.json"
 
 __out=""
 __rc=0
@@ -230,6 +232,12 @@ test_builder() {
   expect_out "Updated the builder configuration for 2 of 2 validators"
   run "get-builder after url" -- get-builder "${pk2}"
   expect_out "${builder_url}"
+  run "get-builder list of keys" -- get-builder "${pk2},${pk3}"
+  expect_rc 0
+  [[ "$(grep -Fc -- "${builder_url}" <<< "${__out}")" -eq 2 ]] || fail "expected ${builder_url} for both keys"
+  run "get-builder list of keys --json" -- get-builder "${pk2},${pk3}" --json
+  expect_rc 0
+  expect_out "--json needs a single validator public key"
 
   run "delete-builder all" -- delete-builder all
   expect_rc 0
@@ -299,6 +307,21 @@ expect_out "set back to default"
 run "get-recipient after delete" -- get-recipient "${pk1}"
 expect_rc 0
 expect_out "${default_recipient}"
+run "set-recipient list of keys" -- set-recipient "${pk2},${pk3}" "${recipient}"
+expect_rc 0
+expect_out "Updated the fee recipient for 2 of 2 validators"
+run "get-recipient list of keys" -- get-recipient "${pk2}, ${pk3}"
+expect_rc 0
+expect_out "fee recipient for the validator with public key ${pk2} is"
+expect_out "fee recipient for the validator with public key ${pk3} is"
+expect_no_out "${default_recipient}"
+run "delete-recipient list of keys" -- delete-recipient "${pk2},${pk3}"
+expect_rc 0
+expect_out "Set the fee recipient back to default for 2 of 2 validators"
+run "get-recipient all after delete" -- get-recipient all
+expect_rc 0
+expect_no_out "${recipient}"
+expect_out "fee recipient for the validator with public key ${pk3} is"
 
 run "set-gas" -- set-gas "${pk1}" 36000000
 expect_rc 0
@@ -312,6 +335,19 @@ expect_out "set back to default"
 run "get-gas after delete" -- get-gas "${pk1}"
 expect_rc 0
 expect_out "execution gas limit for the validator"
+run "set-gas with a malformed key" -- set-gas "${pk1},0xdead" 36000000
+expect_rc 0
+expect_out "Wrong length for the validator public key"
+expect_no_out "was updated"
+run "set-gas all" -- set-gas all 36000000
+expect_rc 0
+expect_out "Updated the gas limit for 3 of 3 validators"
+run "get-gas list of keys" -- get-gas "${pk1},${pk3}"
+expect_rc 0
+[[ "$(grep -Ec '^36000000$' <<< "${__out}")" -eq 2 ]] || fail "expected a gas limit of 36000000 for both keys"
+run "delete-gas list of keys" -- delete-gas "${pk1},${pk2},${pk3}"
+expect_rc 0
+expect_out "Set the gas limit back to default for 3 of 3 validators"
 
 run "set-graffiti" -- set-graffiti "${pk1}" eth-docker-ci
 expect_rc 0
@@ -326,6 +362,19 @@ run "get-graffiti after delete" -- get-graffiti "${pk1}"
 expect_rc 0
 expect_no_out "eth-docker-ci"
 expect_out "eth-docker-default"
+run "set-graffiti all" -- set-graffiti all eth-docker-ci
+expect_rc 0
+expect_out "Updated the graffiti for 3 of 3 validators"
+run "get-graffiti list of keys" -- get-graffiti "${pk1},${pk3}"
+expect_rc 0
+[[ "$(grep -Eci 'eth-docker-ci' <<< "${__out}")" -eq 2 ]] || fail "expected graffiti eth-docker-ci for both keys"
+run "delete-graffiti all" -- delete-graffiti all
+expect_rc 0
+expect_out "Set the graffiti back to default for 3 of 3 validators"
+run "get-graffiti all after delete" -- get-graffiti all
+expect_rc 0
+expect_no_out "eth-docker-ci"
+[[ "$(grep -Eci 'eth-docker-default' <<< "${__out}")" -eq 3 ]] || fail "expected graffiti eth-docker-default for all three keys"
 
 test_builder
 
@@ -333,6 +382,14 @@ run "sign-exit" -- sign-exit "${pk1}"
 expect_rc 0
 expect_out "has to be active with an index on the beacon chain"
 expect_out "Signed exit messages for 0 keys"
+if compgen -G ".eth/exit_messages/*.json" >/dev/null; then
+  fail "an exit message was written for a key that is not on the beacon chain"
+fi
+
+run "sign-exit list of keys" -- sign-exit "${pk1},${pk2}"
+expect_rc 0
+expect_out "Signed exit messages for 0 keys"
+expect_out "Skipped 2 keys"
 if compgen -G ".eth/exit_messages/*.json" >/dev/null; then
   fail "an exit message was written for a key that is not on the beacon chain"
 fi
@@ -374,6 +431,23 @@ if [[ "${slashing_lists_key}" = "true" ]]; then
 else
   expect_out "No viable slashing protection import file found for ${pk1}"
 fi
+check_count 3
+
+rm -f "${slashing_file2}" "${slashing_file3}"
+run "delete list of keys" -- delete "${pk2},${pk3}"
+expect_rc 0
+expect_out "Deleting key 2 of 2"
+expect_out "Validator ${pk2} deleted"
+expect_out "Validator ${pk3} deleted"
+[[ -s "${slashing_file2}" && -s "${slashing_file3}" ]] || fail "no slashing protection files for ${pk2} and ${pk3}"
+check_count 1
+check_listed yes "${pk1}"
+check_listed no "${pk2}" "${pk3}"
+
+run "re-import list of keys" -- import --non-interactive
+expect_rc 0
+expect_out "Imported 2 keys"
+expect_out "Skipped 1 keys"
 check_count 3
 
 run "delete all, declined" "no" -- delete all

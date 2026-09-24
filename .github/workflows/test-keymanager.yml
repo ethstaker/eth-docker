@@ -4,6 +4,10 @@ defaults:
   run:
     shell: bash
 
+# ethd skips the warnings it prints after a command
+env:
+  ETHD_FRONTEND: ci
+
 on:
   pull_request:
     types: [opened, synchronize, labeled, unlabeled]

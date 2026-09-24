@@ -133,6 +133,23 @@ fi
 # Web3signer URL
 if [[ "${WEB3SIGNER}" = "true" ]]; then
   __w3s_url="--externalSigner.url ${W3S_NODE} --externalSigner.fetch"
+# Lodestar exits if it cannot fetch pubkeys from web3signer at startup, so give web3signer time
+# to come up. The image has no curl, but it has node.
+  __w3s_wait=300
+  __w3s_deadline=$(( SECONDS + __w3s_wait ))
+  while true; do
+    if node -e 'fetch(process.argv[1], {signal: AbortSignal.timeout(5000)}).then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))' \
+        "${W3S_NODE}/upcheck"; then
+      echo "Web3signer is up, starting Lodestar"
+      break
+    fi
+    if (( SECONDS >= __w3s_deadline )); then
+      echo "Web3signer at ${W3S_NODE} is not reachable after ${__w3s_wait} seconds, starting Lodestar anyway"
+      break
+    fi
+    echo "Waiting for Web3signer to be reachable..."
+    sleep 5
+  done
 else
   __w3s_url=""
 fi
