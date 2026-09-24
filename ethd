@@ -4963,20 +4963,7 @@ prune-history() {
       *besu.yml*)
         choices+=("rolling" "Rolling expiry (experimental)")
         ;;
-      *erigon.yml*)
-        choices+=("rolling" "Rolling expiry")
-        ;;
-      *nethermind.yml*)
-        choices+=("rolling" "Rolling expiry")
-        ;;
-      *reth.yml*)
-        choices+=("rolling" "Rolling expiry")
-        ;;
-      *geth.yml*)
-        ;;
-      *ethrex.yml*)
-        ;;
-      *nimbus-el.yml*|*nimbus-unified.yml*)
+      *)
         choices+=("rolling" "Rolling expiry")
         ;;
     esac
