@@ -9,6 +9,8 @@ x-logging: &logging
 
 x-build: &nimbus-build
   context: ./nimbus
+  additional_contexts:
+    ephemery: ./ephemery
   dockerfile: ${NIM_DOCKERFILE}
   args:
     - BUILD_TARGET=${NIM_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}

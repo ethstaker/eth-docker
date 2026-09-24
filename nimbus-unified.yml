@@ -11,6 +11,8 @@ services:
     restart: "unless-stopped"
     build:
       context: ./nimbus-el
+      additional_contexts:
+        ephemery: ./ephemery
       dockerfile: ${NIMUNIFIED_DOCKERFILE}
       args:
         - BUILD_TARGET=${NIMEL_SRC_BUILD_TARGET:-master}

@@ -8,6 +8,8 @@ x-logging: &logging
 
 x-build: &nimbus-build
   context: ./nimbus
+  additional_contexts:
+    ephemery: ./ephemery
   dockerfile: ${NIM_DOCKERFILE}
   args:
     - BUILD_TARGET=${NIM_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
@@ -31,6 +33,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - jwtsecret:/var/lib/nimbus/ee-secret
     environment:
+      - NETWORK=${NETWORK}
       - MEV_BOOST=${MEV_BOOST}
       - EPBS_BUILD_FACTOR=${EPBS_BUILD_FACTOR}
       - CL_NODE=${CL_NODE}

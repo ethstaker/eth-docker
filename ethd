@@ -6213,10 +6213,6 @@ __query_deployment() {
     choices+=("rpc" "Ethereum RPC node - consensus and execution client")
     choices+=("validator" "Validator client only")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    if [[ "${arch}" =~ riscv64 ]]; then
-      echo "Ephemery network has no available client combos on RISC-V. Aborting."
-      exit 1
-    fi
     choices+=("node" "Ethereum node - consensus, execution and validator client")
     choices+=("rpc" "Ethereum RPC node - consensus and execution client")
     choices+=("validator" "Validator client only")
@@ -6299,18 +6295,26 @@ __query_validator_client() {
     choices+=("lodestar-vc-only.yml" "Lodestar validator client")
     choices+=("nimbus-vc-only.yml" "Nimbus validator client")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    choices+=("teku-vc-only.yml" "Teku validator client")
-    choices+=("lodestar-vc-only.yml" "Lodestar validator client")
+    if [[ "${arch}" =~ riscv64 ]]; then
+      choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+    else
+      choices+=("teku-vc-only.yml" "Teku validator client")
+      choices+=("lodestar-vc-only.yml" "Lodestar validator client")
+      choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+    fi
   elif [[ "${__deployment}" = "rocket" ]]; then
     if [[ "${arch}" =~ (aarch64|arm64) ]]; then
       choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
       choices+=("teku-vc-only.yml" "Teku validator client")
       choices+=("lodestar-vc-only.yml" "Lodestar validator client")
       choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+    elif [[ "${arch}" =~ riscv64 ]]; then
+      choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
+      choices+=("nimbus-vc-only.yml" "Nimbus validator client")
     else
       choices+=("teku-vc-only.yml" "Teku validator client")
-      choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
       choices+=("lodestar-vc-only.yml" "Lodestar validator client")
+      choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
       choices+=("nimbus-vc-only.yml" "Nimbus validator client")
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
@@ -6319,6 +6323,9 @@ __query_validator_client() {
     choices+=("lodestar-vc-only.yml" "Lodestar validator client")
     choices+=("nimbus-vc-only.yml" "Nimbus validator client")
     choices+=("prysm-vc-only.yml" "Prysm validator client")
+  elif [[ "${arch}" =~ riscv64 ]]; then
+    choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+    choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
   else
     choices+=("teku-vc-only.yml" "Teku validator client")
     choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
@@ -6337,6 +6344,16 @@ __query_validator_client() {
   if [[ "${VALIDATOR_CLIENT}" = "nimbus-vc-only.yml" && "${NETWORK}" = "gnosis" ]]; then
     __write_vars+=("NIM_DOCKERFILE")
     NIM_DOCKERFILE=Dockerfile.sourcegnosis
+  fi
+
+  if [[ "${VALIDATOR_CLIENT}" = "nimbus-vc-only.yml" && "${arch}" =~ riscv64 ]]; then
+    __write_vars+=("NIM_DOCKERFILE")
+    NIM_DOCKERFILE=Dockerfile.source
+  fi
+
+  if [[ "${VALIDATOR_CLIENT}" = "lighthouse-vc-only.yml" && "${arch}" =~ riscv64 ]]; then
+    __write_vars+=("LH_DOCKERFILE")
+    LH_DOCKERFILE=Dockerfile.source
   fi
 
   if [[ -n "${CONSENSUS_CLIENT+x}" ]]; then
@@ -6406,9 +6423,16 @@ __query_consensus_client() {
     choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
-    choices+=("teku.yml" "Teku (Java) - consensus and validator client")
-    choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
+    if [[ "${arch}" =~ riscv64 ]]; then
+      choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
+    else
+      choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
+      choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
+      choices+=("teku.yml" "Teku (Java) - consensus and validator client")
+      choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
+    fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
@@ -6422,6 +6446,7 @@ __query_consensus_client() {
     choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
+    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     if [[ "${NETWORK}" != "mainnet" ]]; then
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
@@ -6461,6 +6486,16 @@ __query_consensus_client() {
     NIM_DOCKERFILE=Dockerfile.source
   fi
 
+  if [[ "${CONSENSUS_CLIENT}" = "nimbus-unified.yml" && "${arch}" =~ riscv64 ]]; then
+    __write_vars+=("NIMUNIFIED_DOCKERFILE")
+    NIMUNIFIED_DOCKERFILE=Dockerfile-unified.source
+  fi
+
+  if [[ "${CONSENSUS_CLIENT}" = "lighthouse.yml" && "${arch}" =~ riscv64 ]]; then
+    __write_vars+=("LH_DOCKERFILE")
+    LH_DOCKERFILE=Dockerfile.source
+  fi
+
 # This only works if __query_consensus_client is always called first
   CORE_FILES="${CONSENSUS_CLIENT}"
 
@@ -6494,9 +6529,16 @@ __query_consensus_only_client() {
     choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
     choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
-    choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
-    choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
+    if [[ "${arch}" =~ riscv64 ]]; then
+      choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
+    else
+      choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
+      choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
+      choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
+      choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
+      choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
+    fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
@@ -6513,6 +6555,7 @@ __query_consensus_only_client() {
     if [[ "${NETWORK}" != "mainnet" ]]; then
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
+    choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
   else
     choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
     choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
@@ -6541,6 +6584,16 @@ __query_consensus_only_client() {
   if [[ "${CONSENSUS_CLIENT}" = "nimbus-cl-only.yml" && "${arch}" =~ riscv64 ]]; then
     __write_vars+=("NIM_DOCKERFILE")
     NIM_DOCKERFILE=Dockerfile.source
+  fi
+
+  if [[ "${CONSENSUS_CLIENT}" = "nimbus-unified.yml" && "${arch}" =~ riscv64 ]]; then
+    __write_vars+=("NIMUNIFIED_DOCKERFILE")
+    NIMUNIFIED_DOCKERFILE=Dockerfile-unified.source
+  fi
+
+  if [[ "${CONSENSUS_CLIENT}" = "lighthouse-cl-only.yml" && "${arch}" =~ riscv64 ]]; then
+    __write_vars+=("LH_DOCKERFILE")
+    LH_DOCKERFILE=Dockerfile.source
   fi
 
 # This only works when __query_consensus_only_client is always called first
@@ -6622,12 +6675,11 @@ __query_execution_client() {
     choices+=("nethermind.yml" "Nethermind (.NET)")
     choices+=("erigon.yml" "Erigon (Go)")
   elif [[ "${NETWORK}" = "ephemery" ]]; then
-    if [[ "${arch}" != *"riscv64"* ]]; then
-      choices+=("besu.yml" "Besu (Java)")
+    if [[ "${arch}" =~ riscv64 ]]; then
       choices+=("geth.yml" "Geth (Go)")
     else
-      echo "Epheremy testnet is not supported on ${arch}"
-      exit 1
+      choices+=("geth.yml" "Geth (Go)")
+      choices+=("besu.yml" "Besu (Java)")
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]] ; then
     choices+=("ethrex.yml" "Ethrex (Rust)")
@@ -6648,7 +6700,7 @@ __query_execution_client() {
     choices+=("erigon.yml" "Erigon (Go)")
   fi
 
-  if [[ ! "${arch}" =~ riscv64 && "${NETWORK}" =~ (hoodi|sepolia) ]]; then
+  if [[ "${NETWORK}" =~ (hoodi|sepolia|ephemery) ]]; then
     choices+=("nimbus-el.yml" "Nimbus (Nim) - beta")
   fi
 
@@ -6669,6 +6721,10 @@ __query_execution_client() {
       "ethrex.yml")
         __write_vars+=("ETHREX_DOCKERFILE")
         ETHREX_DOCKERFILE=Dockerfile.source
+        ;;
+      "nimbus-el.yml")
+        __write_vars+=("NIMEL_DOCKERFILE")
+        NIMEL_DOCKERFILE=Dockerfile.source
         ;;
     esac
   fi

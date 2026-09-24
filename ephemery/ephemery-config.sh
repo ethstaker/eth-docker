@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Fetches the network config of the current Ephemery iteration and prints the directory holding
 # config.yaml, genesis.ssz, genesis.json, bootstrap_nodes.txt, enodes.txt and deposit_contract_block.txt.
-# Prysm and Geth have no built-in Ephemery. The genesis repo does not keep these files in git, they come
-# as a release per iteration, so the git-based custom network path cannot fetch them.
+# Prysm, Geth and Nimbus have no built-in Ephemery. The genesis repo does not keep these files in git,
+# they come as a release per iteration, so the git-based custom network path cannot fetch them.
 # Each iteration's retention.vars has its genesis time and reset interval. An iteration fetched before
 # is used as long as it is live, without asking GitHub. Once it has ended, this looks up the latest
 # release, and waits for one that is live if there is none yet: a node on an ended iteration is useless.
 # Call with the directory to keep iterations in. Messages go to stderr, the path to stdout.
-# Client images get it from the "ephemery" additional build context, see geth.yml and prysm.yml.
+# Client images get it from the "ephemery" additional build context, see geth.yml, prysm.yml,
+# nimbus.yml and nimbus-el.yml.
 set -Eeuo pipefail
 
 base_dir="$1"

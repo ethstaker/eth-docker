@@ -5,6 +5,20 @@ if [[ "$(id -u)" -eq 0 ]]; then
   exec su-exec user docker-entrypoint-vc.sh "$@"
 fi
 
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/nimbus/testnet/ephemery)"
+  # A new iteration has a new genesis, and slashing protection for the old one is for a dead chain
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/nimbus/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/nimbus/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old slashing protection DB"
+      rm -f /var/lib/nimbus/validators/slashing_protection.sqlite3*
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/nimbus/ephemery-iteration
+fi
+
 
 __normalize_int() {
   local v=$1

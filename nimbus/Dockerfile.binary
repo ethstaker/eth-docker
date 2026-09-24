@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3007,DL3008,DL3059,DL3066
+# hadolint global ignore=DL3007,DL3008,DL3022,DL3059,DL3066
 ARG DOCKER_TAG=multiarch-latest
 ARG DOCKER_VC_TAG=multiarch-latest
 ARG DOCKER_REPO=statusim/nimbus-eth2
@@ -38,6 +38,7 @@ RUN cp /home/user/nimbus_beacon_node /usr/local/bin/
 RUN chown ${USER}:${USER} /usr/local/bin/nimbus_beacon_node
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+COPY --from=ephemery --chown=${USER}:${USER} ephemery-config.sh /usr/local/bin/
 COPY --chown=${USER}:${USER} ./validator-exit.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
@@ -76,6 +77,7 @@ RUN cp /home/user/nimbus_validator_client /usr/local/bin/
 RUN chown ${USER}:${USER} /usr/local/bin/nimbus_validator_client
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint-vc.sh /usr/local/bin/
+COPY --from=ephemery --chown=${USER}:${USER} ephemery-config.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 
