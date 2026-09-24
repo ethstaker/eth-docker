@@ -5,8 +5,6 @@ defaults:
     shell: bash
 
 on:
-  push:
-    branches: [main]
   pull_request:
     types: [opened, synchronize, labeled, unlabeled]
     branches: [main]
@@ -24,9 +22,7 @@ concurrency:
 
 jobs:
   select:
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'check-keymanager') ||
-      github.event_name == 'push'
+    if: contains(github.event.pull_request.labels.*.name, 'check-keymanager')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -36,7 +32,6 @@ jobs:
         id: select
         env:
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
-          EVENT: ${{ github.event_name }}
         run: |
           # Only Lodestar serves the builder configuration API so far. Delete a client's
           # no_builder_api line once it does.
@@ -69,10 +64,10 @@ jobs:
              "env": ["NM_DOCKER_REPO=sifrai/grandine", "NM_DOCKER_TAG=unstable-nethermind",
                      "CL_NODE=http://execution:5052"]}
           ]'
-          include="$(jq -c --argjson labels "${LABELS}" --arg event "${EVENT}" '
+          include="$(jq -c --argjson labels "${LABELS}" '
             ($labels // []) as $l
             | [ .[] | . as $c
-                | select($event == "push" or any($l[]; . == "test-all" or . == $c.label))
+                | select(any($l[]; . == "test-all" or . == $c.label))
                 | (if $c.w3s_only then [true] else [false, true] end)[] as $w
                 | $c + {web3signer: $w} ]' <<< "${clients}")"
           echo "Selected:"
