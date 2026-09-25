@@ -153,6 +153,24 @@ case "${NODE_TYPE}" in
         ;;
     esac
     ;;
+  stakewise-expiry)
+    __prune+=" --prune.transactionlookup.distance 10064"
+    __snap="--with-txs-since 25900000 --with-receipts-since 25900000 --with-state-history-distance 10064"
+    case "${NETWORK}" in
+      mainnet)
+        echo "Reth minimal node with Stakewise history expiry"
+        __prune+=" --prune.bodies.before 25900000 --prune.receipts.before 25900000"
+        ;;
+      hoodi)
+        echo "Reth minimal node with Stakewise history expiry"
+        __prune+=" --prune.bodies.before 3580000 --prune.receipts.before 3580000"
+        ;;
+      *)
+        echo "There is no Stakewise expiry config for ${NETWORK} network, \"stakewise-expiry\" has no effect."
+        __prune+=" --prune.receipts.before 0"
+        ;;
+    esac
+    ;;
   rolling-expiry)
     echo "Reth minimal node with rolling history expiry, keeps ~5 months"
     # 33_024 epochs = 1056768 slots / blocks

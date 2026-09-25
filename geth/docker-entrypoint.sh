@@ -229,7 +229,7 @@ case "${NODE_TYPE}" in
         ;;
     esac
     ;;
-  pre-prague-expiry)
+  pre-prague-expiry|stakewise-expiry)
     case "${NETWORK}" in
       mainnet|sepolia|hoodi)
          echo "Geth minimal node with pre-Prague history expiry"

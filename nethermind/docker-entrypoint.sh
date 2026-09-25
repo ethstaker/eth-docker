@@ -190,6 +190,24 @@ case "${NODE_TYPE}" in
         ;;
     esac
     ;;
+  stakewise-expiry)
+    case "${NETWORK}" in
+      mainnet)
+        echo "Nethermind minimal node with Stakewise history expiry"
+        __prune+=" --Sync.AncientBodiesBarrier=25900000 --Sync.AncientReceiptsBarrier=25900000 --History.Pruning=UseAncientBarriers"
+        __ere_from=22431084
+        ;;
+      hoodi)
+        echo "Nethermind minimal node with Stakewise history expiry"
+        __prune+=" --Sync.AncientBodiesBarrier=3580000 --Sync.AncientReceiptsBarrier=3580000 --History.Pruning=UseAncientBarriers"
+        __ere_from=60412
+        ;;
+      *)
+        echo "There is no Stakewise expiry config for ${NETWORK} network, \"stakewise-expiry\" has no effect."
+        __ere_from=0
+        ;;
+    esac
+    ;;
   rolling-expiry)
     echo "Nethermind minimal node with rolling history expiry, keeps ~5 months"
     __prune+=" --History.Pruning=Rolling --History.RetentionEpochs=33024"
