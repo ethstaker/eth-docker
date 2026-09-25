@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Fetches the network config of the current Ephemery iteration and prints the directory holding
 # config.yaml, genesis.ssz, genesis.json, bootstrap_nodes.txt, enodes.txt and deposit_contract_block.txt.
-# Prysm and Geth have no built-in Ephemery. The genesis repo does not keep these files in git, they come
-# as a release per iteration, so the git-based custom network path cannot fetch them.
+# Prysm, Geth and Nimbus have no built-in Ephemery. The genesis repo does not keep these files in git,
+# they come as a release per iteration, so the git-based custom network path cannot fetch them.
 # Call with the directory to keep iterations in. Messages go to stderr, the path to stdout.
-# Identical copy in prysm/ and geth/, as each client builds from its own directory; keep them in sync.
+# Identical copy in prysm/, geth/, nimbus/ and nimbus-el/, as each client builds from its own directory;
+# keep them in sync.
 set -Eeuo pipefail
 
 base_dir="$1"

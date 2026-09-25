@@ -128,7 +128,21 @@ if [[ -O /var/lib/nimbus/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/nimbus/ee-secret/jwtsecret
 fi
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+config_dir_path=""
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/nimbus/testnet/ephemery)"
+  # A new iteration has a new genesis, and the chain data of the old one is for a dead chain
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/nimbus/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/nimbus/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old chain data"
+      rm -rf /var/lib/nimbus/db
+      rm -f /var/lib/nimbus/setupdone
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/nimbus/ephemery-iteration
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -144,14 +158,20 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/nimbus/testnet/${config_dir}"
+fi
+if [[ -n "${config_dir_path}" ]]; then
   if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
     bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
   else
     bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
   fi
-  __network="--network=${config_dir_path} --bootstrap-node=${bootnodes}"
+  __network="--network=${config_dir_path}"
+  # trustedNodeSync does not take bootnodes, only the node itself does. One flag per node, Nimbus does not
+  # split a comma-separated list
+  __bootnodes="--bootstrap-node=${bootnodes//,/ --bootstrap-node=}"
 else
   __network="--network=${NETWORK}"
+  __bootnodes=""
 fi
 
 if [[ -n "${CHECKPOINT_SYNC_URL}" && ! -f /var/lib/nimbus/setupdone ]]; then
@@ -175,7 +195,7 @@ if [[ -n "${CHECKPOINT_SYNC_URL}" && ! -f /var/lib/nimbus/setupdone ]]; then
 fi
 
 __erc_dir=""
-if [[ -n "${ERC_URL}" && ! "${NETWORK}" =~ ^https?:// ]]; then  # Named network
+if [[ -n "${ERC_URL}" && ! "${NETWORK}" =~ ^https?:// && ! "${NETWORK}" = "ephemery" ]]; then  # Named network
   if [[ "${CL_NODE_TYPE}" =~ ^(archive|blob-archive)$ ]]; then
     if [[ ! -f /var/lib/nimbus/erc-download-complete ]]; then
        if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
@@ -306,4 +326,4 @@ done
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__network} ${__w3s_url} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__doppel} ${__prune} ${__erc_dir} ${CL_EXTRAS} ${VC_EXTRAS}
+exec "$@" ${__network} ${__bootnodes} ${__w3s_url} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__doppel} ${__prune} ${__erc_dir} ${CL_EXTRAS} ${VC_EXTRAS}

@@ -38,6 +38,7 @@ RUN cp /home/user/nimbus_beacon_node /usr/local/bin/
 RUN chown ${USER}:${USER} /usr/local/bin/nimbus_beacon_node
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+COPY --chown=${USER}:${USER} ./ephemery-config.sh /usr/local/bin/
 COPY --chown=${USER}:${USER} ./validator-exit.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*

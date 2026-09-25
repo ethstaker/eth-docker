@@ -158,7 +158,21 @@ case "${NODE_TYPE}" in
     ;;
 esac
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+config_dir_path=""
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/nimbus/testnet/ephemery)"
+  # A new iteration has a new genesis, and the chain data of the old one is for a dead chain
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/nimbus/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/nimbus/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old chain data"
+      # This volume holds only execution chain data besides the JWT secret and network configs
+      find /var/lib/nimbus -mindepth 1 -maxdepth 1 ! -name ee-secret ! -name testnet -exec rm -rf {} +
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/nimbus/ephemery-iteration
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -174,18 +188,22 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/nimbus/testnet/${config_dir}"
+fi
+if [[ -n "${config_dir_path}" ]]; then
   if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
     bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
   else
     bootnodes="$(paste -sd, "${config_dir_path}/enodes.txt")"
   fi
-  __network="--bootstrap-node=${bootnodes} --network=${config_dir_path}/genesis.json"
+  # One flag per node, Nimbus does not split a comma-separated list
+  __network="--bootstrap-node=${bootnodes//,/ --bootstrap-node=} --network=${config_dir_path}/genesis.json"
 else
   __network="--network=${NETWORK}"
 fi
 
 # EraE import
-if [[ -n "${ERE_URL}" && ! -f /var/lib/nimbus/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+if [[ -n "${ERE_URL}" && ! -f /var/lib/nimbus/ere-import-complete && ! "${NETWORK}" =~ ^https?:// \
+    && ! "${NETWORK}" = "ephemery" ]]; then  # Fresh sync and named network
   if [[ "${NODE_TYPE}" =~ ^(full|archive|custom)$ ]]; then
     echo "Starting EraE history import from ${ERE_URL}"
     if [[ ! -f /var/lib/nimbus/ere-download-complete ]]; then

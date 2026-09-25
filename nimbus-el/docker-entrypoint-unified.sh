@@ -239,7 +239,21 @@ case "${CL_NODE_TYPE}" in
     ;;
 esac
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+config_dir_path=""
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/nimbus/testnet/ephemery)"
+  # A new iteration has a new genesis, and the chain data of the old one is for a dead chain
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/nimbus/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/nimbus/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old chain data"
+      rm -rf /var/lib/nimbus/db /var/lib/nimbus/ecdb
+      rm -f /var/lib/nimbus/setupdone /var/lib/nimbus/ere-import-complete
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/nimbus/ephemery-iteration
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -255,6 +269,8 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/nimbus/testnet/${config_dir}"
+fi
+if [[ -n "${config_dir_path}" ]]; then
   if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
     el_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
   else
@@ -265,13 +281,18 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   else
     cl_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
   fi
-  __network="--bootstrap-node=${cl_bootnodes} --el-bootstrap-node=${el_bootnodes} --network=${config_dir_path}/"
+  __network="--network=${config_dir_path}/"
+  # trustedNodeSync does not take bootnodes, only the node itself does. One flag per node, Nimbus does not
+  # split a comma-separated list
+  __bootnodes="--bootstrap-node=${cl_bootnodes//,/ --bootstrap-node=} --el-bootstrap-node=${el_bootnodes//,/ --el-bootstrap-node=}"
 else
   __network="--network=${NETWORK}"
+  __bootnodes=""
 fi
 
 # EraE import, before CL checkpoint sync
-if [[ -n "${ERE_URL}" && ! -f /var/lib/nimbus/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+if [[ -n "${ERE_URL}" && ! -f /var/lib/nimbus/ere-import-complete && ! "${NETWORK}" =~ ^https?:// \
+    && ! "${NETWORK}" = "ephemery" ]]; then  # Fresh sync and named network
   if [[ "${EL_NODE_TYPE}" =~ ^(full|archive|custom)$ ]]; then
     echo "Starting EraE history import from ${ERE_URL}"
     if [[ ! -f /var/lib/nimbus/ere-download-complete ]]; then
@@ -314,7 +335,7 @@ if [[ -n "${CHECKPOINT_SYNC_URL}" && ! -f /var/lib/nimbus/setupdone ]]; then
 fi
 
 __erc_dir=""
-if [[ -n "${ERC_URL}" && ! "${NETWORK}" =~ ^https?:// ]]; then  # Named network
+if [[ -n "${ERC_URL}" && ! "${NETWORK}" =~ ^https?:// && ! "${NETWORK}" = "ephemery" ]]; then  # Named network
   if [[ "${CL_NODE_TYPE}" =~ ^(archive|blob-archive)$ ]]; then
     if [[ ! -f /var/lib/nimbus/erc-download-complete ]]; then
       if [[ -n "${CHECKPOINT_SYNC_URL}" ]]; then
@@ -347,4 +368,4 @@ set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__prune} ${__mev_boost} ${__network} ${__erc_dir} ${EL_EXTRAS} ${CL_EXTRAS}
+exec "$@" ${__prune} ${__mev_boost} ${__network} ${__bootnodes} ${__erc_dir} ${EL_EXTRAS} ${CL_EXTRAS}
