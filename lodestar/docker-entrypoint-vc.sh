@@ -106,8 +106,10 @@ if [[ "${MEV_BOOST}" = "true" || "${EPBS_BUILDERS}" = "true" ]]; then
       echo "WARNING: EPBS_MIN_BID has an invalid value of \"${EPBS_MIN_BID}\", ignoring"
     fi
   fi
-  if [[ -n "${EPBS_BUILDER_URLS}" ]]; then
-    __epbs+=" --builder.urls ${EPBS_BUILDER_URLS}"
+# Compose keeps the newlines of a multi-line EPBS_BUILDER_URLS, and Lodestar rejects the empty entry that "url,<newline>" creates
+  builder_urls="${EPBS_BUILDER_URLS//[[:space:]]/}"
+  if [[ -n "${builder_urls}" ]]; then
+    __epbs+=" --builder.urls ${builder_urls}"
   fi
 else
   __epbs="--builder.selection executionalways"
