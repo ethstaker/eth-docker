@@ -7000,7 +7000,7 @@ __query_epbs() {
     if [[ ! "${EPBS_BUILDER_URLS}" =~ flashbots ]]; then
       flashbots_default="OFF"
     fi
-    if [[ ! "${EPBS_BUILDER_URLS}" =~ (plataberget\.titanrelay|hoodi\.titanrelay|global\.titanrelay) ]]; then
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ (plataberget\.titanrelay|hoodi\.titanrelay|sepolia\.titanrelay|global\.titanrelay) ]]; then
       titan_global_default="OFF"
     fi
     if [[ ! "${EPBS_BUILDER_URLS}" =~ regional\.titanrelay ]]; then
@@ -7028,12 +7028,12 @@ __query_epbs() {
       )
       ;;
     sepolia)
-#      builders=(
-#        ['Flashbots']="https://boost-relay-sepolia.flashbots.net"
-#      )
-#      choices=(
-#        "Flashbots" "" "${flashbots_default}"
-#      )
+      builders=(
+        ['Titan']="https://sepolia.titanrelay.xyz"
+      )
+      choices=(
+        "Titan" "(unfiltered)" "${titan_global_default}"
+      )
       ;;
     hoodi)
 #      builders=(
