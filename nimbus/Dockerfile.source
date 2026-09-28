@@ -36,7 +36,6 @@ RUN bash -eo pipefail <<'EOF'
   else
     git checkout "$TARGET"
   fi
-  git submodule update --init --recursive --jobs $(nproc)
   make -j$(nproc) update
   make -j$(nproc) nimbus_beacon_node nimbus_validator_client
 EOF
