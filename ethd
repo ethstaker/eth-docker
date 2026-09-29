@@ -7450,7 +7450,7 @@ __query_epbs_factor() {
       echo "Your upload speed is too low to upload any blobs"
       echo "Disabling local block building by setting EPBS_BUILD_FACTOR to 100"
       EPBS_BUILD_FACTOR="100"
-      MAX_BLOBS="0"
+      MAX_BLOBS="1"
       __final_msg+="\nLocal block building was disabled, because your upload speed is low."
     else
       echo "You can upload up to ${max_blobs} with your upload speed"
