@@ -1,0 +1,21 @@
+# Use with: docker compose -f w3s-tools.yml run --rm reduce-key-security
+# Requires keys in web3signer-keys, not for mainnet/gnosis
+services:
+  reduce-key-security:
+    profiles: ["tools"]
+    restart: "no"
+    build:
+      context: ./web3signer
+      dockerfile: Dockerfile.convert
+    image: w3s-converter:local
+    pull_policy: never
+    user: 10000:10000
+    volumes:
+      - web3signer-keys:/var/lib/web3signer
+    environment:
+      - NETWORK=${NETWORK}
+    entrypoint:
+      - convert-keys.sh
+
+volumes:
+  web3signer-keys:
