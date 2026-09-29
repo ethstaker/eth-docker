@@ -89,11 +89,14 @@ else
 fi
 
 # Check whether we should use MEV Boost
-if [[ "${MEV_BOOST}" = "true" ]]; then
+# Adjust RIGHT after each network's Glamsterdam hardfork
+if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(sepolia|hoodi|mainnet)$ ]]; then
   __mev_boost="--http-mev-relay=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
-  echo "No MEV Build Factor configured: Prysm doesn't support it, or Eth Docker doesn't know how."
 else
+  if [[ "${MEV_BOOST}" = "true" ]]; then
+    echo "MEV_BOOST is true, but MEV Boost is not used on ${NETWORK}. Ignoring it."
+  fi
   __mev_boost=""
 fi
 
