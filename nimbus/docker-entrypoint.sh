@@ -21,8 +21,9 @@ __strip_empty_args() {
 
 __normalize_int() {
   local v=$1
-  if [[ "${v}" =~ ^[0-9]+$ ]]; then
-    v=$((10#${v}))
+  # Strip leading zeros as text. Arithmetic would overflow on the largest boost factors
+  if [[ "${v}" =~ ^0*([0-9]+)$ ]]; then
+    v="${BASH_REMATCH[1]}"
   fi
   printf '%s' "${v}"
 }
@@ -202,27 +203,37 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
   echo "MEV Boost enabled"
   if [[ "${EMBEDDED_VC}" = "true" ]]; then
     build_factor="$(__normalize_int "${EPBS_BUILD_FACTOR}")"
+    if [[ "${build_factor}" = "maxprofit" ]]; then
+      build_factor=100  # 100 means profit maximization, as in the keymanager API
+    fi
     case "${build_factor}" in
-      0)
+      0|local)
         __mev_boost=""
-        echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is 0."
-        echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
+        echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
+        echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
         ;;
-      [1-9]|[1-9][0-9])
-        local_factor=$((100 - build_factor))
-        __mev_factor="--local-block-value-boost=${local_factor}"
-        echo "Enabled MEV local block value boost of ${local_factor}"
-        ;;
-      100)
+      always)
         __mev_factor="--local-block-value-boost=0"
-        echo "Do not boost local blocks, EPBS_BUILD_FACTOR 100"
+        echo "Do not boost local blocks, EPBS_BUILD_FACTOR always"
         echo "This may still build a local block, if it pays more than a builder block"
         ;;
       "")
         echo "Use default --local-block-value-boost"
         ;;
       *)
-        echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
+        if [[ "${build_factor}" =~ ^[1-9][0-9]$|^[1-9]$ ]]; then
+          local_factor=$((100 - build_factor))
+          __mev_factor="--local-block-value-boost=${local_factor}"
+          echo "Enabled MEV local block value boost of ${local_factor}"
+        elif [[ "${build_factor}" =~ ^[1-9][0-9]{2,19}$ ]]; then
+          __mev_factor="--local-block-value-boost=0"
+          echo "Do not boost local blocks, EPBS_BUILD_FACTOR ${build_factor}"
+          if [[ "${build_factor}" != "100" ]]; then
+            echo "Nimbus cannot favor builder blocks beyond profit maximization, treating this as maxprofit"
+          fi
+        else
+          echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
+        fi
         ;;
     esac
   fi

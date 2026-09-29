@@ -29,8 +29,8 @@ __pubkey_selector=""
 __pubkeys=()
 __json_body=""
 __json_out=0
-# "always use the builder" in the keymanager API. Note this is NOT the same scale as
-# EPBS_BUILD_FACTOR in .env, where 100 means "always"; here 100 means profit maximization.
+# "always use the builder" in the keymanager API. EPBS_BUILD_FACTOR in .env uses the same scale,
+# where 100 means profit maximization.
 __max_boost_factor=18446744073709551615
 __pass=0
 __eth2_val_tools=0
@@ -608,10 +608,16 @@ __builder_boost_factor_value() {
       if [[ ! "${__boost_factor}" =~ ^(0|[1-9][0-9]{0,19})$ ]]; then
         echo "The boost factor needs to be \"local\", \"maxprofit\", \"always\", or a whole number."
         echo "It is a percentage multiplier: below 100 disfavors builders, above 100 favors them."
-        echo "Note this is not the same scale as EPBS_BUILD_FACTOR in .env, where 100 means \"always\"."
+        echo "This is the same scale as EPBS_BUILD_FACTOR in .env."
         exit 0
       fi
       __boost_factor_value=${__boost_factor}
+      # Compare as text, bash arithmetic cannot hold uint64. Equal length makes this a numeric comparison
+      # shellcheck disable=SC2071
+      if [[ ${#__boost_factor_value} -eq ${#__max_boost_factor} && "${__boost_factor_value}" > "${__max_boost_factor}" ]]; then
+        echo "The boost factor ${__boost_factor} exceeds the 64-bit maximum, capping it to ${__max_boost_factor}"
+        __boost_factor_value=${__max_boost_factor}
+      fi
       ;;
   esac
 }
@@ -1889,8 +1895,7 @@ usage() {
   echo "            \"local\" prefers the local block, \"maxprofit\" takes whichever pays more,"
   echo "            \"always\" prefers the builder. A number is a percentage multiplier, where"
   echo "            below 100 disfavors builders and above 100 favors them."
-  echo "            Note this is not the same scale as EPBS_BUILD_FACTOR in .env, where 100"
-  echo "            means \"always\" and here it means \"maxprofit\""
+  echo "            This is the same scale as EPBS_BUILD_FACTOR in .env"
   echo "        --from-json FILE | -"
   echo "            Set the whole configuration from a JSON file, or \"-\" for standard input."
   echo "            Use this for builder pubkeys, authentication data, per-builder payment caps"

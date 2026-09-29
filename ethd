@@ -3520,6 +3520,11 @@ __migrate_env() {
         fi
       fi
 
+      # Remove after Glamsterdam
+      if [[ "${__source_ver}" -lt "72" && "${var}" = "EPBS_BUILD_FACTOR" && "${__value}" =~ ^0*100$ ]]; then
+        __value="always"  # 100 used to mean "always", it now means "maxprofit"
+      fi
+
       if [[ "${var}" = "CL_QUIC_PORT" ]]; then
         __get_value_from_env "CL_P2P_PORT" "${__env_file}.source" "CL_P2P_PORT"
         if [[ -n "${CL_P2P_PORT}" && "${CL_P2P_PORT}" = "${__value}" ]]; then
@@ -3578,6 +3583,10 @@ __migrate_env() {
     # Remove after Glamsterdam
     if [[ "${__source_ver}" -lt "67" && "${var}" = "CB_PBS_DOCKER_REPO" && ${__value} = "ghcr.io/commit-boost/pbs" ]]; then
       __value="ghcr.io/commit-boost/commit-boost"
+    fi
+    # Remove after Glamsterdam
+    if [[ "${__source_ver}" -lt "72" && "${var}" = "MEV_BUILD_FACTOR" && "${__value}" =~ ^0*100$ ]]; then
+      __value="always"  # 100 used to mean "always", it now means "maxprofit"
     fi
     if [[ "${__found}" -eq 1 ]]; then
       __update_value_in_env "${new_vars[index]}" "${__value}" "${__env_file}"
@@ -5547,8 +5556,7 @@ __keys_usage() {
   echo "            \"local\" prefers the local block, \"maxprofit\" takes whichever pays more,"
   echo "            \"always\" prefers the builder. A number is a percentage multiplier, where"
   echo "            below 100 disfavors builders and above 100 favors them."
-  echo "            Note this is not the same scale as EPBS_BUILD_FACTOR in .env, where 100"
-  echo "            means \"always\" and here it means \"maxprofit\""
+  echo "            This is the same scale as EPBS_BUILD_FACTOR in .env"
   echo "        --from-json FILE | -"
   echo "            Set the whole configuration from a JSON file, or \"-\" for standard input."
   echo "            Use this for builder pubkeys, authentication data, per-builder payment caps"
@@ -7405,12 +7413,12 @@ __query_epbs_factor() {
   __get_value_from_env "${var}" "${__env_file}" "${var}"
 # If EPBS_BUILD_FACTOR is already set to a non-default value, or MEV Boost is not enabled, or the user is using a CL-only deployment, leave as-is
 # Adjust after Glamsterdam
-  if [[ ( -n "${EPBS_BUILD_FACTOR}" && ! "${EPBS_BUILD_FACTOR}" =~ ^(90|100)$ ) || ( "${MEV_BOOST}" != "true" && ${EPBS_BUILDERS} != "true" ) || "${CONSENSUS_CLIENT}" =~ -cl-only\.yml ]]; then
+  if [[ ( -n "${EPBS_BUILD_FACTOR}" && ! "${EPBS_BUILD_FACTOR}" =~ ^(90|always)$ ) || ( "${MEV_BOOST}" != "true" && ${EPBS_BUILDERS} != "true" ) || "${CONSENSUS_CLIENT}" =~ -cl-only\.yml ]]; then
     return
   fi
 
   if [[ ! "${__distro}" =~ (ubuntu|debian) ]]; then
-    __final_msg+="\nCannot measure network speed on ${__distro}. Please ensure you have 112 Mbit/s up or set EPBS_BUILD_FACTOR=100 or set MAX_BLOBS."
+    __final_msg+="\nCannot measure network speed on ${__distro}. Please ensure you have 112 Mbit/s up or set EPBS_BUILD_FACTOR=always or set MAX_BLOBS."
     return
   fi
 
@@ -7450,8 +7458,8 @@ __query_epbs_factor() {
     max_blobs=$(echo "${up_speed}" | awk '{print int($1 / 5.33)}')
     if [[ "${max_blobs}" -eq 0 ]]; then
       echo "Your upload speed is too low to upload any blobs"
-      echo "Disabling local block building by setting EPBS_BUILD_FACTOR to 100"
-      EPBS_BUILD_FACTOR="100"
+      echo "Disabling local block building by setting EPBS_BUILD_FACTOR to always"
+      EPBS_BUILD_FACTOR="always"
       MAX_BLOBS="1"
       __final_msg+="\nLocal block building was disabled, because your upload speed is low."
     else
@@ -7467,7 +7475,7 @@ __query_epbs_factor() {
       EPBS_BUILD_FACTOR="90"
       __final_msg+="\nLocal block building is preferred, when the relay pays less than 10% more."
     else
-      EPBS_BUILD_FACTOR="100"
+      EPBS_BUILD_FACTOR="always"
       __final_msg+="\nLocal block building is disabled."
     fi
     MAX_BLOBS=""

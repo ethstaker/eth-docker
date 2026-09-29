@@ -144,6 +144,27 @@ output=$(run_update)
 check_equals "CL_NODE_TYPE becomes blob-archive" "blob-archive" "$(get_value CL_NODE_TYPE)"
 check_equals "Nethermind gets its log index" "--LogIndex.Enabled true" "$(get_value EL_EXTRAS)"
 
+echo "== EPBS_BUILD_FACTOR 100 meant always before ENV_VERSION 72, and now means maxprofit =="
+fresh_env
+set_in_env ENV_VERSION 71
+set_in_env EPBS_BUILD_FACTOR 100
+output=$(run_update)
+check_equals "100 becomes always" "always" "$(get_value EPBS_BUILD_FACTOR)"
+set_in_env EPBS_BUILD_FACTOR 100
+output=$(run_update)
+check_equals "a 100 set after the migration stays 100" "100" "$(get_value EPBS_BUILD_FACTOR)"
+fresh_env
+set_in_env ENV_VERSION 71
+set_in_env EPBS_BUILD_FACTOR 90
+output=$(run_update)
+check_equals "90 stays 90" "90" "$(get_value EPBS_BUILD_FACTOR)"
+fresh_env
+set_in_env ENV_VERSION 60
+del_from_env EPBS_BUILD_FACTOR
+set_in_env MEV_BUILD_FACTOR 100
+output=$(run_update)
+check_equals "an old MEV_BUILD_FACTOR 100 becomes always" "always" "$(get_value EPBS_BUILD_FACTOR)"
+
 # Leave a pristine .env behind, the way the checkout had it before this ran
 rm -f .env.new .env.source .env.partial .env.bak.*
 cp default.env .env

@@ -9,8 +9,9 @@ fi
 
 __normalize_int() {
   local v=$1
-  if [[ "${v}" =~ ^[0-9]+$ ]]; then
-    v=$((10#${v}))
+  # Strip leading zeros as text. Arithmetic would overflow on the largest boost factors
+  if [[ "${v}" =~ ^0*([0-9]+)$ ]]; then
+    v="${BASH_REMATCH[1]}"
   fi
   printf '%s' "${v}"
 }
@@ -68,18 +69,17 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
   __mev_boost="--validators-builder-registration-default-enabled"
   echo "MEV Boost enabled"
   build_factor="$(__normalize_int "${EPBS_BUILD_FACTOR}")"
+  if [[ "${build_factor}" = "maxprofit" ]]; then
+    build_factor=100  # 100 means profit maximization, as in the keymanager API
+  fi
   case "${build_factor}" in
-    0)
+    0|local)
       __mev_boost=""
       __mev_factor=""
-      echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is 0."
-      echo "WARNING: This conflicts with MEV_BOOST true. Set factor in a range of 1 to 100"
+      echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
+      echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
       ;;
-    [1-9]|[1-9][0-9])
-      __mev_factor=""
-      echo "Teku VC does not support setting a builder boost factor"
-      ;;
-    100)
+    always)
       __mev_factor=""
       echo "Teku VC does not support setting a builder boost factor"
       ;;
@@ -87,8 +87,13 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
       __mev_factor=""
       ;;
     *)
-      __mev_factor=""
-      echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
+      if [[ "${build_factor}" =~ ^[1-9][0-9]{0,19}$ ]]; then
+        __mev_factor=""
+        echo "Teku VC does not support setting a builder boost factor"
+      else
+        __mev_factor=""
+        echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
+      fi
       ;;
   esac
 else

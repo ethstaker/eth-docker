@@ -10,8 +10,9 @@ fi
 __normalize_int() {
   local v=$1
 
-  if [[ "${v}" =~ ^[0-9]+$ ]]; then
-    v=$((10#${v}))
+  # Strip leading zeros as text. Arithmetic would overflow on the largest boost factors
+  if [[ "${v}" =~ ^0*([0-9]+)$ ]]; then
+    v="${BASH_REMATCH[1]}"
   fi
   printf '%s' "${v}"
 }
@@ -27,7 +28,8 @@ __normalize_float() {
     if [[ "${v}" == *.* ]]; then
       frac_part="${v#*.}"
     fi
-    int_part=$((10#${int_part}))
+    # Strip leading zeros as text, as in __normalize_int
+    [[ "${int_part}" =~ ^0*([0-9]+)$ ]] && int_part="${BASH_REMATCH[1]}"
     if [[ -n "${frac_part}" ]]; then
       v="${int_part}.${frac_part}"
     else
@@ -75,26 +77,36 @@ if [[ "${MEV_BOOST}" = "true" || "${EPBS_BUILDERS}" = "true" ]]; then
   fi
 
   build_factor="$(__normalize_int "${EPBS_BUILD_FACTOR}")"
+  if [[ "${build_factor}" = "maxprofit" ]]; then
+    build_factor=100  # 100 means profit maximization, as in the keymanager API
+  fi
   case "${build_factor}" in
-    0)
+    0|local)
       __epbs="--builder.selection executionalways"
-      echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is 0."
+      echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
       ;;
-    [1-9]|[1-9][0-9])
-      __epbs="--builder.selection maxprofit --builder.boostFactor ${build_factor}"
-      echo "Enabled ePBS Build Factor of ${build_factor}"
-      ;;
-    100)
+    always)
       __epbs="--builder.selection builderalways"
-      echo "Always prefer ePBS builder blocks, EPBS_BUILD_FACTOR 100"
+      echo "Always prefer ePBS builder blocks, EPBS_BUILD_FACTOR always"
       ;;
     "")
       __epbs="--builder"
       echo "Use default --builder.boostFactor"
       ;;
     *)
-      __epbs="--builder"
-      echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
+      if [[ "${build_factor}" =~ ^[1-9][0-9]{0,19}$ ]]; then
+        # Compare as text, bash arithmetic cannot hold uint64. Equal length makes this a numeric comparison
+        # shellcheck disable=SC2071
+        if [[ ${#build_factor} -eq 20 && "${build_factor}" > "18446744073709551615" ]]; then
+          echo "EPBS_BUILD_FACTOR ${build_factor} exceeds the 64-bit maximum, capping it to 18446744073709551615"
+          build_factor=18446744073709551615
+        fi
+        __epbs="--builder.selection maxprofit --builder.boostFactor ${build_factor}"
+        echo "Enabled ePBS Build Factor of ${build_factor}"
+      else
+        __epbs="--builder"
+        echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
+      fi
       ;;
   esac
   if [[ -n "${EPBS_MIN_BID}" ]]; then
