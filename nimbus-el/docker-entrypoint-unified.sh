@@ -221,7 +221,11 @@ case "${EL_NODE_TYPE}" in
 esac
 
 case "${CL_NODE_TYPE}" in
-  archive|blob-archive)
+  blob-archive)
+    echo "Nimbus Unified archive consensus node without history or blob pruning"
+    __prune+=" --history=column-archive --reindex"
+    ;;
+  archive)
     echo "Nimbus Unified archive consensus node without history pruning"
     __prune+=" --history=archive --reindex"
     ;;

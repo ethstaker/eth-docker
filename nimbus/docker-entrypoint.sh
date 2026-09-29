@@ -244,8 +244,12 @@ else
 fi
 
 case "${CL_NODE_TYPE}" in
-  archive|blob-archive)
+  blob-archive)
     echo "Nimbus archive node without history or blob pruning."
+    __prune="--history=column-archive --reindex"
+    ;;
+  archive)
+    echo "Nimbus archive node without history pruning."
     __prune="--history=archive --reindex"
     ;;
   full)
