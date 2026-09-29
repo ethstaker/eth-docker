@@ -7,6 +7,8 @@ __app_name="Ethereum node"
 __sample_service="consensus"
 __target_pg=18
 __current_docker=29
+__current_docker_io=29
+__docker_is_ce=0
 __min_ubuntu=22
 __eol_min_ubuntu=2027-05-31
 __upgrade_ubuntu="Guide to upgrading to 24.04: https://gist.github.com/yorickdowne/94f1e5538007f4c9d3da7b22b0dc28a4 , consider an upgrade to 26.04 after that"
@@ -427,7 +429,7 @@ __handle_docker() {
 
   if [[ "${use_docker}" -eq 1 && "${__docker_major_version}" -lt 23 ]]; then
   # Debian 12 has docker.io 20.10. From Debian 13, it's >= 26
-  # Ubuntu has docker.io>= 27 from 22.04
+  # Ubuntu has docker.io >= 29 from 22.04
   # The code to detect old docker.io can be removed when Debian 12 goes EOL in 2028
     __old_docker=1
   else
@@ -437,6 +439,11 @@ __handle_docker() {
 # Warn user if their Docker-CE on Debian/Ubuntu is old. Maybe they're not updating.
   if [[ "${__distro}" =~ (debian|ubuntu) && "${__docker_exe}" = "docker" && "${__docker_major_version}" -lt "${__current_docker}" ]] \
         && dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
+    __oldish_docker=1
+    __docker_is_ce=1
+# Also warn user if on Ubuntu and docker.io is old. Debian does not change package major versions unless OS major version updates
+  elif [[ "${__distro}" = "ubuntu" && "${__docker_exe}" = "docker" && "${__docker_major_version}" -lt "${__current_docker_io}" ]] \
+         && dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
     __oldish_docker=1
   fi
 
@@ -8726,15 +8733,30 @@ if [[ "${__no_warnings}" -eq 0 ]]; then
   fi
 
   if [[ "${__oldish_docker}" -eq 1 ]]; then
-    echo "You are using Docker-CE version ${__docker_version}, which is not current."
-    current_docker_release=$(curl -m5 -s -H "User-Agent: eth-docker" "https://api.github.com/repos/moby/moby/releases/latest" 2>/dev/null | jq -r '.name // empty' 2>/dev/null) || true
-    if [[ -n "${current_docker_release}" && "${current_docker_release}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      echo "The current Docker-CE release is ${current_docker_release}"
+    if [[ "${__docker_is_ce}" -eq 1 ]]; then
+      echo "You are using Docker-CE version ${__docker_version}, which is not current."
+      current_docker_release=$(curl -m5 -s -H "User-Agent: eth-docker" "https://api.github.com/repos/moby/moby/releases/latest" 2>/dev/null | jq -r '.name // empty' 2>/dev/null) || true
+      if [[ -n "${current_docker_release}" && "${current_docker_release}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "The current Docker-CE release is ${current_docker_release}"
+      fi
+      echo "Try a \"sudo apt update && sudo apt dist-upgrade\". If that does not bring in an updated Docker-CE,"
+      echo "its repo file may have become disabled during an OS upgrade. Check \"/etc/apt/sources.list.d\" for"
+      echo "your Docker repo \".list\" or \".sources\", and if it's been disabled, recreate it or re-enable it."
+      echo "See https://docs.docker.com/engine/install/ for instructions."
+    elif [[ "${__distro}" = "ubuntu" ]]; then
+      echo "You are using docker.io version ${__docker_version}, which is not current."
+      echo "Try a \"sudo apt update && sudo apt dist-upgrade\". If that does not bring in an updated docker.io,"
+      echo "your Ubuntu repo files may be pointing to an outdated mirror, or DNS resolution might be failing."
+      if [[ "${__os_major_version}" -gt 22 ]]; then
+        echo "Check \"/etc/apt/sources.list.d\" for your \"ubuntu.sources\" and adjust if required."
+      else
+        echo "Check \"/etc/apt/sources.list\" and adjust if required."
+      fi
+    else
+      echo "${__project_name} has been instructed to nag you about docker.io on ${__distro}, which is unexpected."
+      echo "This is likely a bug. You are running docker.io version ${__docker_version}, and on this OS, that should"
+      echo "not trigger a nag message."
     fi
-    echo "Try a \"sudo apt update && sudo apt dist-upgrade\". If that does not bring in an updated Docker-CE,"
-    echo "its repo file may have become disabled during an OS upgrade. Check \"/etc/apt/sources.list.d\" for"
-    echo "your Docker repo \".list\" or \".sources\", and if it's been disabled, recreate it or re-enable it."
-    echo "See https://docs.docker.com/engine/install/ for instructions."
   fi
 
   if [[ "${__old_rootless_docker}" -eq 1 ]]; then
