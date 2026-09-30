@@ -6309,13 +6309,53 @@ __query_validator_client() {
 }
 
 
+# Point CL_NODE at the local consensus layer on CL_REST_PORT, while keeping user-set remote URLs.
+# Call with the local CL service name: "consensus", or "execution" for Caplin
+__set_local_cl_node() {
+  local local_svc="$1"
+  local local_cl
+  local cl_rest_port
+  local var
+  local i
+  local changed=0
+  local -a nodes
+
+  var="CL_REST_PORT"
+  __get_value_from_env "${var}" "${__env_file}" "cl_rest_port"
+  cl_rest_port="${cl_rest_port:-5052}"
+  local_cl="http://${local_svc}:${cl_rest_port}"
+
+  var="CL_NODE"
+  __get_value_from_env "${var}" "${__env_file}" "${var}"
+
+# Empty, or owned by a different deployment: reset
+  if [[ -z "${CL_NODE:-}" || "${CL_NODE}" =~ ^http://(charon:3600|eth2:5052)/?$ ]]; then
+    CL_NODE="${local_cl}"
+    changed=1
+  else
+    IFS=',' read -r -a nodes <<< "${CL_NODE}"
+    for i in "${!nodes[@]}"; do
+      if [[ "${nodes[i]}" =~ ^http://(consensus|execution)(:[0-9]+)?/?$ && "${nodes[i]}" != "${local_cl}" ]]; then
+        nodes[i]="${local_cl}"
+        changed=1
+      fi
+    done
+    if [[ "${changed}" -eq 1 ]]; then
+      CL_NODE=$(IFS=','; echo "${nodes[*]}")
+    fi
+  fi
+
+  if [[ "${changed}" -eq 1 ]]; then
+    __write_vars+=("CL_NODE")
+  fi
+}
+
+
 __query_consensus_client() {
   local -a choices=()
   local arch
   local num_items
   local menu_height
-
-  __write_vars+=("CL_NODE")
 
   arch=$(uname -m)
 
@@ -6385,9 +6425,9 @@ __query_consensus_client() {
   CORE_FILES="${CONSENSUS_CLIENT}"
 
   if [[ "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
-    CL_NODE=http://execution:5052
+    __set_local_cl_node execution
   else
-    CL_NODE=http://consensus:5052
+    __set_local_cl_node consensus
   fi
 
   if [[ "${__deployment}" = "lido_obol" && "${CONSENSUS_CLIENT}" = "lodestar.yml" ]]; then
@@ -6405,8 +6445,6 @@ __query_consensus_only_client() {
   local arch
   local num_items
   local menu_height
-
-  __write_vars+=("CL_NODE")
 
   arch=$(uname -m)
 
@@ -6468,7 +6506,11 @@ __query_consensus_only_client() {
 # This only works when __query_consensus_only_client is always called first
   CORE_FILES="${CONSENSUS_CLIENT}"
 
-  CL_NODE=http://consensus:5052
+  if [[ "${CONSENSUS_CLIENT}" = "caplin.yml" ]]; then
+    __set_local_cl_node execution
+  else
+    __set_local_cl_node consensus
+  fi
 
   echo "Your consensus client file is:" "${CONSENSUS_CLIENT}"
 }
@@ -8040,6 +8082,7 @@ __config_lido_obol() {
   ENABLE_DIST_ATTESTATION_AGGR="true"
 
   __query_consensus_client
+  __write_vars+=("CL_NODE")
   CL_NODE="http://charon:3600"
   __query_execution_client
   __query_validator_client

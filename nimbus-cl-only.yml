@@ -106,7 +106,7 @@ services:
       - --log-level=${LOG_LEVEL}
       - deposits
       - exit
-      - --rest-url=http://consensus:5052
+      - --rest-url=http://consensus:${CL_REST_PORT:-5052}
       - --validator=
 
 volumes:

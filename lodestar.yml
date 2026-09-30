@@ -192,7 +192,7 @@ services:
       - --dataDir
       - /var/lib/lodestar/validators
       - --beaconNodes
-      - http://consensus:5052
+      - http://consensus:${CL_REST_PORT:-5052}
       - --logLevel
       - ${LOG_LEVEL}
       - --network
