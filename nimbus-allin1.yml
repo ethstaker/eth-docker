@@ -118,6 +118,7 @@ services:
         rm -rf /var/lib/nimbus/db/*
         rm -f /var/lib/nimbus/setupdone
 
+# Deprecate and remove after Hegotá
   validator-exit:
     profiles: ["tools"]
     restart: "no"

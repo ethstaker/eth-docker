@@ -87,6 +87,7 @@ services:
       - metrics.network=${NETWORK}
       - logs.collect=true
 
+# Deprecate and remove after Hegotá
   # Uses keystore-m file and CL, so does belong here
   validator-exit:
     profiles: ["tools"]

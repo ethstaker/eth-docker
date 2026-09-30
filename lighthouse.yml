@@ -163,6 +163,7 @@ services:
       - metrics.network=${NETWORK}
       - logs.collect=true
 
+# Deprecate and remove after Hegotá
   validator-exit:
     profiles: ["tools"]
     restart: "no"

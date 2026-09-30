@@ -185,6 +185,7 @@ services:
       - WEB3SIGNER=${WEB3SIGNER:-false}
     entrypoint: create-wallet.sh
 
+# Deprecate and remove after Hegotá
   validator-exit:
     profiles: ["tools"]
     restart: "no"
