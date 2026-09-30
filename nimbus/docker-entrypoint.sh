@@ -230,24 +230,20 @@ fi
 if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(hoodi|mainnet)$ ]]; then
   __mev_active=1
 else
-  if [[ "${MEV_BOOST}" = "true" ]]; then
-    echo "MEV_BOOST is true, but MEV Boost is not used on ${NETWORK}. Ignoring it."
-  fi
   __mev_active=0
 fi
 
 # Check whether we should use MEV Boost
 if [[ "${__mev_active}" -eq 1 ]]; then
-  __mev_boost="--payload-builder=true --payload-builder-url=${MEV_NODE:-http://mev-boost:18550}"
+  __epbs="--payload-builder=true --payload-builder-url=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
 else
-  __mev_boost=""
+  __epbs=""
 fi
 
 # Check whether we should use ePBS
 if [[ "${EMBEDDED_VC}" = "true" ]]; then
   if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
-    __mev_factor=""
     if [[ "${__mev_active}" -eq 1 ]]; then
       if [[ "${EPBS_BUILDERS}" = "false" ]]; then
         echo "ePBS builders are meant to be disabled, but MEV Boost is true, which will enable them anyway."
@@ -267,52 +263,67 @@ if [[ "${EMBEDDED_VC}" = "true" ]]; then
     case "${build_factor}" in
       0|local)
         if [[ "${__mev_active}" -eq 1 ]]; then
-          __mev_boost=""
+          __epbs=""
           echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
           echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
         else
-          __mev_factor="--local-block-value-boost=100"
+          __epbs="--builder-boost-factor=0"
           echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
         fi
         ;;
       always)
-        __mev_factor="--local-block-value-boost=0"
-        echo "Do not boost local blocks, EPBS_BUILD_FACTOR always"
-        echo "This may still build a local block, if it pays more than a builder block"
+        __epbs+=" --builder-boost-factor=18446744073709551615"
+        echo "Always prefer ePBS builder blocks, EPBS_BUILD_FACTOR always"
         ;;
       "")
-        echo "Use default --local-block-value-boost"
+        echo "Use default --builder-boost-factor"
         ;;
       *)
-        if [[ "${build_factor}" =~ ^[1-9][0-9]$|^[1-9]$ ]]; then
-          local_factor=$((100 - build_factor))
-          __mev_factor="--local-block-value-boost=${local_factor}"
-          echo "Enabled ePBS local block value boost of ${local_factor}"
-        elif [[ "${build_factor}" =~ ^[1-9][0-9]{2,}$ ]]; then
-          if [[ "${build_factor}" != "100" ]]; then
-            echo "WARNING: Nimbus cannot favor builder blocks beyond profit maximization. Capping EPBS_BUILD_FACTOR ${build_factor} to 100, maxprofit"
-            build_factor=100
+        if [[ "${build_factor}" =~ ^[1-9][0-9]{0,19}$ ]]; then
+          # Compare as text, bash arithmetic cannot hold uint64. Equal length makes this a numeric comparison
+          # shellcheck disable=SC2071
+          if [[ ${#build_factor} -eq 20 && "${build_factor}" > "18446744073709551615" ]]; then
+            echo "EPBS_BUILD_FACTOR ${build_factor} exceeds the 64-bit maximum, capping it to 18446744073709551615"
+            build_factor=18446744073709551615
           fi
-          __mev_factor="--local-block-value-boost=0"
-          echo "Do not boost local blocks, EPBS_BUILD_FACTOR ${build_factor}"
+          __epbs+=" --builder-boost-factor=${build_factor}"
+          echo "Enabled ePBS Build Factor of ${build_factor}"
         else
           echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
         fi
         ;;
     esac
-    # Adjust once Nimbus supports ePBS CLI parameters, to pass them here like Prysm does
-    # Compose keeps the newlines of a multi-line EPBS_BUILDER_URLS
-    builder_urls="${EPBS_BUILDER_URLS//[[:space:]]/}"
-    if [[ -n "${builder_urls}" || -n "${EPBS_MIN_BID}" ]]; then
-      echo "Nimbus does not support ePBS CLI parameters for builder URLs or minimum bid yet. Ignoring EPBS_BUILDER_URLS and EPBS_MIN_BID."
-      echo "Use \"./ethd keys set-builder\" to configure ePBS builders."
+
+    if [[ -n "${EPBS_MIN_BID}" ]]; then
+      min_bid="$(__normalize_float "${EPBS_MIN_BID}")"
+      if [[ "${min_bid}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        min_bid_gwei=$(awk -v v="${min_bid}" 'BEGIN{printf "%.0f", v * 1000000000}')
+        __epbs+=" --builder-min-bid=${min_bid_gwei}"
+      else
+        echo "WARNING: EPBS_MIN_BID has an invalid value of \"${EPBS_MIN_BID}\", ignoring"
+      fi
+    fi
+
+    if [[ -n "${EPBS_BUILDER_URLS}" ]]; then
+      builders=$(echo "${EPBS_BUILDER_URLS//[[:space:]]/}" | tr ',' ' ')
+      __builder_urls=()
+      for builder in ${builders}; do
+        __builder_urls+=("--payload-builder-url=${builder}")
+      done
+      # Nimbus cannot handle more than one builder URL yet
+      if [[ "${#__builder_urls[@]}" -gt 1 ]]; then
+        echo "Nimbus as of 26.10.1 supports only one ePBS builder URL. It might only use the last entry in \"${builders}\""
+      fi
+      if [[ "${__mev_active}" -eq 1 ]]; then
+        echo "You have ePBS builder URLs, which pre-Glamsterdam would conflict with MEV Boost on Nimbus."
+        echo "These have been disabled. Please update Eth Docker again after Glamsterdam for them to take effect."
+        __builder_urls=()
+      fi
     fi
   else
-    __mev_factor="--local-block-value-boost=100"
+    __epbs="--builder-boost-factor=0"
     echo "Build blocks locally, use ePBS builders as fallback"
   fi
-else
-  __mev_factor=""
 fi
 
 # Check whether we should enable doppelganger protection
@@ -394,4 +405,4 @@ done
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__network} ${__bootnodes} ${__w3s_url} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__doppel} ${__prune} ${__erc_dir} ${CL_EXTRAS} ${VC_EXTRAS}
+exec "$@" ${__network} ${__bootnodes} ${__w3s_url} "${__graffiti_args[@]}" ${__epbs} "${__builder_urls[@]}" ${__doppel} ${__prune} ${__erc_dir} ${CL_EXTRAS} ${VC_EXTRAS}
