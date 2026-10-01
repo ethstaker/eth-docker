@@ -39,3 +39,5 @@ overrides:
     metrics_generator:
       processors:
         - span-metrics
+    compaction:
+      block_retention: 72h
