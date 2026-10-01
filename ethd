@@ -2890,7 +2890,9 @@ __check_nethermind_flat() {
 
   if __nethermind_is_patricia "${volume_name}"; then
     __final_msg+="\nWARNING: Your Nethermind database is using Patricia layout. This will continue to work for now, but Nethermind is expected to drop support in a future version.\n"
-    __final_msg+="\nYou can switch to Flat layout by running \"${__me} resync-execution\".\n"
+    __final_msg+="\nYou can switch to Flat layout by either resyncing with \"${__me} resync-execution\","
+    __final_msg+="\nor adding \"FlatDb.ImportFromPruningTrieState=true FlatDb.DropPruningTrieState=true\" to \"EL_EXTRAS\" in \"${__env_file}\" followed by \"${__me} up\"."
+    __final_msg+="\nThe conversion parameters in \"EL_EXTRAS\" can be removed after DB conversion is complete.\n"
   fi
   if __nethermind_db_exists "${og_volume_name}"; then
     __final_msg+="\nWARNING: You are using a legacy Nethermind Docker volume ${og_volume_name}. ${__project_name} will remove support when Nethermind drops support for Patricia DB layout.\n"
