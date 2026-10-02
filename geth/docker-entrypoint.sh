@@ -241,6 +241,34 @@ case "${NODE_TYPE}" in
         ;;
     esac
     ;;
+  pre-osaka-expiry)
+    case "${NETWORK}" in
+      mainnet|sepolia|hoodi)
+         echo "Geth minimal node with pre-Osaka history expiry"
+        __prune="--history.chain postosaka"
+        ;;
+      *)
+        echo "There is no pre-Osaka history for ${NETWORK} network, \"pre-osaka-expiry\" has no effect."
+        __prune=""
+        ;;
+    esac
+    ;;
+  stakewise-expiry)
+    case "${NETWORK}" in
+      mainnet)
+        echo "Geth minimal node with Stakewise history expiry"
+        __prune="--history.chain 25900000:0x2f9b90496c4accc7b18b0b162237478e0b0640b429ade1b5024635976b9f1fc9"
+        ;;
+      hoodi)
+        echo "Geth minimal node with Stakewise history expiry"
+        __prune="--history.chain 3580000:0x348a6d3910618b07365d0b994171d39a0e9859899230bd0a087386590eb21035"
+        ;;
+      *)
+        echo "There is no Stakewise expiry config for ${NETWORK} network, \"stakewise-expiry\" has no effect."
+        __prune=""
+        ;;
+    esac
+    ;;
   custom)
     echo "Geth default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
     __prune=""
