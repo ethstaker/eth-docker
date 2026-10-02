@@ -46,6 +46,7 @@ RUN mkdir -p /var/lib/nimbus && chown -R ${USER}:${USER} /var/lib/nimbus && chmo
 RUN cp /home/user/nimbus-eth1/build/nimbus /usr/local/bin/ && chown ${USER}:${USER} /usr/local/bin/nimbus
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint-unified.sh /usr/local/bin/docker-entrypoint.sh
+COPY --chown=${USER}:${USER} ./ephemery-config.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 
