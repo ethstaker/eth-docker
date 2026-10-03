@@ -1,12 +1,10 @@
-__lazy_modules__ = ["boto3", "botocore.exceptions"]
-
 import os
 import logging
 from typing import cast, TYPE_CHECKING
 from collections.abc import Mapping
 
-import boto3
-from botocore.exceptions import ClientError
+lazy import boto3
+lazy from botocore.exceptions import ClientError
 from base import DNSProvider, RecordType, normalize_fqdn
 
 if TYPE_CHECKING:

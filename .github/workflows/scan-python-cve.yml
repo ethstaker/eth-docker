@@ -18,15 +18,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          python-version: '3.14'
-          cache: pip
-          cache-dependency-path: traefik-utils/app/requirements.txt
+          python-version: '3.15'
 
-      - name: Install pip-audit
-        run: python -m pip install pip-audit
+      - name: Export locked dependencies
+        run: uv export --locked --no-dev --format requirements.txt -o requirements.txt
 
-      - name: Scan requirements.txt for known vulnerabilities
-        run: pip-audit -r requirements.txt
+      - name: Scan dependencies for known vulnerabilities
+        run: uvx pip-audit -r requirements.txt --require-hashes --disable-pip

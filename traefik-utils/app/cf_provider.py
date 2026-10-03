@@ -1,11 +1,9 @@
-__lazy_modules__ = ["cloudflare"]
-
 import logging
 from collections.abc import Mapping
 from typing import Any, cast
 
-from cloudflare import Cloudflare
-from cloudflare.types.dns import RecordResponse
+lazy from cloudflare import Cloudflare
+lazy from cloudflare.types.dns import RecordResponse
 
 from base import DNSProvider, RecordType, normalize_fqdn
 

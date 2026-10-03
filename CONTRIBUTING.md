@@ -4,7 +4,22 @@ Contributions are welcome. All contributed code will be covered by the Apache Li
 
 ## Linting
 
-Eth Docker CI uses [pre-commit](https://pre-commit.com/) to lint all code within the repo. Add it to your local copy with `apt install pre-commit` and `pre-commit install`.
+Eth Docker CI uses [pre-commit](https://pre-commit.com/) to lint all code within the repo.
+
+Install uv
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+Python 3.15 needs to be installed on the host. If you don't have it, use `uv` to install a local copy.
+```
+uv python install 3.15
+uv python update-shell
+```
+Install pre-commit with `uv` and add it to your local copy. Don't use the distro package (`apt install pre-commit`). It seeds a pip that is too old to run on Python 3.15.
+```
+uv tool install pre-commit --with pre-commit-uv
+pre-commit install
+```
 
 This repo uses a squash-and-merge workflow to avoid extra merge commits. Create a branch for your feature or fix, and work on this branch, then offer a PR from there. A `rebase -i origin/main` on your PR that squashes everything into one commit is friendly.
 
