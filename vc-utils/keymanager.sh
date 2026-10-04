@@ -472,8 +472,7 @@ graffiti-set() {
     __http_method=POST
     __call_api
     case "${__code}" in
-# The spec asks for 202. Prysm answers 200 and Teku 204; drop those once they are fixed.
-      200|202|204) echo "The graffiti for the validator with public key ${__pubkey} was updated."; (( updated+=1 ));;
+      202) echo "The graffiti for the validator with public key ${__pubkey} was updated."; (( updated+=1 ));;
       400) echo "The pubkey or graffiti was formatted wrong. Error: $(__print_jq_message "${__result}" '.message')"; (( failed+=1 ));;
       401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
       403) echo "The authorization token is invalid. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
