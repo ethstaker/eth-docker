@@ -35,6 +35,18 @@ fi
 config_dir_path=""
 if [[ "${NETWORK}" = "ephemery" ]]; then
   config_dir_path="$(ephemery-config.sh /var/lib/prysm/testnet/ephemery)"
+  # A new iteration has a new genesis, and the beacon DB of the old one is for a dead chain.
+  # ee-secret is the JWT secret volume and testnet holds the Ephemery configs; both stay.
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/prysm/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/prysm/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old beacon chain data"
+      find /var/lib/prysm -mindepth 1 -maxdepth 1 ! -name ee-secret ! -name testnet \
+        ! -name ephemery-iteration -exec rm -rf {} +
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/prysm/ephemery-iteration
 elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")

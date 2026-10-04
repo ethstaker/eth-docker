@@ -11,6 +11,8 @@ services:
     restart: "unless-stopped"
     build:
       context: ./geth
+      additional_contexts:
+        ephemery: ./ephemery
       dockerfile: ${GETH_DOCKERFILE}
       args:
         - BUILD_TARGET=${GETH_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}

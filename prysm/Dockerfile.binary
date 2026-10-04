@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3007,DL3008,DL3059,DL3066
+# hadolint global ignore=DL3007,DL3008,DL3022,DL3059,DL3066
 ARG DOCKER_TAG=stable
 ARG DOCKER_VC_TAG=stable
 ARG DOCKER_REPO=gcr.io/offchainlabs/prysm/beacon-chain
@@ -44,7 +44,7 @@ RUN mkdir -p /var/lib/prysm/ee-secret && chown -R ${USER}:${USER} /var/lib/prysm
 # Cannot assume buildkit, hence no chmod
 COPY --from=clsource --chown=${USER}:${USER} /app/cmd/beacon-chain/beacon-chain /usr/local/bin/
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
-COPY --chown=${USER}:${USER} ./ephemery-config.sh /usr/local/bin/
+COPY --from=ephemery --chown=${USER}:${USER} ephemery-config.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 

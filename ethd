@@ -247,7 +247,8 @@ __compose_network_name() {
 # Builds the vc-utils:local image when it is not already present.
 __ensure_vc_utils_image() {
   __dodocker image ls --format "{{.Repository}}:{{.Tag}}" | grep -qxF "vc-utils:local" && return 0
-  # Docker Desktop and Colima both ship buildx, so macOS wants the plain build. It would reach
+  # Docker Desktop ships buildx, so macOS wants the plain build. Colima with Homebrew's docker CLI
+  # may lack it, which __check_buildx reports. It would reach
   # it anyway, for want of a "dpkg-query", but by accident rather than because this says so.
   if [[ "$OSTYPE" = "darwin"* ]] \
       || ! dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
@@ -834,6 +835,28 @@ EOF
   else
     echo "${__project_name} does not know how to update Docker Compose on ${__distro}"
   fi
+}
+
+
+# Geth and Prysm copy shared files from a second build context, which takes buildx.
+# Always called after __handle_docker, so that ${__docker_sudo} is set
+__check_buildx() {
+  if [[ ! "${__docker_exe}" = "docker" ]] || __dodocker buildx version >/dev/null 2>&1; then
+    return 0
+  fi
+  echo
+  echo "Docker buildx is not installed. ${__project_name} needs it to build some client images."
+  if [[ "$OSTYPE" = "darwin"* ]]; then
+    echo "With Homebrew, install it with \"brew install docker-buildx\", then link it as a Docker plugin:"
+    echo "mkdir -p ~/.docker/cli-plugins && ln -sfn \"\$(brew --prefix)/opt/docker-buildx/bin/docker-buildx\" ~/.docker/cli-plugins/docker-buildx"
+  elif dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
+    echo "Install it with \"sudo apt-get install docker-buildx-plugin\""
+  elif dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
+    echo "Install it with \"sudo apt-get install docker-buildx\""
+  else
+    echo "See https://github.com/docker/buildx#installing"
+  fi
+  echo
 }
 
 
@@ -8676,6 +8699,7 @@ fi
 
 __handle_docker
 __check_compose_version
+__check_buildx
 
 if [[ "${__old_compose}" -eq 1 && "${__compose_major}" -eq 1 ]]; then
   exit 0

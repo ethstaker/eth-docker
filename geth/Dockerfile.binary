@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3007,DL3008,DL3018,DL3059
+# hadolint global ignore=DL3007,DL3008,DL3018,DL3022,DL3059
 ARG DOCKER_TAG=stable
 ARG DOCKER_REPO=ethereum/client-go
 
@@ -34,7 +34,7 @@ RUN mkdir -p /var/lib/geth/ee-secret && chown -R ${USER}:${USER} /var/lib/geth &
 
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
-COPY --chown=${USER}:${USER} ./ephemery-config.sh /usr/local/bin/
+COPY --from=ephemery --chown=${USER}:${USER} ephemery-config.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 

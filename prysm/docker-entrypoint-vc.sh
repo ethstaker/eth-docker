@@ -7,7 +7,19 @@ if [[ "$(id -u)" -eq 0 ]]; then
 fi
 
 if [[ "${NETWORK}" = "ephemery" ]]; then
-  __network="--chain-config-file=$(ephemery-config.sh /var/lib/prysm/testnet/ephemery)/config.yaml"
+  config_dir_path="$(ephemery-config.sh /var/lib/prysm/testnet/ephemery)"
+  __network="--chain-config-file=${config_dir_path}/config.yaml"
+  # A new iteration has a new genesis, and slashing protection for the old one is for a dead chain
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  __slashing_db=/var/lib/prysm/prysm-wallet-v2/direct/validator.db
+  if [[ -f /var/lib/prysm/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/prysm/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" && -f "${__slashing_db}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old slashing protection DB"
+      rm -f "${__slashing_db}"
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/prysm/ephemery-iteration
 elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")

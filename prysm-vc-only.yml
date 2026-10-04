@@ -8,6 +8,8 @@ x-logging: &logging
 
 x-build: &prysm-build
   context: ./prysm
+  additional_contexts:
+    ephemery: ./ephemery
   dockerfile: ${PRYSM_DOCKERFILE}
   args:
     - BUILD_TARGET=${PRYSM_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
