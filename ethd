@@ -5066,7 +5066,7 @@ prune-history() {
   case "${COMPOSE_FILE}" in
     *geth.yml*)
       client="Geth"
-      if [[ "${target}" =~ ^(rolling|aggressive)$ ]]; then
+      if [[ "${target}" = "rolling" ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
@@ -5081,31 +5081,16 @@ prune-history() {
       ;;
     *nimbus-el.yml*|*nimbus-unified.yml*)
       client="Nimbus"
-      if [[ "${target}" =~ ^(pre-prague|aggressive)$ ]]; then
-        echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
-        echo "Aborting."
-        exit 1
-      fi
       extra_msg="To switch to ${target} expiry requires a full resync, which should take 5 days.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
     *nethermind.yml*)
       client="Nethermind"
-      if [[ "${target}" = "aggressive" ]]; then
-        echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
-        echo "Aborting."
-        exit 1
-      fi
       extra_msg="To switch to ${target} expiry requires a full resync, which should take 1-2 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
     *besu.yml*)
       client="Besu"
-      if [[ "${target}" = "pre-prague" ]]; then
-        echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
-        echo "Aborting."
-        exit 1
-      fi
       extra_msg="To switch to ${target} expiry requires a full resync, which should take 16-24 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
@@ -5121,23 +5106,18 @@ prune-history() {
       ;;
     *erigon.yml*)
       client="Erigon"
-      if [[ "${target}" = "pre-prague" ]]; then
-        echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
-        echo "Aborting."
-        exit 1
-      fi
       extra_msg="To switch to ${target} expiry requires a full resync, which should take 2-3 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
       prune_marker=""
       ;;
     *ethrex.yml*)
       client="Ethrex"
-      if [[ "${target}" =~ ^(pre-prague|rolling|aggressive)$ ]]; then
+      if [[ "${target}" = "rolling" ]]; then
         echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
         echo "Aborting."
         exit 1
       fi
-      if [[ "${target}" = "pre-merge" ]]; then
-        extra_msg="${client} always expires ${target} history. This command will have no effect."
+      if [[ "${must_resync}" -eq 0 ]]; then
+        extra_msg="History can be pruned by ${client} without requiring a full resync. You can observe pruning with \"./ethd logs -f execution\"."
         prune_marker="/var/lib/ethrex/minimal-node"
       else
         extra_msg="To switch to ${target} expiry requires a full resync, which should take 16-24 hours.\nYou can use https://rescuenode.com to keep attesting during resync."
@@ -5157,7 +5137,7 @@ prune-history() {
   fi
   if [[ -z "${prune_marker}" ]]; then  # Full resync
     if [[ "${__non_interactive}" -eq 0 ]]; then
-      warning="WARNING - this will stop ${client} and resync it from scratch without pre-merge history. Do you wish to continue? (No/Yes) "
+      warning="WARNING - this will stop ${client} and resync it from scratch with history expiry. Do you wish to continue? (No/Yes) "
       while true; do
         read -rp "${warning}" yn
         case "${yn}" in
