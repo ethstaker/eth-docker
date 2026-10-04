@@ -7065,6 +7065,7 @@ screen.\n\nThe client will not start successfully until a valid ETH rewards addr
 }
 
 
+# Adjust as builder URLs for Hoodi and Mainnet are published
 __query_epbs() {
   local var
   local selected
@@ -7090,45 +7091,49 @@ __query_epbs() {
   __write_vars+=("EPBS_BUILDER_URLS")
 
 
-  if [[ ! "${__deployment}" =~ (node|validator|rocket|lido_) ]]; then  # No VC
+  if [[ ! "${__deployment}" =~ (node|validator|rocket|ssv|lido_) ]]; then  # No VC
     EPBS_BUILDERS="false"
     EPBS_BUILDER_URLS=""
+    return 0
+  fi
+
+  if [[ "${__deployment}" = "ssv" ]]; then  # Don't give the user a choice and configure all builders that SSV knows about
+    EPBS_BUILDERS="true"
+    EPBS_BUILDER_URLS=""
+    case "${NETWORK}" in
+      hoodi)
+#        EPBS_BUILDER_URLS='"
+#https://hoodi.aestus.live,
+#https://boost-relay-hoodi.flashbots.net,
+#https://hoodi.titanrelay.xyz,
+#https://relay-hoodi.ultrasound.money
+#"'
+        ;;
+      mainnet)
+#        EPBS_BUILDER_URLS='"
+#https://aestus.live,
+#https://agnostic-relay.net,
+#https://bloxroute.regulated.blxrbdn.com,
+#https://boost-relay.flashbots.net,
+#https://global.titanrelay.xyz,
+#https://relay.ultrasound.money
+#"'
+        ;;
+    esac
+    __final_msg+="\nYou are configured to get ePBS block building bids via P2P."
+    if [[ -z "${EPBS_BUILDER_URLS}" ]]; then
+      __final_msg+="\nIf you also want direct bids, please set \"EPBS_BUILDER_URLS\" in \"${__env_file}\""
+    else
+      echo "Your ePBS builder(s): ${EPBS_BUILDER_URLS}"
+      __final_msg+="\nYou are also configured to get block building bids directly from builder(s)."
+    fi
     return 0
   fi
 
   var="EPBS_BUILDERS"
   __get_value_from_env "${var}" "${__env_file}" "__value"
-
-  message="Do you want to use ePBS Builders?"
-  if [[ "${MEV_BOOST}" = "false" && "${__value}" = "false" ]]; then
-    default="--defaultno"
-  else
-    default=""
-  fi
-
-  if ! whiptail --title "ePBS Builders" --yesno "${message}" 10 65 "${default}"; then
-    EPBS_BUILDERS="false"
-    EPBS_BUILDER_URLS=""
-    if [[ "${MEV_BOOST}" = "false" ]]; then
-      __final_msg+="\nYou are configured to build blocks locally.\nPlease ensure you have 200 Mbit/s upload bandwidth or more."
-    else
-      __final_msg+="\nYou are configured to build blocks locally, after Glamsterdam.\nPlease ensure you have 200 Mbit/s upload bandwidth or more."
-    fi
-    return 0
-  else
-    EPBS_BUILDERS="true"
-    __final_msg+="\nYou are configured to get ePBS block building bids via P2P."
-  fi
-
   var="EPBS_BUILDER_URLS"
   __get_value_from_env "${var}" "${__env_file}" "${var}"
-
-  if [[ ! "${NETWORK}" =~ ^(mainnet|hoodi|sepolia|plataberget)$ ]]; then
-    if [[ "${__network_change}" -eq 1 ]]; then
-      EPBS_BUILDER_URLS=""
-    fi
-    return 0
-  fi
 
 # Plataberget has titanrelay and ultrasound live. Rest placeholders and tbd
   if [[ "${__value}" = "true" && "${__network_change}" -eq 0 ]]; then  #  EPBS was already configured, default disable anything the user hadn't chosen previously
@@ -7158,70 +7163,152 @@ __query_epbs() {
     fi
   fi
 
-# Lido: once Lido publishes its ePBS builder list, add an "if [[ "${__deployment}" =~ lido_ ]]" branch per network,
-# with mandatory builders in builders(), optional ones in optional_builders(), and message_mandatory="mandatory "
-  case "${NETWORK}" in
-    plataberget)
-      builders=(
-        ['Titan']="https://plataberget.titanrelay.xyz"
-        ['Ultra Sound']="https://relay-plataberget.ultrasound.money"
-      )
-      choices=(
-        "Titan" "(unfiltered)" "${titan_global_default}"
-        "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
-      )
-      ;;
-    sepolia)
-      builders=(
-        ['Titan']="https://sepolia.titanrelay.xyz"
-      )
-      choices=(
-        "Titan" "(unfiltered)" "${titan_global_default}"
-      )
-      ;;
-    hoodi)
-#      builders=(
-#        ['Aestus']="https://hoodi.aestus.live"
-#        ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
-#        ['Titan']="https://hoodi.titanrelay.xyz"
-#        ['Ultra Sound']="https://relay-hoodi.ultrasound.money"
-#        ['Ultra Sound Filtered']="https://relay-filtered-hoodi.ultrasound.money"
-#      )
-#      choices=(
-#        "Aestus" "(unfiltered)" "${aestus_default}"
-#        "Flashbots" "" "${flashbots_default}"
-#        "Titan" "(unfiltered)" "${titan_global_default}"
-#        "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
-#        "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
-#      )
-      ;;
-    mainnet)
-#      builders=(
-#        ['Aestus']="https://aestus.live"
-#        ['Agnostic']="https://agnostic-relay.net"
-#        ['bloXroute']="https://bloxroute.regulated.blxrbdn.com"
-#        ['Flashbots']="https://boost-relay.flashbots.net"
-#        ['Titan Global']="https://global.titanrelay.xyz"
-#        ['Titan Regional']="https://regional.titanrelay.xyz"
-#        ['Ultra Sound']="https://relay.ultrasound.money"
-#        ['Ultra Sound Filtered']="https://relay-filtered.ultrasound.money"
-#      )
-#      choices=(
-#        "Aestus" "(unfiltered)" "${aestus_default}"
-#        "Agnostic" "(unfiltered)" "${agnostic_default}"
-#        "bloXroute" "" "${bloxroute_default}"
-#        "Flashbots" "" "${flashbots_default}"
-#        "Titan Global" "(unfiltered)" "${titan_global_default}"
-#        "Titan Regional" "" "${titan_regional_default}"
-#        "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
-#        "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
-#      )
-      ;;
-  esac
+  if [[ "${__deployment}" =~ lido_ ]]; then
+    EPBS_BUILDERS="true"
+    case "${NETWORK}" in
+      mainnet)
+#        builders=(
+#          ['Aestus']="https://aestus.live"
+#          ['Agnostic']="https://agnostic-relay.net"
+#          ['bloXroute']="https://bloxroute.regulated.blxrbdn.com"
+#          ['Flashbots']="https://boost-relay.flashbots.net"
+#          ['Ultra Sound']="https://relay.ultrasound.money"
+#          ['Ultra Sound Filtered']="https://relay-filtered.ultrasound.money"
+#        )
+#        optional_builders=(
+#          ['Titan Global']="https://global.titanrelay.xyz"
+#          ['Titan Regional']='https://regional.titanrelay.xyz'
+#        )
+#        choices=(
+#          "Aestus" "(unfiltered)" "${aestus_default}"
+#          "Agnostic" "(unfiltered)" "${agnostic_default}"
+#          "bloXroute" "" "${bloxroute_default}"
+#          "Flashbots" "" "${flashbots_default}"
+#          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+#          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+#          "Titan Global" "(optional, unfiltered)" "${titan_global_default}"
+#          "Titan Regional" "(optional)" "${titan_regional_default}"
+#        )
+#        message_mandatory="mandatory "
+        ;;
+      hoodi)
+#        builders=(
+#          ['Aestus']="https://hoodi.aestus.live"
+#          ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
+#          ['Titan']="https://hoodi.titanrelay.xyz"
+#          ['Ultra Sound']="https://relay-hoodi.ultrasound.money"
+#          ['Ultra Sound Filtered']="https://relay-filtered-hoodi.ultrasound.money"
+#        )
+#        choices=(
+#          "Aestus" "(unfiltered)" "${aestus_default}"
+#          "Flashbots" "" "${flashbots_default}"
+#          "Titan" "(unfiltered)" "${titan_global_default}"
+#          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+#          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+#        )
+        ;;
+      *)
+        echo "No builder URLs configured for ${NETWORK}"
+        EPBS_BUILDERS=true
+        EPBS_BUILDER_URLS=""
+        __final_msg+="\nYou are configured to get ePBS block building bids via P2P."
+        __final_msg+="\nIf you also want direct bids, please set \"EPBS_BUILDER_URLS\" in \"${__env_file}\""
+        return 0
+        ;;
+    esac
+# Don't carry builder URLs across networks
+# Remove this as mainnet and hoodi gain choices()
+    if [[ "${__network_change}" -eq 1 ]]; then
+      EPBS_BUILDER_URLS=""
+    fi
+  else  # Not lido_ deployment
+    message="Do you want to use ePBS Builders?"
+    if [[ "${MEV_BOOST}" = "false" && "${__value}" = "false" ]]; then
+      default="--defaultno"
+    else
+      default=""
+    fi
+
+    if ! whiptail --title "ePBS Builders" --yesno "${message}" 10 65 "${default}"; then
+      EPBS_BUILDERS="false"
+      EPBS_BUILDER_URLS=""
+      __final_msg+="\nYou are configured to build blocks locally.\nPlease ensure you have 200 Mbit/s upload bandwidth or more."
+      return 0
+    else
+      EPBS_BUILDERS="true"
+      __final_msg+="\nYou are configured to get ePBS block building bids via P2P."
+    fi
+
+    if [[ ! "${NETWORK}" =~ ^(mainnet|hoodi|sepolia|plataberget)$ ]]; then
+      if [[ "${__network_change}" -eq 1 ]]; then
+        EPBS_BUILDER_URLS=""
+      fi
+      return 0
+    fi
+
+    case "${NETWORK}" in
+      plataberget)
+        builders=(
+          ['Titan']="https://plataberget.titanrelay.xyz"
+          ['Ultra Sound']="https://relay-plataberget.ultrasound.money"
+        )
+        choices=(
+          "Titan" "(unfiltered)" "${titan_global_default}"
+          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+        )
+        ;;
+      sepolia)
+        builders=(
+          ['Titan']="https://sepolia.titanrelay.xyz"
+        )
+        choices=(
+          "Titan" "(unfiltered)" "${titan_global_default}"
+        )
+        ;;
+      hoodi)
+#        builders=(
+#          ['Aestus']="https://hoodi.aestus.live"
+#          ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
+#          ['Titan']="https://hoodi.titanrelay.xyz"
+#          ['Ultra Sound']="https://relay-hoodi.ultrasound.money"
+#          ['Ultra Sound Filtered']="https://relay-filtered-hoodi.ultrasound.money"
+#        )
+#        choices=(
+#          "Aestus" "(unfiltered)" "${aestus_default}"
+#          "Flashbots" "" "${flashbots_default}"
+#          "Titan" "(unfiltered)" "${titan_global_default}"
+#          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+#          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+#        )
+        ;;
+      mainnet)
+#        builders=(
+#          ['Aestus']="https://aestus.live"
+#          ['Agnostic']="https://agnostic-relay.net"
+#          ['bloXroute']="https://bloxroute.regulated.blxrbdn.com"
+#          ['Flashbots']="https://boost-relay.flashbots.net"
+#          ['Titan Global']="https://global.titanrelay.xyz"
+#          ['Titan Regional']="https://regional.titanrelay.xyz"
+#          ['Ultra Sound']="https://relay.ultrasound.money"
+#          ['Ultra Sound Filtered']="https://relay-filtered.ultrasound.money"
+#        )
+#        choices=(
+#          "Aestus" "(unfiltered)" "${aestus_default}"
+#          "Agnostic" "(unfiltered)" "${agnostic_default}"
+#          "bloXroute" "" "${bloxroute_default}"
+#          "Flashbots" "" "${flashbots_default}"
+#          "Titan Global" "(unfiltered)" "${titan_global_default}"
+#          "Titan Regional" "" "${titan_regional_default}"
+#          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+#          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
+#        )
+        ;;
+    esac
 
 # No builder URLs known yet
-  if [[ "${NETWORK}" =~ ^(mainnet|hoodi|sepolia)$ && "${__network_change}" -eq 1 ]]; then
-    EPBS_BUILDER_URLS=""
+    if [[ "${NETWORK}" =~ ^(mainnet|hoodi)$ && "${__network_change}" -eq 1 ]]; then
+      EPBS_BUILDER_URLS=""
+    fi
   fi
 
   if [ ${#choices[@]} -gt 0 ]; then
@@ -7272,6 +7359,7 @@ __query_epbs() {
   fi
 }
 
+
 __query_mev() {
   local var
   local selected
@@ -7295,10 +7383,10 @@ __query_mev() {
 
   __write_vars+=("MEV_BOOST" "MEV_RELAYS")
 
+# Adjust RIGHT after each network's Glamsterdam HF
   if [[ ! "${NETWORK}" =~ ^(mainnet|hoodi|sepolia)$ ]]; then
     MEV_BOOST="false"
     MEV_RELAYS=""
-    __query_epbs
     return 0
   fi
 
@@ -7310,12 +7398,10 @@ want to use MEV Boost?" 10 65; then
       MEV_BOOST="false"
     fi
     MEV_RELAYS=""
-    __query_epbs
     return 0
   fi
 
   if [[ "${__deployment}" = "ssv" ]]; then  # Don't give the user a choice and configure all relays that SSV knows about
-# TODO after Hoodi Glamsterdam: SSV ePBS builders. __query_epbs is not called for SSV
     MEV_BOOST="true"
     case "${NETWORK}" in
       hoodi)
@@ -7436,7 +7522,6 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
     if ! whiptail --title "MEV Boost" --yesno "${message}" 10 65 "${default}"; then
       MEV_BOOST="false"
       MEV_RELAYS=""
-      __query_epbs
       return 0
     else
       MEV_BOOST="true"
@@ -7529,8 +7614,6 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
   CORE_FILES+=":mev-boost.yml"
   echo "Your MEV relay(s): ${MEV_RELAYS}"
   __final_msg+="\nYou are configured to get block building bids remotely via relay(s)."
-
-  __query_epbs
 }
 
 
@@ -8021,8 +8104,9 @@ __config_node() {
   __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
-# Adjust RIGHT after Glamsterdam
+# Remove RIGHT after Glamsterdam mainnet
   __query_mev
+  __query_epbs
   __query_epbs_factor
   __query_grafana
   __query_fee_recipient
@@ -8041,8 +8125,9 @@ __config_rpc() {
   __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
-# Adjust RIGHT after Glamsterdam
+# Remove RIGHT after Glamsterdam mainnet
   __query_mev
+  __query_epbs
   __query_grafana
   __query_fee_recipient
 }
@@ -8105,8 +8190,9 @@ __config_ssv() {
   __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
-# Adjust RIGHT after Glamsterdam
+# Remove RIGHT after Glamsterdam mainnet
   __query_mev
+  __query_epbs
   __query_grafana
   __query_fee_recipient
 }
@@ -8117,8 +8203,9 @@ __config_validator() {
   __query_validator_client
   __query_web3signer
   __query_remote_beacon
-# Adjust RIGHT after Glamsterdam
+# Remove RIGHT after Glamsterdam mainnet
   __query_mev
+  __query_epbs
   __query_fee_recipient
   __query_graffiti
   if [[ "${NETWORK}" = "hoodi" ]]; then
@@ -8191,8 +8278,9 @@ __config_lido_obol() {
   __query_4444
   __query_reth_snapshot
   __query_checkpoint_sync
-# Adjust RIGHT after Glamsterdam
+# Remove RIGHT after Glamsterdam mainnet
   __query_mev
+  __query_epbs
   __query_epbs_factor
   __query_grafana
   __query_fee_recipient

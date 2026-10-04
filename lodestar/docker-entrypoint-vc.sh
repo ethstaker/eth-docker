@@ -60,14 +60,21 @@ else
   __network="--network ${NETWORK}"
 fi
 
-# Adjust RIGHT after Glamsterdam
+# Adjust RIGHT after each network's Glamsterdam hardfork
+# MEV Boost implies ePBS builders only on networks that haven't forked yet
+if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(sepolia|hoodi|mainnet)$ ]]; then
+  __mev_active=1
+else
+  __mev_active=0
+fi
+
 # Check whether we should use ePBS
-if [[ "${MEV_BOOST}" = "true" || "${EPBS_BUILDERS}" = "true" ]]; then
-  if [[ "${MEV_BOOST}" = "true" ]]; then
+if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
+  if [[ "${__mev_active}" -eq 1 ]]; then
     echo "MEV Boost enabled"
     if [[ "${EPBS_BUILDERS}" = "false" ]]; then
       echo "ePBS builders are meant to be disabled, but MEV Boost is true, which will enable them anyway."
-      echo "Update Eth Docker again after mainnet Glamsterdam hard fork, expected December 2026, to fix this."
+      echo "Update Eth Docker again after ${NETWORK}'s Glamsterdam hard fork to fix this."
     else
       echo "Update Eth Docker again after mainnet Glamsterdam hard fork, expected December 2026, to remove MEV Boost."
     fi
