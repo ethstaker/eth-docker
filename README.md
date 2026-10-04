@@ -28,6 +28,6 @@ please read the [contribution guidelines](CONTRIBUTING.md) so you can run lint c
 ## Version
 
 Eth Docker uses calendar versioning, to make it easy to align with known hardfork dates.
-Eth Docker will release a new version for breaking changes, so you can pin that along your pinned client versions.
+Eth Docker will release a new version for breaking changes. If you use pinned client versions, pin Eth Docker as well.
 
-This is Eth Docker v26.9.1-dev
+This is Eth Docker v26.10.0
