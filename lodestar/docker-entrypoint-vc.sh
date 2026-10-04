@@ -65,6 +65,9 @@ fi
 if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(sepolia|hoodi|mainnet)$ ]]; then
   __mev_active=1
 else
+  if [[ "${MEV_BOOST}" = "true" ]]; then
+    echo "MEV_BOOST is true, but MEV Boost is not used on ${NETWORK}. Ignoring it."
+  fi
   __mev_active=0
 fi
 
