@@ -838,7 +838,7 @@ EOF
 }
 
 
-# Geth and Prysm copy shared files from a second build context, which takes buildx.
+# Some client images copy shared files from a second build context, which takes buildx.
 # Always called after __handle_docker, so that ${__docker_sudo} is set
 __check_buildx() {
   if [[ ! "${__docker_exe}" = "docker" ]] || __dodocker buildx version >/dev/null 2>&1; then
@@ -6297,10 +6297,12 @@ __query_validator_client() {
   elif [[ "${NETWORK}" = "ephemery" ]]; then
     if [[ "${arch}" =~ riscv64 ]]; then
       choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+      choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
     else
       choices+=("teku-vc-only.yml" "Teku validator client")
       choices+=("lodestar-vc-only.yml" "Lodestar validator client")
       choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+      choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
     fi
   elif [[ "${__deployment}" = "rocket" ]]; then
     if [[ "${arch}" =~ (aarch64|arm64) ]]; then
@@ -6426,12 +6428,14 @@ __query_consensus_client() {
     if [[ "${arch}" =~ riscv64 ]]; then
       choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
+      choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     else
       choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
       choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
       choices+=("teku.yml" "Teku (Java) - consensus and validator client")
       choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
+      choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
@@ -6532,12 +6536,14 @@ __query_consensus_only_client() {
     if [[ "${arch}" =~ riscv64 ]]; then
       choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
+      choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
     else
       choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
       choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
       choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
       choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
+      choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")

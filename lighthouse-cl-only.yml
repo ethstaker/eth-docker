@@ -8,11 +8,13 @@ x-logging: &logging
 
 x-build: &lh-build
   context: ./lighthouse
+  additional_contexts:
+    ephemery: ./ephemery
   dockerfile: ${LH_DOCKERFILE}
   args:
     - BUILD_TARGET=${LH_SRC_BUILD_TARGET:-stable}
     - SRC_REPO=${LH_SRC_REPO:-https://github.com/sigp/lighthouse}
-    - DOCKER_TAG=${LH_DOCKER_TAG:-latest-modern}
+    - DOCKER_TAG=${LH_DOCKER_TAG:-latest}
     - DOCKER_REPO=${LH_DOCKER_REPO:-sigp/lighthouse}
 
 services:

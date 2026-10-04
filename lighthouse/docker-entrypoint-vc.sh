@@ -17,7 +17,20 @@ __normalize_int() {
 }
 
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/lighthouse/validators/testnet/ephemery)"
+  __network="--testnet-dir=${config_dir_path}"
+  # A new iteration has a new genesis, and slashing protection for the old one is for a dead chain
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/lighthouse/validators/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/lighthouse/validators/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old slashing protection DB"
+      rm -f /var/lib/lighthouse/validators/slashing_protection.sqlite*
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/lighthouse/validators/ephemery-iteration
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)

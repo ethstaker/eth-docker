@@ -32,7 +32,22 @@ if [[ -O /var/lib/lighthouse/beacon/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/lighthouse/beacon/ee-secret/jwtsecret
 fi
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+config_dir_path=""
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/lighthouse/beacon/testnet/ephemery)"
+  # A new iteration has a new genesis, and the beacon DB of the old one is for a dead chain.
+  # ee-secret is the JWT secret volume and testnet holds the Ephemery configs; both stay.
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/lighthouse/beacon/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/lighthouse/beacon/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old beacon chain data"
+      find /var/lib/lighthouse/beacon -mindepth 1 -maxdepth 1 ! -name ee-secret ! -name testnet \
+        ! -name ephemery-iteration -exec rm -rf {} +
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/lighthouse/beacon/ephemery-iteration
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -48,14 +63,19 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/lighthouse/beacon/testnet/${config_dir}"
+fi
+if [[ -n "${config_dir_path}" ]]; then
   if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
     bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
   else
     bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/bootstrap_nodes.yaml")"
   fi
-  __network="--testnet-dir=${config_dir_path} --boot-nodes=${bootnodes} --ignore-ws-check"
+  __network="--testnet-dir=${config_dir_path}"
+  # Only the beacon node takes these, "lighthouse db" does not
+  __bn_network="--boot-nodes=${bootnodes} --ignore-ws-check"
 else
   __network="--network=${NETWORK}"
+  __bn_network=""
 fi
 
 case "${NODE_TYPE}" in
@@ -182,5 +202,5 @@ if [[ -f /var/lib/lighthouse/beacon/prune-marker ]]; then
 else
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-  exec "$@" ${__network} ${__mev_boost} ${__checkpoint_sync} ${__engine} ${__prune} ${__beacon_stats} ${__trace} ${__ipv6} ${CL_EXTRAS}
+  exec "$@" ${__network} ${__bn_network} ${__mev_boost} ${__checkpoint_sync} ${__engine} ${__prune} ${__beacon_stats} ${__trace} ${__ipv6} ${CL_EXTRAS}
 fi
