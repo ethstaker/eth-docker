@@ -4925,15 +4925,6 @@ prune-history() {
         target=pre-merge
         shift
         ;;
-      --pre-prague)
-        if [[ -n "${target}" ]]; then
-          echo "Only one history expiry mode can be specified, and you already have ${target}."
-          echo "Aborting."
-          exit 1
-        fi
-        target=pre-prague
-        shift
-        ;;
       --rolling)
         if [[ -n "${target}" ]]; then
           echo "Only one history expiry mode can be specified, and you already have ${target}."
@@ -4941,15 +4932,6 @@ prune-history() {
           exit 1
         fi
         target=rolling
-        shift
-        ;;
-      --aggressive)
-        if [[ -n "${target}" ]]; then
-          echo "Only one history expiry mode can be specified, and you already have ${target}."
-          echo "Aborting."
-          exit 1
-        fi
-        target=aggressive
         shift
         ;;
       *)
@@ -5036,14 +5018,8 @@ prune-history() {
     pre-merge)
       target_level=1
       ;;
-    pre-prague)
-      target_level=2
-      ;;
     rolling)
-      target_level=3
-      ;;
-    aggressive)
-      target_level=4
+      target_level=5
       ;;
     *)
       echo "Unable to parse ${target} expiry. This is a bug. Aborting"
@@ -5061,11 +5037,17 @@ prune-history() {
     pre-prague-expiry)
       current_level=2
       ;;
-    rolling-expiry)
+    pre-osaka-expiry)
       current_level=3
       ;;
-    aggressive-expiry)
+    stakewise-expiry)
       current_level=4
+      ;;
+    rolling-expiry)
+      current_level=5
+      ;;
+    aggressive-expiry)
+      current_level=6
       ;;
     *)
       echo "Unable to parse node type ${EL_NODE_TYPE}. This is a bug. Aborting"
