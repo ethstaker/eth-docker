@@ -2976,7 +2976,7 @@ __warn_mplex() {
 
     __final_msg+="\nNOTE: Sometime after Glamsterdam, likely Q1 2027, your Consensus Layer Client will drop use of its P2P TCP port and only use QUIC UDP."
     __final_msg+="\nEnsure that QUIC port ${quic_port} UDP is port-forwarded and allowed by your firewall. Use \"${__me} port-check\" to check incoming QUIC connections."
-    __final_msg+="\nYou won't need MPlex port ${p2p_port} TCP any more, but you still DO need discovery port ${p2p_disc_port} UDP.\n"
+    __final_msg+="\nEventually, you won't need MPlex port ${p2p_port} TCP any more, but you still DO need discovery port ${p2p_disc_port} UDP.\n"
   fi
 }
 
