@@ -4996,6 +4996,7 @@ prune-history() {
         choices+=("rolling" "Rolling expiry")
         ;;
       *geth.yml*)
+        choices+=("rolling" "Rolling expiry")
         ;;
       *ethrex.yml*)
         ;;
@@ -5066,11 +5067,6 @@ prune-history() {
   case "${COMPOSE_FILE}" in
     *geth.yml*)
       client="Geth"
-      if [[ "${target}" = "rolling" ]]; then
-        echo "${target} expiry is not supported by ${client}, or ${__project_name} doesn't know how to configure it."
-        echo "Aborting."
-        exit 1
-      fi
       if [[ "${must_resync}" -eq 0 ]]; then
         extra_msg="History can be pruned by ${client} without requiring a full resync. You can observe pruning with \"./ethd logs -f execution\"."
         prune_marker="/var/lib/geth/prune-marker"
