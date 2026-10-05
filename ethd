@@ -7048,6 +7048,7 @@ __query_epbs() {
   local titan_regional_default="ON"
   local ultrasound_default="ON"
   local ultrasound_filtered_default="ON"
+  local nflaig_default="ON"
 
   __write_vars+=("EPBS_BUILDERS")
   __write_vars+=("EPBS_BUILDER_URLS")
@@ -7122,6 +7123,9 @@ __query_epbs() {
     fi
     if [[ ! "${EPBS_BUILDER_URLS}" =~ relay-filtered.*\.ultrasound ]]; then
       ultrasound_filtered_default="OFF"
+    fi
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ nflaig ]]; then
+      nflaig_default="OFF"
     fi
   fi
 
@@ -7221,9 +7225,11 @@ __query_epbs() {
         ;;
       sepolia)
         builders=(
+          ['NFlaig Dev']="https://builder-sepolia.nflaig.dev"
           ['Titan']="https://sepolia.titanrelay.xyz"
         )
         choices=(
+          "NFlaig Dev" "(unfiltered)" "${nflaig_default}"
           "Titan" "(unfiltered)" "${titan_global_default}"
         )
         ;;
