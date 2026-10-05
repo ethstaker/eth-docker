@@ -29,6 +29,27 @@ __normalize_int() {
   printf '%s' "${v}"
 }
 
+__normalize_float() {
+  local v=$1
+  local int_part
+  local frac_part
+
+  if [[ "${v}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    int_part="${v%%.*}"
+    frac_part=""
+    if [[ "${v}" == *.* ]]; then
+      frac_part="${v#*.}"
+    fi
+    [[ "${int_part}" =~ ^0*([0-9]+)$ ]] && int_part="${BASH_REMATCH[1]}"
+    if [[ -n "${frac_part}" ]]; then
+      v="${int_part}.${frac_part}"
+    else
+      v="${int_part}"
+    fi
+  fi
+  printf '%s' "${v}"
+}
+
 
 if [[ ! -f /var/lib/nimbus/api-token.txt ]]; then
   token=api-token-0x$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
@@ -43,27 +64,49 @@ else
   __doppel="--doppelganger-detection=false"
 fi
 
-# Check whether we should use MEV Boost
-if [[ "${MEV_BOOST}" = "true" ]]; then
-  __mev_boost="--payload-builder=true"
-  echo "MEV Boost enabled"
+# Adjust RIGHT after each network's Glamsterdam hardfork
+# MEV Boost implies ePBS builders only on networks that haven't forked yet
+if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(sepolia|hoodi|mainnet)$ ]]; then
+  __mev_active=1
+else
+  if [[ "${MEV_BOOST}" = "true" ]]; then
+    echo "MEV_BOOST is true, but MEV Boost is not used on ${NETWORK}. Ignoring it."
+  fi
+  __mev_active=0
+fi
+
+# Check whether we should use ePBS
+__epbs=""
+if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
+  if [[ "${__mev_active}" -eq 1 ]]; then
+    echo "MEV Boost enabled"
+    __epbs="--payload-builder=true"
+    if [[ "${EPBS_BUILDERS}" = "false" ]]; then
+      echo "ePBS builders are meant to be disabled, but MEV Boost is true, which will enable them anyway."
+      echo "Update Eth Docker again after ${NETWORK}'s Glamsterdam hard fork to fix this."
+    else
+      echo "Update Eth Docker again after mainnet Glamsterdam hard fork, expected December 2026, to remove MEV Boost."
+    fi
+  fi
+  if [[ "${EPBS_BUILDERS}" = "true" ]]; then
+    echo "ePBS builders enabled"
+  fi
+
   build_factor="$(__normalize_int "${EPBS_BUILD_FACTOR}")"
   if [[ "${build_factor}" = "maxprofit" ]]; then
     build_factor=100  # 100 means profit maximization, as in the keymanager API
   fi
   case "${build_factor}" in
     0|local)
-      __mev_boost=""
-      __mev_factor=""
-      echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
-      echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
+      echo "EPBS_BUILD_FACTOR is ${build_factor}, which essentially disables remote block building / MEV."
+      __epbs+=" --builder-boost-factor=0"
       ;;
     always)
-      __mev_factor="--builder-boost-factor=18446744073709551615"
-      echo "Always prefer MEV builder blocks, EPBS_BUILD_FACTOR always"
+      __epbs+=" --builder-boost-factor=18446744073709551615"
+      echo "Always prefer ePBS builder blocks, EPBS_BUILD_FACTOR always"
       ;;
     "")
-      __mev_factor=""
+      echo "Use default --builder-boost-factor"
       ;;
     *)
       if [[ "${build_factor}" =~ ^[1-9][0-9]{0,19}$ ]]; then
@@ -73,17 +116,34 @@ if [[ "${MEV_BOOST}" = "true" ]]; then
           echo "EPBS_BUILD_FACTOR ${build_factor} exceeds the 64-bit maximum, capping it to 18446744073709551615"
           build_factor=18446744073709551615
         fi
-        __mev_factor="--builder-boost-factor=${build_factor}"
-        echo "Enabled MEV Build Factor of ${build_factor}"
+        __epbs+=" --builder-boost-factor=${build_factor}"
+        echo "Enabled ePBS Build Factor of ${build_factor}"
       else
-        __mev_factor=""
         echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
       fi
       ;;
   esac
+  if [[ -n "${EPBS_MIN_BID}" ]]; then
+    min_bid="$(__normalize_float "${EPBS_MIN_BID}")"
+    if [[ "${min_bid}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+      #min_bid_gwei=$(awk -v v="${min_bid}" 'BEGIN{printf "%.0f", v * 1000000000}')
+      #__epbs+=" --payload-builder-min-bid=${min_bid_gwei}"
+      echo "EPBS_MIN_BID is ${min_bid}, but Eth Docker cannot configure Nimbus VC for it."
+    else
+      echo "WARNING: EPBS_MIN_BID has an invalid value of \"${EPBS_MIN_BID}\", ignoring"
+    fi
+  fi
+  builder_urls="${EPBS_BUILDER_URLS//[[:space:]]/}"
+  # Nimbus cannot handle more than one builder URL yet
+  if [[ "${builder_urls}" == *,* ]]; then
+    builder_urls="${builder_urls%%,*}"
+    echo "Nimbus supports only one ePBS builder URL. Using ${builder_urls}, ignoring the rest of EPBS_BUILDER_URLS"
+  fi
+  if [[ -n "${builder_urls}" ]]; then
+    __epbs+=" --payload-builder-url=${builder_urls}"
+  fi
 else
-  __mev_boost=""
-  __mev_factor=""
+  echo "Build blocks locally, use ePBS builders as fallback"
 fi
 
 # accommodate comma separated list of consensus nodes
@@ -129,4 +189,4 @@ fi
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} "${__graffiti_args[@]}" ${__doppel} ${__mev_boost} ${__mev_factor} ${__att_aggr} ${VC_EXTRAS}
+exec "$@" "${__beacon_nodes[@]}" ${__w3s_url} "${__graffiti_args[@]}" ${__doppel} ${__epbs} ${__att_aggr} ${VC_EXTRAS}
