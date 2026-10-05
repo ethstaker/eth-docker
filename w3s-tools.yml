@@ -1,5 +1,5 @@
 # Use with: docker compose -f w3s-tools.yml run --rm reduce-key-security
-# Requires keys in web3signer-keys, not for mainnet/gnosis
+# Requires keys in web3signer-keys, not for mainnet
 services:
   reduce-key-security:
     profiles: ["tools"]

@@ -121,7 +121,7 @@ if [[ ! "${NETWORK}" =~ ^https?:// && "${NODE_TYPE}" != "archive" && "${__patric
   __prune="--Pruning.FullPruningMaxDegreeOfParallelism=${parallel} --Pruning.FullPruningCompletionBehavior=AlwaysShutdown --JsonRpc.AdditionalRpcUrls=http://127.0.0.1:1337|http|admin"
   if [[ "${AUTOPRUNE_NM}" = true ]]; then
     __prune+=" --Pruning.FullPruningTrigger=VolumeFreeSpace"
-    if [[ "${NETWORK}" =~ (mainnet|gnosis) ]]; then
+    if [[ "${NETWORK}" = "mainnet" ]]; then
       __prune+=" --Pruning.FullPruningThresholdMb=375810"
     else
       __prune+=" --Pruning.FullPruningThresholdMb=51200"

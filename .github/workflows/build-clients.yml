@@ -143,16 +143,6 @@ jobs:
             test_el: true
             test_vc: true
           - env: |-
-              CORE_FILES=nimbus.yml:nethermind.yml
-              NIM_DOCKERFILE=Dockerfile.sourcegnosis
-              NETWORK=gnosis
-              FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
-            vc-env: |-
-              CORE_FILES=nimbus-cl-only.yml:nimbus-vc-only.yml:nethermind.yml
-            test_cl: true
-            test_el: true
-            test_vc: true
-          - env: |-
               CORE_FILES=prysm.yml:geth.yml
               PRYSM_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86
