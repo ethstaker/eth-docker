@@ -437,17 +437,24 @@ if [[ "${status}" -eq 0 ]]; then
 fi
 handle_replacement "${status}" "${tmp}" "${file}"
 
-# Ethereum Metrics Exporter Dashboard
-id=16277
-status=0
-revision=$(wget -t 3 -T 10 -qO - https://grafana.com/api/dashboards/${id} | jq -r .revision) || status=1
-url="https://grafana.com/api/dashboards/${id}/revisions/${revision}/download"
+# Ethereum Metrics Exporter Dashboard, unless the exporter is disabled
 file='/etc/grafana/provisioning/dashboards/ethereum-metrics-exporter-single.json'
-if [[ "${status}" -eq 0 ]]; then
-  tmp=$(mktemp)
-  wget -t 3 -T 10 -qcO - "${url}" | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${tmp}" || status=1
-fi
-handle_replacement "${status}" "${tmp}" "${file}"
+case "${CLIENT}" in
+  *grafana-vc-only.yml* )
+    rm -f "${file}"
+    ;;
+  * )
+    id=16277
+    status=0
+    revision=$(wget -t 3 -T 10 -qO - https://grafana.com/api/dashboards/${id} | jq -r .revision) || status=1
+    url="https://grafana.com/api/dashboards/${id}/revisions/${revision}/download"
+    if [[ "${status}" -eq 0 ]]; then
+      tmp=$(mktemp)
+      wget -t 3 -T 10 -qcO - "${url}" | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${tmp}" || status=1
+    fi
+    handle_replacement "${status}" "${tmp}" "${file}"
+    ;;
+esac
 
 tree /etc/grafana/provisioning/
 

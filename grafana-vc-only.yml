@@ -1,0 +1,7 @@
+# Add after grafana.yml or grafana-rootless.yml when running a validator client only, without
+# a local consensus and execution client. Disables ethereum-metrics-exporter, which needs both.
+# This file cannot be used on its own: Compose will fail if no grafana yml defines that service
+services:
+  ethereum-metrics-exporter:
+    deploy:
+      replicas: 0
