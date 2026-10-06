@@ -90,7 +90,7 @@ fi
 
 # Check whether we should use MEV Boost
 # Adjust RIGHT after each network's Glamsterdam hardfork
-if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(sepolia|hoodi|mainnet)$ ]]; then
+if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(hoodi|mainnet)$ ]]; then
   __mev_boost="--http-mev-relay=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
 else

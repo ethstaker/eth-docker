@@ -101,7 +101,7 @@ fi
 
 # Adjust RIGHT after each network's Glamsterdam hardfork
 # MEV Boost implies ePBS builders only on networks that haven't forked yet
-if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(sepolia|hoodi|mainnet)$ ]]; then
+if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(hoodi|mainnet)$ ]]; then
   __mev_active=1
 else
   __mev_active=0

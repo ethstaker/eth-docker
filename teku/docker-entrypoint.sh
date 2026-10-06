@@ -131,7 +131,7 @@ fi
 
 # Check whether we should use MEV Boost
 # Adjust RIGHT after each network's Glamsterdam hardfork
-if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(sepolia|hoodi|mainnet)$ ]]; then
+if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(hoodi|mainnet)$ ]]; then
   __mev_boost="--builder-endpoint=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
   if [[ "${EMBEDDED_VC}" = "true" ]]; then
@@ -184,7 +184,7 @@ fi
 if [[ "${EMBEDDED_VC}" = "true" ]]; then
   # Adjust RIGHT after each network's Glamsterdam hardfork
   # MEV Boost implies ePBS builders only on networks that haven't forked yet
-  if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(sepolia|hoodi|mainnet)$ ]]; then
+  if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(hoodi|mainnet)$ ]]; then
     __mev_active=1
   else
     __mev_active=0

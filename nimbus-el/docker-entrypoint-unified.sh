@@ -360,10 +360,14 @@ if [[ -n "${ERC_URL}" && ! "${NETWORK}" =~ ^https?:// && ! "${NETWORK}" = "ephem
 fi
 
 # Check whether we should use MEV Boost
-if [[ "${MEV_BOOST}" = "true" ]]; then
+# Adjust RIGHT after each network's Glamsterdam hardfork
+if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(hoodi|mainnet)$ ]]; then
   __mev_boost="--payload-builder=true --payload-builder-url=${MEV_NODE:-http://mev-boost:18550}"
   echo "MEV Boost enabled"
 else
+  if [[ "${MEV_BOOST}" = "true" ]]; then
+    echo "MEV_BOOST is true, but MEV Boost is not used on ${NETWORK}. Ignoring it."
+  fi
   __mev_boost=""
 fi
 

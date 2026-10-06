@@ -2702,6 +2702,7 @@ __migrate_compose_files() {
   local ymlfile
   local n
   local index
+  local network
 
 # Some files have been renamed and others removed altogether
   local from_yml=("lido-obol-promtail.yml" "prysm-web-shared.yml")
@@ -2733,6 +2734,40 @@ __migrate_compose_files() {
       fi
     fi
   done
+
+# Remove after Hegotá
+# Adjust RIGHT after each network's Glamsterdam hardfork
+  __get_value_from_env "NETWORK" "${__env_file}.source" "network"
+  from_yml=("mev-boost.yml" "commit-boost-pbs.yml")
+  to_yml=("" "")
+  if [[ "${network}" =~ ^(sepolia)$ ]]; then
+    IFS=":"
+    set -o noglob
+# Globbing is off
+# shellcheck disable=SC2206
+    ymlarray=(${__value})  # split+glob with glob disabled, and split using : as delimiter
+    set +o noglob
+# Unset restores default
+    unset IFS
+
+    __value=""
+    for n in "${!ymlarray[@]}"; do
+      ymlfile="${ymlarray[n]}"
+      for index in "${!from_yml[@]}"; do
+        if [[ "${from_yml[index]}" = "${ymlfile}" ]]; then
+          ymlfile=${to_yml[index]}
+          break
+        fi
+      done
+      if [[ -n "${ymlfile}" ]]; then
+        if [[ -z "${__value}" ]]; then
+          __value="${ymlfile}"
+        else
+          __value="${__value}:${ymlfile}"
+        fi
+      fi
+    done
+  fi
 }
 
 
@@ -3365,6 +3400,87 @@ __repair_core_files() {
 }
 
 
+# Called with network and mev relays
+__adjust_epbs_urls() {
+  local network=$1
+  local mev_relays=$2
+  local -a relay_entries=()
+  local relay_entry
+  local -A builders=()
+  local builder
+  local builder_url
+  local urls
+  local match=0
+
+  case "${network}" in
+    plataberget)
+      builders=(
+        ['Titan']="https://plataberget.titanrelay.xyz"
+        ['Ultra Sound']="https://relay-plataberget.ultrasound.money"
+      )
+      ;;
+    sepolia)
+      builders=(
+        ['NFlaig Dev']="https://builder-sepolia.nflaig.dev"
+        ['Titan']="https://sepolia.titanrelay.xyz"
+      )
+      ;;
+    hoodi)
+      ;;
+    mainnet)
+      ;;
+  esac
+
+  if [[ "${#builders[@]}" -eq 0 ]]; then
+    echo -n
+    return 0
+  fi
+
+  if [[ "${mev_relays}" =~ aestus ]]; then
+    relay_entries+=('Aestus')
+  fi
+  if [[ "${mev_relays}" =~ agnostic ]]; then
+    relay_entries+=('Agnostic')
+  fi
+  if [[ "${mev_relays}" =~ bloxroute ]]; then
+    relay_entries+=('bloXroute')
+  fi
+  if [[ "${mev_relays}" =~ flashbots ]]; then
+    relay_entries+=('Flashbots')
+  fi
+  if [[ "${mev_relays}" =~ titanrelay ]]; then
+    relay_entries+=('Titan')
+  fi
+  if [[ "${mev_relays}" =~ ultrasound ]]; then
+    relay_entries+=('Ultra Sound')
+  fi
+
+  urls='"'$'\n'
+  for relay_entry in "${relay_entries[@]}"; do
+    for builder in "${!builders[@]}"; do
+      if [[ "${relay_entry}" = "${builder}" ]]; then
+        urls+="${builders[$builder]},"$'\n'
+        match=1
+      fi
+    done
+  done
+
+# No match, assign default
+  if [[ "${match}" -eq 0 ]]; then
+    for builder_url in "${builders[@]}"; do
+      urls+="${builder_url},"$'\n'
+    done
+  fi
+
+# Remove trailing comma and add closing quote
+  urls="${urls%,$'\n'}"$'\n'
+  urls+='"'
+  printf '%s' "${urls}"
+
+  return 0
+}
+
+
 __migrate_env() {
   local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL CB_PBS_DOCKER_TAG CB_PBS_DOCKER_REPO MEV_MIN_BID MEV_BUILD_FACTOR )
   local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS CB_DOCKER_TAG CB_DOCKER_REPO EPBS_MIN_BID EPBS_BUILD_FACTOR )
@@ -3551,10 +3667,44 @@ __migrate_env() {
           fi
         fi
       fi
-
       # Remove after Glamsterdam
       if [[ "${__source_ver}" -lt "72" && "${var}" = "EPBS_BUILD_FACTOR" && "${__value}" =~ ^0*100$ ]]; then
         __value="always"  # 100 used to mean "always", it now means "maxprofit"
+      fi
+      # Remove after Hegotá
+      # Adjust RIGHT after each network's Glamsterdam hardfork
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "MEV_BOOST" && "${__value}" = "true" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
+        if [[ "${NETWORK:-}" =~ ^(sepolia)$ ]]; then
+          __value=false
+          echo "Disabled MEV Boost on ${NETWORK}"
+          __final_msg+="\n${NETWORK} has gone through Glamsterdam hardfork. MEV Boost has been disabled. Use ePBS instead.\n"
+        fi
+      fi
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "MEV_RELAYS" && -n "${__value}" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
+        if [[ "${NETWORK:-}" =~ ^(sepolia)$ ]]; then
+          __value=""
+        fi
+      fi
+      # Adjust before each network's Glamsterdam hardfork, when builder URLs are known
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDERS" && "${__value}" = "false" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
+        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
+        if [[ "${NETWORK:-}" =~ ^(sepolia)$ && "${MEV_BOOST}" = "true" ]]; then
+          __value=true
+          echo "Enabled ePBS on ${NETWORK}"
+        fi
+      fi
+      # Adjust before each network's Glamsterdam hardfork, when builder URLs are known
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDER_URLS" && -z "${__value}" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
+        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
+        if [[ "${NETWORK:-}" =~ ^(sepolia)$ && "${MEV_BOOST}" = "true" ]]; then
+          __get_value_from_env "MEV_RELAYS" "${__env_file}.source" "MEV_RELAYS"
+          __value=$(__adjust_epbs_urls "${NETWORK}" "${MEV_RELAYS}")
+          echo "Set ePBS builder URLs on ${NETWORK}"
+        fi
       fi
 
       if [[ "${var}" = "CL_QUIC_PORT" ]]; then
@@ -3604,6 +3754,28 @@ __migrate_env() {
           esac
         fi
         __update_value_in_env "${var}" "${__value}" "${__env_file}"
+      fi
+      # Remove after Glamsterdam
+      # These could be new or existing; cover either case
+      # Adjust RIGHT after each network's Glamsterdam hardfork
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDERS" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
+        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
+        if [[ "${NETWORK:-}" =~ ^(sepolia)$ && "${MEV_BOOST}" = "true" ]]; then
+          __value=true
+          echo "Enabled ePBS on ${NETWORK}"
+          __update_value_in_env "${var}" "${__value}" "${__env_file}"
+        fi
+      fi
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDER_URLS" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
+        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
+        if [[ "${NETWORK:-}" =~ ^(sepolia)$ && "${MEV_BOOST}" = "true" ]]; then
+          __get_value_from_env "MEV_RELAYS" "${__env_file}.source" "MEV_RELAYS"
+          __value=$(__adjust_epbs_urls "${NETWORK}" "${MEV_RELAYS}")
+          echo "Set ePBS builder URLs on ${NETWORK}"
+          __update_value_in_env "${var}" "${__value}" "${__env_file}"
+        fi
       fi
     fi
   done < "./default.env"
@@ -7354,7 +7526,7 @@ __query_mev() {
   __write_vars+=("MEV_BOOST" "MEV_RELAYS")
 
 # Adjust RIGHT after each network's Glamsterdam HF
-  if [[ ! "${NETWORK}" =~ ^(mainnet|hoodi|sepolia)$ ]]; then
+  if [[ ! "${NETWORK}" =~ ^(mainnet|hoodi)$ ]]; then
     MEV_BOOST="false"
     MEV_RELAYS=""
     return 0
@@ -7498,14 +7670,6 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
     fi
 
     case "${NETWORK}" in
-      sepolia)
-        relays=(
-          ['Flashbots']="https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@boost-relay-sepolia.flashbots.net"
-        )
-        choices=(
-          "Flashbots" "" "${flashbots_default}"
-        )
-        ;;
       hoodi)
         relays=(
           ['Aestus']="https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live"

@@ -26,7 +26,10 @@ services:
     stop_grace_period: 1m
     environment:
       - MEV_BOOST=${MEV_BOOST}
+      - EPBS_BUILDERS=${EPBS_BUILDERS}
+      - EPBS_BUILDER_URLS=${EPBS_BUILDER_URLS}
       - EPBS_BUILD_FACTOR=${EPBS_BUILD_FACTOR}
+      - EPBS_MIN_BID=${EPBS_MIN_BID}
       - VC_EXTRAS=${VC_EXTRAS:-}
       - DOPPELGANGER=${DOPPELGANGER:-}
       - GRAFFITI=${GRAFFITI:-}

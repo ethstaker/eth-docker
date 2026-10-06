@@ -127,9 +127,12 @@ else
   __caplin+=" --caplin.max-peer-count=${CL_MAX_PEER_COUNT}"
   __caplin+=" --beacon.api=beacon,builder,config,debug,events,node,validator,lighthouse"
   __caplin+=" --beacon.api.addr=0.0.0.0 --beacon.api.port=${CL_REST_PORT} --beacon.api.cors.allow-origins=*"
-  if [[ "${MEV_BOOST}" = "true" ]]; then
+  # Adjust RIGHT after each network's Glamsterdam hardfork
+  if [[ "${MEV_BOOST}" = "true" && "${NETWORK}" =~ ^(hoodi|mainnet)$ ]]; then
     __caplin+=" --caplin.mev-relay-url=${MEV_NODE}"
     echo "MEV Boost enabled"
+  elif [[ "${MEV_BOOST}" = "true" ]]; then
+    echo "MEV_BOOST is true, but MEV Boost is not used on ${NETWORK}. Ignoring it."
   fi
   case "${CL_NODE_TYPE}" in
     archive)
