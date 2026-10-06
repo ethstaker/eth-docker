@@ -3112,7 +3112,8 @@ __detect_v6() {
 
 
 __get_value_from_env() {
-  # Call with variable name to read, env file name, and global variable to assign the __value to
+  # Call with variable name to read, env file name, and variable to assign the __value to.
+  # The output variable can be a global or a local of the caller (bash dynamic scoping)
   # Also sets global __found
   local var_name="$1"
   local env_file="$2"
@@ -3123,7 +3124,7 @@ __get_value_from_env() {
 
   if [[ "${output_var}" = "parsed_value" || "${output_var}" = "output_var" \
       || "${output_var}" = "output" || "${output_var}" = "env_file" \
-      || "${output_var}" = "var_name" ]]; then
+      || "${output_var}" = "var_name" || "${output_var}" = "awk_exe" ]]; then
     echo "__get_value_from_env was called with a conflicting output variable: ${output_var}"
     echo "This is a bug."
     exit 70
