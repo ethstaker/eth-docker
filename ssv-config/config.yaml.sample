@@ -26,3 +26,28 @@ global:
   LogLevelFormat: lowercase
   LogLevel: info
   LogFilePath: /tmp/ssv/debug.log
+
+# Post-ePBS (Gloas) counterpart of ProposerDelay, applied from the Gloas fork on.
+# Hard-capped at 1s with no dangerous override. Default is 0 (opt-in).
+# See docs/MEV_CONSIDERATIONS.md.
+# ProposerDelayEPBS: 0
+
+# Post-ePBS (Gloas) direct-builder connections — an opt-in overlay on top of the enshrined builder flow
+# (which needs no configuration and stays the fallback). The whole block MUST be configured identically
+# across ALL operators of every committee sharing a validator: AuthData (defaulting to the URL's hostname,
+# lowercased) is threshold-signed, so any divergence silently disables that builder. At most 8
+# entries. Monetary values are Gwei. The top-level MinBid/BuilderBoostFactor apply to p2p (gossiped) bids
+# and, per keymanager-APIs#88, are the default for any entry that omits its own. The bid-selection knobs
+# are sent on the produceBlockV4 POST and honored by beacon nodes that implement it (beacon-APIs#630);
+# against an older node the request falls back to GET, where only BuilderBoostFactor still applies (MinBid
+# and the per-entry knobs are POST-only). See docs/EXTERNAL_BUILDERS.md.
+# Builders:
+#   MinBid: 0                        # p2p-bid floor + default for entries below; 0 = no floor
+#   BuilderBoostFactor: 100          # p2p-bid multiplier % + default; 0 = always local, 100 = neutral
+#   Entries:
+#     - URL: "https://builder.example.com"
+#       # AuthData: "0x..."          # omit to default to the URL's hostname
+#       # BuilderPubKeys: ["0x..."]  # optionally pin the builder's bid-signing key(s); empty = any
+#       # MaxExecutionPayment: 0     # cap on trusted execution-layer payment
+#       # MinBid: 0                  # optional; inherits the top-level MinBid
+#       # BuilderBoostFactor: 100    # optional; inherits the top-level BuilderBoostFactor
