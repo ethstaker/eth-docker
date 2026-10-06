@@ -3494,6 +3494,7 @@ __migrate_env() {
           __final_msg+="\nin your own repository, check that it keeps ENV_VERSION in step with the rest of the"
           __final_msg+="\nfile. A stale ENV_VERSION makes ${__me} re-run old migrations against a current file.\n"
         else
+          __migrate_compose_files  # There was no CORE_FILES to apply yml renames to, so apply them here
           __update_value_in_env "CORE_FILES" "${__value}" "${__env_file}"
         fi
 # shellcheck disable=SC2016
