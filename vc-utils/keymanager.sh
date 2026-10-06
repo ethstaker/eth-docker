@@ -497,8 +497,7 @@ graffiti-delete() {
     __http_method=DELETE
     __call_api
     case "${__code}" in
-# Prysm answers 200 instead of the 204 the spec asks for. Drop the 200 once Prysm is fixed.
-      200|204) echo "The graffiti for the validator with public key ${__pubkey} was set back to default."; (( deleted+=1 ));;
+      204) echo "The graffiti for the validator with public key ${__pubkey} was set back to default."; (( deleted+=1 ));;
       400) echo "The pubkey was formatted wrong. Error: $(__print_jq_message "${__result}" '.message')"; (( failed+=1 ));;
       401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
       403) echo "A graffiti was found for ${__pubkey}, but cannot be deleted. It may be in a configuration file. Message: $(__print_jq_message "${__result}" '.message')";;
