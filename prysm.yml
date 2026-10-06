@@ -130,6 +130,10 @@ services:
       - W3S_NODE=${W3S_NODE}
       - NETWORK=${NETWORK}
       - ENABLE_DIST_ATTESTATION_AGGR=${ENABLE_DIST_ATTESTATION_AGGR:-false}
+      - EPBS_BUILDERS=${EPBS_BUILDERS}
+      - EPBS_BUILDER_URLS=${EPBS_BUILDER_URLS}
+      - EPBS_BUILD_FACTOR=${EPBS_BUILD_FACTOR}
+      - EPBS_MIN_BID=${EPBS_MIN_BID}
     networks:
       default:
         aliases:
