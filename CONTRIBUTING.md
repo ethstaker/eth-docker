@@ -49,6 +49,10 @@ Local variables are `variable_name`
 
 Global variables are `__variable_name`
 
+A function that assigns to a variable named by its caller, with `printf -v`, names all of its own locals `_variable_name`, with a single underscore. Bash scoping is dynamic: a local that shares a name with the caller's variable would receive the value instead, and the caller would get nothing. Callers use `variable_name` and `__variable_name`, which cannot clash. These functions also reject an output name that matches one of their locals, and exit with code 70. See `__get_value_from_env` and `__host_route_v4`.
+
+Pass values to and from small helpers explicitly, with arguments in and an output variable out. Use a global only for process-wide context set at startup, accumulators such as `__final_msg`, state that the error trap or the end-of-run summary reads, arrays, and state shared by the steps of one flow, such as `config` or `update`. Declare every global at the top of `ethd` with a comment naming the function that sets it and the functions that read it. Never reuse a global for a different meaning; use a local instead.
+
 Assign `$?` to `exitstatus` before checking its value, unless you have a specific reason not to
 
 In the entrypoint scripts, which have very few functions, "local" is interpreted to mean "not used past this block", and "global" means "we need this again later", particularly for `exec`.
