@@ -232,6 +232,9 @@ get-grandine-wallet() {
   if [[ -f /var/lib/grandine/wallet-password.txt ]]; then
     echo "The password for the Grandine wallet is:"
     cat /var/lib/grandine/wallet-password.txt
+  elif [[ -f /var/lib/grandine-vc/wallet-password.txt ]]; then
+    echo "The password for the Grandine wallet is:"
+    cat /var/lib/grandine-vc/wallet-password.txt
   else
     echo "No stored password found for a Grandine wallet."
   fi

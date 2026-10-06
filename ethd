@@ -2069,7 +2069,7 @@ port-check() {
   # Beacon API from there. Every other consensus client has its own service.
   case "${COMPOSE_FILE}" in
     *caplin.yml*) __cl_service="execution"; cl_client="Caplin";;
-    *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) __cl_service="execution"; cl_client="Grandine";;
+    *grandine-plugin.yml*|*grandine-plugin-cl-only.yml*|*grandine-plugin-allin1.yml*) __cl_service="execution"; cl_client="Grandine";;
     *lighthouse.yml*|*lighthouse-cl-only.yml*) __cl_service="consensus"; cl_client="Lighthouse";;
     *teku.yml*|*teku-cl-only.yml*|*teku-allin1.yml*) __cl_service="consensus"; cl_client="Teku";;
     *nimbus-unified.yml*) __cl_service="consensus"; cl_client="Nimbus Unified";;
@@ -2733,6 +2733,40 @@ __migrate_compose_files() {
       fi
     fi
   done
+
+# Remove after Glamsterdam
+# grafana-plugin is renamed but also replaced. Must only do the conversion once
+  if [[ "${__source_ver}" -lt 72 ]]; then
+    from_yml=("grandine-plugin.yml")
+    to_yml=("grandine-plugin-cl-only.yml")
+
+    IFS=":"
+    set -o noglob
+# Globbing is off
+# shellcheck disable=SC2206
+    ymlarray=(${__value})  # split+glob with glob disabled, and split using : as delimiter
+    set +o noglob
+# Unset restores default
+    unset IFS
+
+    __value=""
+    for n in "${!ymlarray[@]}"; do
+      ymlfile="${ymlarray[n]}"
+      for index in "${!from_yml[@]}"; do
+        if [[ "${from_yml[index]}" = "${ymlfile}" ]]; then
+          ymlfile=${to_yml[index]}
+          break
+        fi
+      done
+      if [[ -n "${ymlfile}" ]]; then
+        if [[ -z "${__value}" ]]; then
+          __value="${ymlfile}"
+        else
+          __value="${__value}:${ymlfile}"
+        fi
+      fi
+    done
+  fi
 }
 
 
@@ -3625,9 +3659,8 @@ __migrate_env() {
     fi
   done
 # Check whether we run a CL or VC, if so nag about FEE_RECIPIENT
-  __value="${COMPOSE_FILE}"
 # It's CL&VC, CL-only, or VC-only
-  if [[ "${__value}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-cl-only\.yml|-allin1\.yml|-vc-only\.yml) ]]; then
+  if __i_haz_cl_or_vc; then
     # Check for rewards
     var="FEE_RECIPIENT"
     __get_value_from_env "${var}" "${__env_file}" "__value"
@@ -4455,7 +4488,7 @@ resync-consensus() {
     *nimbus-unified.yml*) cl_volume='wipe-cl-db'; cl_client="Nimbus Unified";;
     *lodestar.yml*|*lodestar-cl-only.yml*) cl_volume='lsconsensus-data'; cl_client="Lodestar";;
     *prysm.yml*|*prysm-cl-only.yml*) cl_volume='prysmconsensus-data'; cl_client="Prysm";;
-    *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Grandine Plugin";;
+    *grandine-plugin.yml*|*grandine-plugin-cl-only.yml*|*grandine-plugin-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Grandine Plugin";;
     *grandine-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Grandine";;
     *grandine.yml*|*grandine-cl-only.yml*) cl_volume='grandineconsensus-data'; cl_client="Grandine";;
     *caplin.yml*) cl_volume='wipe-cl-db'; cl_client="Caplin";;
@@ -5311,8 +5344,7 @@ __prep-keyimport() {
   local var
   local files
 
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-allin1\.yml|vc-only\.yml) ]]; then
+  if ! __i_haz_vc; then
     echo "You do not appear to be running a validator client. Aborting."
     exit 1
   fi
@@ -5384,6 +5416,21 @@ __prep-keyimport() {
   if [[ "${ETHD_FRONTEND:-}" = "noninteractive" ]]; then
     __non_interactive=1
   fi
+}
+
+
+# True if COMPOSE_FILE includes a file that defines a validator client, and with it the
+# "validator-keys" service that key management runs against. Keep in sync with:
+#   grep -l '^  validator-keys:' ./*.yml
+__i_haz_vc() {
+  [[ "${COMPOSE_FILE}" =~ ((prysm|lighthouse|teku|nimbus|lodestar|grandine|grandine-plugin)\.yml|-vc-only\.yml|-allin1\.yml) ]]
+}
+
+
+# True if COMPOSE_FILE includes a consensus client, a validator client, or both. Used to
+# decide whether a fee recipient needs to be set.
+__i_haz_cl_or_vc() {
+  __i_haz_vc || [[ "${COMPOSE_FILE}" =~ (-cl-only\.yml|caplin\.yml|nimbus-unified\.yml) ]]
 }
 
 
@@ -6277,11 +6324,13 @@ __query_validator_client() {
     elif [[ "${arch}" =~ riscv64 ]]; then
       choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
       choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+      choices+=("grandine-vc-only.yml" "Grandine validator client")
     else
       choices+=("teku-vc-only.yml" "Teku validator client")
       choices+=("lodestar-vc-only.yml" "Lodestar validator client")
       choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
       choices+=("nimbus-vc-only.yml" "Nimbus validator client")
+      choices+=("grandine-vc-only.yml" "Grandine validator client")
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
@@ -6292,12 +6341,14 @@ __query_validator_client() {
   elif [[ "${arch}" =~ riscv64 ]]; then
     choices+=("nimbus-vc-only.yml" "Nimbus validator client")
     choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
+    choices+=("grandine-vc-only.yml" "Grandine validator client")
   else
     choices+=("teku-vc-only.yml" "Teku validator client")
     choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
     choices+=("lodestar-vc-only.yml" "Lodestar validator client")
     choices+=("nimbus-vc-only.yml" "Nimbus validator client")
     choices+=("prysm-vc-only.yml" "Prysm validator client")
+    choices+=("grandine-vc-only.yml" "Grandine validator client")
   fi
 
   num_items=$(( ${#choices[@]} / 2 ))
@@ -6407,7 +6458,7 @@ __query_consensus_client() {
     if [[ "${NETWORK}" != "mainnet" ]]; then
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
-    choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
+    choices+=("grandine.yml" "Grandine (Rust) - consensus with built-in validator client")
     choices+=("teku.yml" "Teku (Java) - consensus and validator client")
     choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
     choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
@@ -6430,7 +6481,7 @@ __query_consensus_client() {
     if [[ "${NETWORK}" != "mainnet" ]]; then
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
     fi
-    choices+=("grandine-allin1.yml" "Grandine (Rust) - consensus with built-in validator client")
+    choices+=("grandine.yml" "Grandine (Rust) - consensus with built-in validator client")
     choices+=("teku.yml" "Teku (Java) - consensus and validator client")
     choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
     choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
@@ -8032,7 +8083,7 @@ __check_legacy() {
 
   __value="${COMPOSE_FILE}"
 
-if [[ "${__value}" =~ -allin1\.yml && ! "${__value}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then # Warn re Grandine once VC
+if [[ "${__value}" =~ -allin1\.yml && ! "${__value}" =~ (grandine-plugin-allin1\.yml) ]]; then # Warn re Grandine once VC in plugin
     if [[ "${__value}" =~ teku-allin1\.yml ]]; then
       client="Teku"
     elif [[ "${__value}" =~ nimbus-allin1\.yml ]]; then

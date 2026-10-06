@@ -1,4 +1,3 @@
-# grandine-plugin.yml to be used with nethermind.yml for Nethermind with Grandine plugin plus Grandine VC
 x-logging: &logging
   logging:
     driver: ${LOG_DRIVER}
@@ -17,55 +16,92 @@ x-build: &gr-build
     - DOCKER_TAG=${GRANDINE_DOCKER_TAG:-latest}
     - DOCKER_REPO=${GRANDINE_DOCKER_REPO:-sifrai/grandine}
 
-
 services:
-  execution:
-    ports:
-      # Grandine consensus P2P ports
-      - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp"
-      - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp"
-    environment:
-      - CL_NODE_TYPE=${CL_NODE_TYPE:-pruned}
-      - CL_EXTRAS=${CL_EXTRAS:-}
-      - WEB3SIGNER=${WEB3SIGNER:-false}
-      - W3S_NODE=${W3S_NODE}
-      - CHECKPOINT_SYNC_URL=${CHECKPOINT_SYNC_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - MEV_BOOST=${MEV_BOOST}
-      - EPBS_BUILD_FACTOR=${EPBS_BUILD_FACTOR}
-      - MEV_NODE=${MEV_NODE}
-      - BEACON_STATS_API=${BEACON_STATS_API}
-      - BEACON_STATS_MACHINE=${BEACON_STATS_MACHINE}
-      - VC_EXTRAS=${VC_EXTRAS:-}
-      - GRAFFITI=${GRAFFITI:-}
-      - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
-      - DOPPELGANGER=${DOPPELGANGER:-false}
-      - IPV6=${IPV6:-false}
-      - CL_P2P_PORT=${CL_P2P_PORT:-9000}
-      - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}
-      - CL_REST_PORT=${CL_REST_PORT:-5052}
-      - CL_MAX_PEER_COUNT=${CL_MAX_PEER_COUNT:-}
-      - FEE_RECIPIENT=${FEE_RECIPIENT:-}
-      - KEY_API_PORT=${KEY_API_PORT:-}
-      - EMBEDDED_VC=false
-      - RUST_LOG=${LOG_LEVEL:-info}
-    volumes:
-      - grandineconsensus-data:/var/lib/grandine
-# No metrics scrape at present via labels.
-# Create an extra scrape target for execution:8008 in prometheus/conf.d
-
-  wipe-cl-db:
-    profiles: ["tools"]
-    restart: "no"
-    image: alpine:3
-    user: "10001"
+  consensus:
+    restart: "unless-stopped"
+    build:
+      <<: *gr-build
+    image: grandine:local
+    pull_policy: never
+    user: gdconsensus
+    stop_grace_period: 1m
     volumes:
       - grandineconsensus-data:/var/lib/grandine
       - /etc/localtime:/etc/localtime:ro
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        rm -rf /var/lib/grandine/${NETWORK}/beacon/*
+      - jwtsecret:/var/lib/grandine/ee-secret
+    environment:
+      - CHECKPOINT_SYNC_URL=${CHECKPOINT_SYNC_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - MEV_BOOST=${MEV_BOOST}
+      - MEV_NODE=${MEV_NODE}
+      - BEACON_STATS_API=${BEACON_STATS_API}
+      - BEACON_STATS_MACHINE=${BEACON_STATS_MACHINE}
+      - CL_EXTRAS=${CL_EXTRAS:-}
+      - EMBEDDED_VC=false
+      - VC_EXTRAS=
+      - WEB3SIGNER=false
+      - DOPPELGANGER=false
+      - GRAFFITI=
+      - DEFAULT_GRAFFITI=true
+      - NODE_TYPE=${CL_NODE_TYPE:-pruned}
+      - IPV6=${IPV6:-false}
+      - CL_P2P_PORT=${CL_P2P_PORT:-9000}
+      - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}
+      - NETWORK=${NETWORK}
+      - COMPOSE_FILE=${COMPOSE_FILE}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - RUST_LOG=${LOG_LEVEL:-info}
+    ports:
+      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
+      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
+      - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp
+    networks:
+      default:
+        aliases:
+          - eth2
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${CL_ALIAS:-default-consensus}
+    <<: *logging
+    entrypoint:
+      - docker-entrypoint.sh
+      - grandine
+      - bn
+      - --disable-upnp
+      - --data-dir
+      - /var/lib/grandine
+      - --http-address
+      - 0.0.0.0
+      - --http-port
+      - ${CL_REST_PORT:-5052}
+      - --http-allowed-origins=*
+      - --listen-address
+      - 0.0.0.0
+      - --libp2p-port
+      - ${CL_P2P_PORT:-9000}
+      - --discovery-port
+      - ${CL_P2P_PORT:-9000}
+      - --quic-port
+      - ${CL_QUIC_PORT:-9001}
+      - ${CL_MAX_PEER_COUNT:+--target-peers}
+      - ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}
+      - --eth1-rpc-urls
+      - ${EL_NODE}
+      - --jwt-secret
+      - /var/lib/grandine/ee-secret/jwtsecret
+      - --metrics
+      - --metrics-address
+      - 0.0.0.0
+      - --metrics-port
+      - "8008"
+      - --suggested-fee-recipient
+      - ${FEE_RECIPIENT}
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=8008
+      - metrics.instance=consensus
+      - metrics.network=${NETWORK}
+      - logs.collect=true
 
   validator:
     restart: "unless-stopped"
@@ -166,3 +202,8 @@ services:
 volumes:
   grandineconsensus-data:
   grandinevalidator-data:
+  jwtsecret:
+
+networks:
+  default:
+    enable_ipv6: ${IPV6:-false}
