@@ -6,6 +6,11 @@ if [[ "$(id -u)" -eq 0 ]]; then
   exec gosu gdconsensus docker-entrypoint.sh "$@"
 fi
 
+if [[ "${IPV6:-false}" = "true" && -n "${HOST_IP:-}" && "${HOST_IP}" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+  echo "WARNING: IPV6 is true, but HOST_IP is set to the IPv4 address ${HOST_IP}."
+  echo "IPv6 traffic should work outbound, but cannot work inbound, as P2P ports are only published on ${HOST_IP}."
+fi
+
 
 # Because we're oh-so-clever with + substitution and maxpeers, we may have empty args. Remove them
 __strip_empty_args() {

@@ -30,6 +30,8 @@ services:
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - NETWORK=${NETWORK}
       - ERE_URL=${ERE_URL:-}
+      - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
     volumes:
       - nimbus-el-data:/var/lib/nimbus
       - /etc/localtime:/etc/localtime:ro

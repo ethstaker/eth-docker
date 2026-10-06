@@ -28,6 +28,7 @@ services:
       - CL_NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
       - COMPOSE_FILE=${COMPOSE_FILE}
       - CL_P2P_PORT=${CL_P2P_PORT:-9000}
       - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}

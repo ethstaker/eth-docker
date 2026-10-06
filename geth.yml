@@ -30,6 +30,7 @@ services:
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
       - ANCIENT_DIR=${ANCIENT_DIR:-}
       - ERE_URL=${ERE_URL:-}
       - COMPOSE_FILE=${COMPOSE_FILE}

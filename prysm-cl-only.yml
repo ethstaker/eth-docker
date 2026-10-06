@@ -41,6 +41,8 @@ services:
       - CL_EXTRAS=${CL_EXTRAS:-}
       - NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - NETWORK=${NETWORK}
+      - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
     ports:
       - ${HOST_IP:-}:${PRYSM_PORT}:${PRYSM_PORT}/tcp
       - ${HOST_IP:-}:${PRYSM_UDP_PORT}:${PRYSM_UDP_PORT}/udp

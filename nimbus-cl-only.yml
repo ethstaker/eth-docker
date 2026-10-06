@@ -49,6 +49,8 @@ services:
       - DEFAULT_GRAFFITI=true
       - WEB3SIGNER=false
       - EMBEDDED_VC=false
+      - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
     ports:
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp

@@ -35,6 +35,8 @@ services:
       - CHECKPOINT_SYNC_URL=${CHECKPOINT_SYNC_URL}
       - ERE_URL=${ERE_URL:-}
       - ERC_URL=${ERC_URL:-}
+      - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
     volumes:
       - nimbus-unified-data:/var/lib/nimbus
       - /etc/localtime:/etc/localtime:ro

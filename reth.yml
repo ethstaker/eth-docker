@@ -31,6 +31,7 @@ services:
       - STATIC_DIR=${ANCIENT_DIR}
       - COMPOSE_FILE=${COMPOSE_FILE}
       - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
       - EL_P2P_PORT=${EL_P2P_PORT:-30303}
       - RETH_SNAPSHOT=${RETH_SNAPSHOT:-}
       - ERE_URL=${ERE_URL:-}

@@ -28,6 +28,7 @@ services:
       - NODE_TYPE=${EL_NODE_TYPE:-pre-merge-expiry}
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
       - EL_P2P_PORT=${EL_P2P_PORT:-30303}
       - ERE_URL=${ERE_URL}
       - COMPOSE_FILE=${COMPOSE_FILE}

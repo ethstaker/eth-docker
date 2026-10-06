@@ -47,6 +47,7 @@ services:
       - WEB3SIGNER=false
       - NETWORK=${NETWORK}
       - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
       - CL_IPV6_P2P_PORT=${CL_IPV6_P2P_PORT:-9010}
       - CL_IPV6_QUIC_PORT=${CL_IPV6_QUIC_PORT:-9011}
     ports:

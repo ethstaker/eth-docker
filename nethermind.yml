@@ -31,6 +31,8 @@ services:
       - AUTOPRUNE_NM=${AUTOPRUNE_NM:-true}
       - NETWORK=${NETWORK}
       - ERE_URL=${ERE_URL:-}
+      - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
       # For Grandine plugin
       - COMPOSE_FILE=${COMPOSE_FILE}
       - LOG_LEVEL=${LOG_LEVEL}

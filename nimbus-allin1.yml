@@ -61,6 +61,8 @@ services:
       - W3S_NODE=${W3S_NODE}
       - EMBEDDED_VC=true
       - ENABLE_DIST_ATTESTATION_AGGR=${ENABLE_DIST_ATTESTATION_AGGR:-false}
+      - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
     ports:
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp
       - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
