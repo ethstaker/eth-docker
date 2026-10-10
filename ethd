@@ -38,24 +38,22 @@ __os_major_version=""
 __os_minor_version=""
 __eol_os=0
 __non_interactive=0
-__debug=0
-__found=0
+__debug=0  # Set by update from --debug or --trace, read by __migrate_env
 __env_file=.env
 __during_config=0
 __during_update=0
 __during_postgres=0
 __during_env_migrate=0
 __during_pg_migrate=0
-__env_migrated=0
+__env_migrated=0  # Set by __migrate_env, read by update
 __pg_migrated=0
-__keep_targets=1
-__target_ver=1
-__source_ver=1
-__minty_fresh=0
-__network_change=0
+__keep_targets=1  # Set by update from --refresh-targets, read by __migrate_env
+__source_ver=1  # .env version before migration. Set by __migrate_env, read by update and __migrate_alloy_obol
+__minty_fresh=0  # 1 when config created a new .env. Set by config, read by its __query_* steps
+__network_change=0  # Set by __query_network, read by the __query_* steps of config that follow it
 __handler_ran=0
 __lock_file=""
-__deployment=""
+__deployment=""  # Set by __query_deployment, read by config and its __query_* steps
 __write_vars=()
 __command=""
 __params=""
@@ -68,11 +66,10 @@ __new_owner=""
 __owner=""
 __owner_group=""
 __group_can_write=0
-__value=""  # This is a global to hand a result back from __get_value_from_env
-__free_space=0
+__free_space=0  # Free space for Docker volumes. Set by __get_docker_free_space, read by its callers
 __docker_dir="/var/lib/docker"
-__keys_args=""
-__builder_args=()
+__keys_args=""  # Set by __prep-keyimport, read by keys
+__builder_args=()  # This and __keys_tty are set by __prep-builder-args, read by keys
 __keys_tty=""
 __no_warnings=0  # 1 skips the warnings after the command, for machine-readable output
 __final_msg=""
@@ -145,8 +142,7 @@ __get_compose_project_name() {
 
   name="${COMPOSE_PROJECT_NAME:-}"
   if [[ -z "${name}" && -f "${__env_file}" ]]; then
-    __get_value_from_env "COMPOSE_PROJECT_NAME" "${__env_file}" "__value"
-    name="${__value}"
+    __get_value_from_env "COMPOSE_PROJECT_NAME" "${__env_file}" "name"
   fi
   if [[ -z "${name}" ]]; then
     name="$(basename "$(realpath .)")"
@@ -326,6 +322,7 @@ __handle_docker() {
   local message
   local use_podman=0
   local use_docker=0
+  local value
 
   if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
     set +e
@@ -345,8 +342,8 @@ __handle_docker() {
       echo "Both Docker and Podman are installed"
       echo "Guessing at user preference by \"DOCKER_SOCK\" in \".env\" and status of service podman.socket"
       var=DOCKER_SOCK
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" =~ podman.sock ]] || systemctl --user status podman.socket >/dev/null 2>&1 || systemctl status podman.socket >/dev/null 2>&1; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" =~ podman.sock ]] || systemctl --user status podman.socket >/dev/null 2>&1 || systemctl status podman.socket >/dev/null 2>&1; then
         echo "Preferring Podman"
         echo
         use_docker=0
@@ -410,14 +407,14 @@ __handle_docker() {
         LOG_TAG="'{{.ImageName}}|{{.Name}}|{{.ID}}'"
       fi
       var=LOG_DRIVER
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" =~ ^(json-file|journald)$ ]]; then  # Leave user overrides alone
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" =~ ^(json-file|journald)$ ]]; then  # Leave user overrides alone
         __update_value_in_env "${var}" "${!var}" "${__env_file}"
       fi
       var=LOG_TAG
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "'{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'" || \
-            "${__value}" = "'{{.ImageName}}|{{.Name}}|{{.ID}}'" ]]; then  # Leave user overrides alone
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "'{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'" || \
+            "${value}" = "'{{.ImageName}}|{{.Name}}|{{.ID}}'" ]]; then  # Leave user overrides alone
         __update_value_in_env "${var}" "${!var}" "${__env_file}"
       fi
     fi
@@ -467,8 +464,8 @@ __handle_docker() {
       DOCKER_ROOT=$(__dodocker system info --format '{{.DockerRootDir}}')
     fi
     var=DOCKER_ROOT
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    if [[ "${DOCKER_ROOT}" != "${__value}" ]]; then
+    __get_value_from_env "${var}" "${__env_file}" "value"
+    if [[ "${DOCKER_ROOT}" != "${value}" ]]; then
       __update_value_in_env "${var}" "${!var}" "${__env_file}"
     fi
 
@@ -480,8 +477,8 @@ __handle_docker() {
       DOCKER_ROOT_MOUNTPOINT=$(df --output=target "${DOCKER_ROOT}" | tail -1)
     fi
     var=DOCKER_ROOT_MOUNTPOINT
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    if [[ "${DOCKER_ROOT_MOUNTPOINT}" != "${__value}" ]]; then
+    __get_value_from_env "${var}" "${__env_file}" "value"
+    if [[ "${DOCKER_ROOT_MOUNTPOINT}" != "${value}" ]]; then
       __update_value_in_env "${var}" "${!var}" "${__env_file}"
     fi
 
@@ -504,19 +501,19 @@ __handle_docker() {
       fi
     fi
     var=DOCKER_SOCK
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    if [[ "${DOCKER_SOCK}" != "${__value}" ]]; then
+    __get_value_from_env "${var}" "${__env_file}" "value"
+    if [[ "${DOCKER_SOCK}" != "${value}" ]]; then
       __update_value_in_env "${var}" "${!var}" "${__env_file}"
     fi
 
     var=NODE_EXPORTER_IGNORE_MOUNT_REGEX
-    __get_value_from_env "${var}" "${__env_file}" "__value"
+    __get_value_from_env "${var}" "${__env_file}" "value"
 # Match either of the patterns Eth Docker uses. Leave alone if there are user changes to the var
 # Match literal `'^/(dev|proc|sys|run|some/path/.+)($|/)'` or `'^/(dev|proc|sys|run|var/snap/.+|some/path/.+)($|/)'
     regex="^'\^\/\(dev\|proc\|sys\|run\|(var\/snap\/\.\+\|)?[a-zA-Z/]+\/\.\+\)\(\\$\|\/\)'$"
-    if [[ "${__value}" =~ ${regex} ]]; then
+    if [[ "${value}" =~ ${regex} ]]; then
       NODE_EXPORTER_IGNORE_MOUNT_REGEX="'^/(dev|proc|sys|run|var/snap/.+|${DOCKER_ROOT#/}/.+)($|/)'"
-      if [[ "${NODE_EXPORTER_IGNORE_MOUNT_REGEX}" != "${__value}" ]]; then
+      if [[ "${NODE_EXPORTER_IGNORE_MOUNT_REGEX}" != "${value}" ]]; then
         __update_value_in_env "${var}" "${!var}" "${__env_file}"
       fi
     fi
@@ -939,6 +936,7 @@ __check_compose_version() {
 
 
 __check_traefik_version() {
+  local var
   local traefik_major
   local traefik_minor
   local traefik_patch
@@ -1506,6 +1504,7 @@ __display_docker_volumes() {
 
 space() {
   local var
+  local ancient_dir
 
   __get_docker_free_space
   echo
@@ -1519,13 +1518,13 @@ space() {
   __display_docker_volumes
 
   var=ANCIENT_DIR
-  __get_value_from_env "${var}" "${__env_file}" "ANCIENT_DIR"
-  if [[ -n "${ANCIENT_DIR}" ]]; then
+  __get_value_from_env "${var}" "${__env_file}" "ancient_dir"
+  if [[ -n "${ancient_dir}" ]]; then
     echo
     if [[ "${__cannot_sudo}" -eq 0 ]]; then
-      ${__auto_sudo} du -sh "${ANCIENT_DIR}"
+      ${__auto_sudo} du -sh "${ancient_dir}"
     else
-      echo "Your user cannot sudo. ${__project_name} cannot show the size of ${ANCIENT_DIR}."
+      echo "Your user cannot sudo. ${__project_name} cannot show the size of ${ancient_dir}."
     fi
   fi
 }
@@ -1534,42 +1533,52 @@ space() {
 # Call with a Beacon API path and the names of two variables to receive the response body and
 # the route that worked, the latter empty on failure. Returns non-zero when the call failed.
 __cl_api_query() {
-  local path="$1"
-  local out_body="$2"
-  local out_via="$3"
-  local url="http://localhost:${__cl_rest_port}${path}"
-  local body=""
-  local via=""
-  local errexit=0
-  local exitstatus
-  local network_name
-  local cl_host
+  local _path="$1"
+  local _out_body="$2"
+  local _out_via="$3"
+  local _url="http://localhost:${__cl_rest_port}${_path}"
+  local _body=""
+  local _via=""
+  local _errexit=0
+  local _exitstatus
+  local _network_name
+  local _cl_host
+  local _out_name
+
+  # Locals are "_name" because "printf -v" assigns by name - see CONTRIBUTING.md
+  for _out_name in "${_out_body}" "${_out_via}"; do
+    if [[ "${_out_name}" =~ ^(_path|_out_body|_out_via|_url|_body|_via|_errexit|_exitstatus|_network_name|_cl_host|_out_name)$ ]]; then
+      echo "__cl_api_query was called with a conflicting output variable: ${_out_name}"
+      echo "This is a bug."
+      exit 70
+    fi
+  done
 
   # Not every client image ships both wget and curl, so try either one
-  [[ "$-" =~ e ]] && errexit=1
+  [[ "$-" =~ e ]] && _errexit=1
   set +e
-  via="docker compose exec ${__cl_service}"
-  body=$(__docompose exec -T "${__cl_service}" sh -c \
-    "wget -qO- '${url}' 2>/dev/null || curl -sf '${url}'" 2>/dev/null)
-  exitstatus=$?
-  if [[ "${exitstatus}" -ne 0 ]]; then
+  _via="docker compose exec ${__cl_service}"
+  _body=$(__docompose exec -T "${__cl_service}" sh -c \
+    "wget -qO- '${_url}' 2>/dev/null || curl -sf '${_url}'" 2>/dev/null)
+  _exitstatus=$?
+  if [[ "${_exitstatus}" -ne 0 ]]; then
     # Some images, such as Lodestar's, ship neither. Fall back to a throwaway
     # container with curl, on the stack's own network, reaching the client by
     # its CL_ALIAS/EL_ALIAS network alias instead of localhost.
     __ensure_vc_utils_image
-    network_name=$(__compose_network_name)
-    cl_host="${__cl_alias}"
-    [[ "${__cl_service}" = "execution" ]] && cl_host="${__el_alias}"
-    via="throwaway container on ${network_name}, reaching ${cl_host}"
-    body=$(__dodocker run --rm --network "${network_name}" \
-      vc-utils:local curl -sf -m 10 "http://${cl_host}:${__cl_rest_port}${path}" 2>/dev/null)
-    exitstatus=$?
+    _network_name=$(__compose_network_name)
+    _cl_host="${__cl_alias}"
+    [[ "${__cl_service}" = "execution" ]] && _cl_host="${__el_alias}"
+    _via="throwaway container on ${_network_name}, reaching ${_cl_host}"
+    _body=$(__dodocker run --rm --network "${_network_name}" \
+      vc-utils:local curl -sf -m 10 "http://${_cl_host}:${__cl_rest_port}${_path}" 2>/dev/null)
+    _exitstatus=$?
   fi
-  [[ "${exitstatus}" -ne 0 ]] && via=""
-  printf -v "${out_body}" '%s' "${body}"
-  printf -v "${out_via}" '%s' "${via}"
-  [[ "${errexit}" -eq 1 ]] && set -e
-  return "${exitstatus}"
+  [[ "${_exitstatus}" -ne 0 ]] && _via=""
+  printf -v "${_out_body}" '%s' "${_body}"
+  printf -v "${_out_via}" '%s' "${_via}"
+  [[ "${_errexit}" -eq 1 ]] && set -e
+  return "${_exitstatus}"
 }
 
 
@@ -1921,33 +1930,41 @@ __host_has_v6() {
 # for either one it cannot learn. Linux answers both from "ip route get"; macOS has no "ip", and
 # its "route -n get" names the interface rather than the address, so that takes a second call.
 __host_route_v4() {
-  local out_src="$1"
-  local out_gateway="$2"
-  # Underscored, because "printf -v" assigns by name: a local here that shares a name with the
-  # caller's output variable would be the one written to, and the caller would get nothing back
-  local __route=""
-  local __src=""
-  local __gateway=""
-  local __interface
+  local _out_src="$1"
+  local _out_gateway="$2"
+  local _route_info=""
+  local _src_addr=""
+  local _gateway_addr=""
+  local _interface_name
+  local _out_name
+
+  # Locals are "_name" because "printf -v" assigns by name - see CONTRIBUTING.md
+  for _out_name in "${_out_src}" "${_out_gateway}"; do
+    if [[ "${_out_name}" =~ ^(_out_src|_out_gateway|_route_info|_src_addr|_gateway_addr|_interface_name|_out_name)$ ]]; then
+      echo "__host_route_v4 was called with a conflicting output variable: ${_out_name}"
+      echo "This is a bug."
+      exit 70
+    fi
+  done
 
   if [[ "$OSTYPE" = "darwin"* ]]; then
     if type -P route >/dev/null 2>&1; then
-      __route=$(route -n get 1.1.1.1 2>/dev/null) || __route=""
+      _route_info=$(route -n get 1.1.1.1 2>/dev/null) || _route_info=""
     fi
-    __gateway=$(sed -n 's/^[[:space:]]*gateway:[[:space:]]*\([^ ]*\).*/\1/p' <<< "${__route}")
-    __interface=$(sed -n 's/^[[:space:]]*interface:[[:space:]]*\([^ ]*\).*/\1/p' <<< "${__route}")
-    if [[ -n "${__interface}" ]] && type -P ipconfig >/dev/null 2>&1; then
-      __src=$(ipconfig getifaddr "${__interface}" 2>/dev/null) || __src=""
+    _gateway_addr=$(sed -n 's/^[[:space:]]*gateway:[[:space:]]*\([^ ]*\).*/\1/p' <<< "${_route_info}")
+    _interface_name=$(sed -n 's/^[[:space:]]*interface:[[:space:]]*\([^ ]*\).*/\1/p' <<< "${_route_info}")
+    if [[ -n "${_interface_name}" ]] && type -P ipconfig >/dev/null 2>&1; then
+      _src_addr=$(ipconfig getifaddr "${_interface_name}" 2>/dev/null) || _src_addr=""
     fi
   else
     if type -P ip >/dev/null 2>&1; then
-      __route=$(ip -4 route get 1.1.1.1 2>/dev/null) || __route=""
+      _route_info=$(ip -4 route get 1.1.1.1 2>/dev/null) || _route_info=""
     fi
-    __src=$(sed -n 's/.*src \([^ ]*\).*/\1/p' <<< "${__route}")
-    __gateway=$(sed -n 's/.*via \([^ ]*\).*/\1/p' <<< "${__route}")
+    _src_addr=$(sed -n 's/.*src \([^ ]*\).*/\1/p' <<< "${_route_info}")
+    _gateway_addr=$(sed -n 's/.*via \([^ ]*\).*/\1/p' <<< "${_route_info}")
   fi
-  printf -v "${out_src}" '%s' "${__src}"
-  printf -v "${out_gateway}" '%s' "${__gateway}"
+  printf -v "${_out_src}" '%s' "${_src_addr}"
+  printf -v "${_out_gateway}" '%s' "${_gateway_addr}"
 }
 
 
@@ -2443,9 +2460,13 @@ __display_docker_space() {
 # This runs after any ethd command: It is safe to assign to uppercase vars
 __check_disk_space() {
   local low=0
-  min_free=314572800
-  min_gib=300
-  safe_prune=250
+  local var
+  local min_free=314572800
+  local min_gib=300
+  local safe_prune=250
+  local autoprune_nm
+  local network
+  local el_node_type
 
   __get_docker_free_space
 
@@ -2459,15 +2480,14 @@ __check_disk_space() {
     return 0
   fi
 
-  __value="${COMPOSE_FILE}"
   var="AUTOPRUNE_NM"
-  __get_value_from_env "${var}" "${__env_file}" "${var}"
+  __get_value_from_env "${var}" "${__env_file}" "autoprune_nm"
   var="NETWORK"
-  __get_value_from_env "${var}" "${__env_file}" "${var}"
+  __get_value_from_env "${var}" "${__env_file}" "network"
   var="EL_NODE_TYPE"
-  __get_value_from_env "${var}" "${__env_file}" "${var}"
+  __get_value_from_env "${var}" "${__env_file}" "el_node_type"
 
-  if [[ "${NETWORK}" =~ ^(mainnet|gnosis)$ ]]; then
+  if [[ "${network}" =~ ^(mainnet|gnosis)$ ]]; then
     min_free=314572800
     min_gib=300
     safe_prune=250
@@ -2477,12 +2497,11 @@ __check_disk_space() {
     safe_prune=25
   fi
 
-  if [[ "${__value}" =~ nethermind\.yml && "${__free_space}" -lt "${min_free}" ]]; then
+  if [[ "${COMPOSE_FILE}" =~ nethermind\.yml && "${__free_space}" -lt "${min_free}" ]]; then
     low=1
     echo
     echo "You are running Nethermind and have less than ${min_gib} GiB of free disk space."
-# shellcheck disable=SC2154
-    if [[ "${AUTOPRUNE_NM}" = true ]]; then
+    if [[ "${autoprune_nm}" = true ]]; then
       echo "It should currently be auto-pruning, check logs with \"${__me} logs -f --tail 500 execution | grep \
 Full\". Free space:"
     else
@@ -2490,14 +2509,14 @@ Full\". Free space:"
     fi
     echo
     __display_docker_space
-  elif [[ "${__value}" =~ geth\.yml && "${__free_space}" -lt 104857600 ]]; then
+  elif [[ "${COMPOSE_FILE}" =~ geth\.yml && "${__free_space}" -lt 104857600 ]]; then
     low=1
     echo
     echo "You are running Geth and have less than 100 GiB of free disk space."
     echo "You may resync from scratch to use PBSS and slow on-disk DB growth, with \"${__me} resync-execution\"."
     echo
     __display_docker_space
-  elif [[ "${__value}" =~ besu\.yml && "${__free_space}" -lt 52428800 ]]; then
+  elif [[ "${COMPOSE_FILE}" =~ besu\.yml && "${__free_space}" -lt 52428800 ]]; then
     low=1
     echo
     echo "You are running Besu and have less than 50 GiB of free disk space."
@@ -2513,9 +2532,8 @@ Full\". Free space:"
     __display_docker_space
   fi
 
-  if [[ "${low}" -eq 1 && "${NETWORK}" = "mainnet" ]]; then
-#shellcheck disable=SC2154
-    if [[ "${EL_NODE_TYPE}" =~ expiry ]]; then
+  if [[ "${low}" -eq 1 && "${network}" = "mainnet" ]]; then
+    if [[ "${el_node_type}" =~ expiry ]]; then
       echo "You are already configured to expire execution layer history."
     else
       echo "You are not configured to expire execution layer history. You can free space with \"${__me} prune-history\"."
@@ -2528,12 +2546,15 @@ Full\". Free space:"
 # Check whether there's a source-built client and if so, force it with --no-cache
 # This is called after writing to .env; it is safe to assign to uppercase variables
 __source_build() {
+  local var
+  local value
+
   case "${COMPOSE_FILE}" in
     *deposit-cli.yml*)
       var="DEPCLI_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
+      __get_value_from_env "${var}" "${__env_file}" "value"
 # shellcheck disable=SC2154
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      if [[ "${value}" = "Dockerfile.source" ]]; then
         __docompose --profile tools build --pull --no-cache deposit-cli-new
       fi
       ;;
@@ -2541,9 +2562,9 @@ __source_build() {
   case "${COMPOSE_FILE}" in
     *web3signer.yml*)
       var="W3S_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
+      __get_value_from_env "${var}" "${__env_file}" "value"
 # shellcheck disable=SC2154
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      if [[ "${value}" = "Dockerfile.source" ]]; then
         __docompose build --pull --no-cache web3signer
       fi
       ;;
@@ -2551,8 +2572,8 @@ __source_build() {
   case "${COMPOSE_FILE}" in
     *mev-boost.yml*)
       var="MEV_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache mev-boost
       fi
       ;;
@@ -2560,50 +2581,50 @@ __source_build() {
   case "${COMPOSE_FILE}" in
     *reth.yml*)
       var="RETH_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *geth.yml*)
       var="GETH_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *besu.yml*)
       var="BESU_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *nethermind.yml*)
       var="NM_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *erigon.yml*)
       var="ERIGON_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *nimbus-el.yml*)
       var="NIMEL_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
     *ethrex.yml*)
       var="ETHREX_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache execution
       fi
       ;;
@@ -2611,50 +2632,50 @@ __source_build() {
   case "${COMPOSE_FILE}" in
     *lighthouse.yml*|*lighthouse-cl-only.yml*)
       var="LH_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *teku.yml*|*teku-allin1.yml*|*teku-cl-only.yml*)
       var="TEKU_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *lodestar.yml*|*lodestar-cl-only.yml*)
       var="LS_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *nimbus.yml*|*nimbus-allin1.yml*|*nimbus-cl-only.yml*)
       var="NIM_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *nimbus-unified.yml*)
       var="NIMUNIFIED_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile-unified.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile-unified.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *prysm.yml*|*prysm-cl-only.yml*)
       var="PRYSM_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
     *grandine.yml*| *grandine-allin1.yml*|*grandine-cl-only.yml*)
       var="GRANDINE_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
           __docompose build --pull --no-cache consensus
       fi
       ;;
@@ -2662,8 +2683,8 @@ __source_build() {
   case "${COMPOSE_FILE}" in
     *vero-vc-only.yml*)
       var="VERO_DOCKERFILE"
-      __get_value_from_env "${var}" "${__env_file}" "__value"
-      if [[ "${__value}" = "Dockerfile.source" ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
         __docompose build --pull --no-cache validator
       fi
       ;;
@@ -2673,13 +2694,15 @@ __source_build() {
 
 # Remove after Glamsterdam
 __migrate_alloy_obol() {
+  local var
   local prom_token
+  local value
 
   __get_compose_file
   if [[ "${__source_ver}" -lt 55 && "${COMPOSE_FILE}" =~ lido-obol-alloy.yml ]]; then
     var="OBOL_PROM_REMOTE_WRITE_TOKEN"
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    if [[ -z "${__value}" && -f ./prometheus/custom-prom.yml ]] && grep -q 'credentials:' ./prometheus/custom-prom.yml >/dev/null; then
+    __get_value_from_env "${var}" "${__env_file}" "value"
+    if [[ -z "${value}" && -f ./prometheus/custom-prom.yml ]] && grep -q 'credentials:' ./prometheus/custom-prom.yml >/dev/null; then
       echo "Migrating Lido Obol Promtail to Lido Obol Alloy"
       prom_token=$(awk -F': *' '/credentials:/ {gsub(/"/,"",$2); print $2; exit}' ./prometheus/custom-prom.yml)
       if [[ -z "${prom_token}" ]]; then
@@ -2695,79 +2718,89 @@ __migrate_alloy_obol() {
 }
 
 
-# When this gets called $var is CORE_FILES or CUSTOM_FILES and $__value is what is set in .env for it
-# This function rebuilds __value, applying any file name changes
+# Call with the CORE_FILES or CUSTOM_FILES value from .env, and the name of a variable to receive
+# that value rebuilt with any file name changes applied
 __migrate_compose_files() {
-  local ymlarray
-  local ymlfile
-  local n
-  local index
-  local network
+  local _compose_files="$1"
+  local _out_files="$2"
+  local _migrated=""
+  local _ymlarray
+  local _ymlfile
+  local _n
+  local _index
+  local _network
 
 # Some files have been renamed and others removed altogether
-  local from_yml=("lido-obol-promtail.yml" "prysm-web-shared.yml")
-  local to_yml=("lido-obol-alloy.yml" "")
+  local _from_yml=("lido-obol-promtail.yml" "prysm-web-shared.yml")
+  local _to_yml=("lido-obol-alloy.yml" "")
+
+  # Locals are "_name" because "printf -v" assigns by name - see CONTRIBUTING.md
+  if [[ "${_out_files}" =~ ^(_compose_files|_out_files|_migrated|_ymlarray|_ymlfile|_n|_index|_from_yml|_to_yml|_network)$ ]]; then
+    echo "__migrate_compose_files was called with a conflicting output variable: ${_out_files}"
+    echo "This is a bug."
+    exit 70
+  fi
 
   IFS=":"
   set -o noglob
 # Globbing is off
 # shellcheck disable=SC2206
-  ymlarray=(${__value})  # split+glob with glob disabled, and split using : as delimiter
+  _ymlarray=(${_compose_files})  # split+glob with glob disabled, and split using : as delimiter
   set +o noglob
 # Unset restores default
   unset IFS
 
-  __value=""
-  for n in "${!ymlarray[@]}"; do
-    ymlfile="${ymlarray[n]}"
-    for index in "${!from_yml[@]}"; do
-      if [[ "${from_yml[index]}" = "${ymlfile}" ]]; then
-        ymlfile=${to_yml[index]}
+  for _n in "${!_ymlarray[@]}"; do
+    _ymlfile="${_ymlarray[_n]}"
+    for _index in "${!_from_yml[@]}"; do
+      if [[ "${_from_yml[_index]}" = "${_ymlfile}" ]]; then
+        _ymlfile=${_to_yml[_index]}
         break
       fi
     done
-    if [[ -n "${ymlfile}" ]]; then
-      if [[ -z "${__value}" ]]; then
-        __value="${ymlfile}"
+    if [[ -n "${_ymlfile}" ]]; then
+      if [[ -z "${_migrated}" ]]; then
+        _migrated="${_ymlfile}"
       else
-        __value="${__value}:${ymlfile}"
+        _migrated="${_migrated}:${_ymlfile}"
       fi
     fi
   done
 
 # Remove after Hegotá
 # Adjust RIGHT after each network's Glamsterdam hardfork
-  __get_value_from_env "NETWORK" "${__env_file}.source" "network"
-  from_yml=("mev-boost.yml" "commit-boost-pbs.yml")
-  to_yml=("" "")
-  if [[ "${network}" =~ ^(sepolia)$ ]]; then
+  __get_value_from_env "NETWORK" "${__env_file}.source" "_network"
+  _from_yml=("mev-boost.yml" "commit-boost-pbs.yml")
+  _to_yml=("" "")
+  if [[ "${_network}" =~ ^(sepolia)$ ]]; then
     IFS=":"
     set -o noglob
 # Globbing is off
 # shellcheck disable=SC2206
-    ymlarray=(${__value})  # split+glob with glob disabled, and split using : as delimiter
+    _ymlarray=(${_migrated})  # split+glob with glob disabled, and split using : as delimiter
     set +o noglob
 # Unset restores default
     unset IFS
 
-    __value=""
-    for n in "${!ymlarray[@]}"; do
-      ymlfile="${ymlarray[n]}"
-      for index in "${!from_yml[@]}"; do
-        if [[ "${from_yml[index]}" = "${ymlfile}" ]]; then
-          ymlfile=${to_yml[index]}
+    _migrated=""
+    for _n in "${!_ymlarray[@]}"; do
+      _ymlfile="${_ymlarray[_n]}"
+      for _index in "${!_from_yml[@]}"; do
+        if [[ "${_from_yml[_index]}" = "${_ymlfile}" ]]; then
+          _ymlfile=${_to_yml[_index]}
           break
         fi
       done
-      if [[ -n "${ymlfile}" ]]; then
-        if [[ -z "${__value}" ]]; then
-          __value="${ymlfile}"
+      if [[ -n "${_ymlfile}" ]]; then
+        if [[ -z "${_migrated}" ]]; then
+          _migrated="${_ymlfile}"
         else
-          __value="${__value}:${ymlfile}"
+          _migrated="${_migrated}:${_ymlfile}"
         fi
       fi
     done
   fi
+  printf -v "${_out_files}" '%s' "${_migrated}"
 }
 
 
@@ -2780,8 +2813,7 @@ __upgrade_postgres() {
   local yn
 
 # Check for web3signer
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ web3signer\.yml ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ web3signer\.yml ]]; then
     return 0
   fi
 
@@ -2969,10 +3001,11 @@ __check_nethermind_flat() {
 # Remove RIGHT after Glamsterdam
 __check_mev_boost() {
   local var
+  local mev_boost
 
   var="MEV_BOOST"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "true" ]]; then
+  __get_value_from_env "${var}" "${__env_file}" "mev_boost"
+  if [[ "${mev_boost}" = "true" ]]; then
     __final_msg+="\nUpdate Eth Docker again after mainnet Glamsterdam hard fork, expected December 2026, to remove MEV Boost\n"
   fi
 }
@@ -2996,18 +3029,15 @@ __warn_mplex() {
     else
       var=CL_P2P_PORT
     fi
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    p2p_port="${__value}"
+    __get_value_from_env "${var}" "${__env_file}" "p2p_port"
     if [[ "${COMPOSE_FILE}" =~ prysm ]]; then
       var=PRYSM_UDP_PORT
     else
       var=CL_P2P_PORT
     fi
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    p2p_disc_port="${__value}"
+    __get_value_from_env "${var}" "${__env_file}" "p2p_disc_port"
     var=CL_QUIC_PORT
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    quic_port="${__value}"
+    __get_value_from_env "${var}" "${__env_file}" "quic_port"
 
     __final_msg+="\nNOTE: Sometime after Glamsterdam, likely Q1 2027, your Consensus Layer Client will drop use of its P2P TCP port and only use QUIC UDP."
     __final_msg+="\nEnsure that QUIC port ${quic_port} UDP is port-forwarded and allowed by your firewall. Use \"${__me} port-check\" to check incoming QUIC connections."
@@ -3020,8 +3050,7 @@ repair-reth() {
   local yn
 
 # Check for Reth
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ reth\.yml ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ reth\.yml ]]; then
     echo "You do not appear to be using Reth. Aborting"
     return 0
   fi
@@ -3048,8 +3077,7 @@ migrate-reth() {
   local yn
 
 # Check for Reth
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ reth\.yml ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ reth\.yml ]]; then
     echo "You do not appear to be using Reth. Aborting"
     return 0
   fi
@@ -3076,8 +3104,7 @@ migrate-geth() {
   local yn
 
 # Check for Geth
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ geth\.yml ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ geth\.yml ]]; then
     echo "You do not appear to be using Geth. Aborting"
     return 0
   fi
@@ -3147,32 +3174,36 @@ __detect_v6() {
 
 
 __get_value_from_env() {
-  # Call with variable name to read, env file name, and variable to assign the __value to.
-  # The output variable can be a global or a local of the caller (bash dynamic scoping)
-  # Also sets global __found
-  local var_name="$1"
-  local env_file="$2"
-  local output_var="$3"
-  local output
-  local parsed_value
-  local awk_exe
+  # Call with variable name to read, env file name, and variable to assign the value to.
+  # Optionally, add the name of a variable to set to 1 if the variable is in the env file, 0 if not.
+  # The output variables can be globals or locals of the caller (bash dynamic scoping)
+  local _var_name="$1"
+  local _env_file="$2"
+  local _output_var="$3"
+  local _found_var="${4:-}"
+  local _output
+  local _parsed_value
+  local _parsed_found
+  local _awk_exe
+  local _out_name
 
-  if [[ "${output_var}" = "parsed_value" || "${output_var}" = "output_var" \
-      || "${output_var}" = "output" || "${output_var}" = "env_file" \
-      || "${output_var}" = "var_name" || "${output_var}" = "awk_exe" ]]; then
-    echo "__get_value_from_env was called with a conflicting output variable: ${output_var}"
-    echo "This is a bug."
-    exit 70
-  fi
+  # Locals are "_name" because "printf -v" assigns by name - see CONTRIBUTING.md
+  for _out_name in "${_output_var}" "${_found_var}"; do
+    if [[ "${_out_name}" =~ ^(_parsed_value|_parsed_found|_output_var|_found_var|_output|_env_file|_var_name|_awk_exe|_out_name)$ ]]; then
+      echo "__get_value_from_env was called with a conflicting output variable: ${_out_name}"
+      echo "This is a bug."
+      exit 70
+    fi
+  done
 
   if [[ "$OSTYPE" = "darwin"* ]]; then
-    awk_exe="gawk"  # Built-in awk can't handle multi-line. Does require brew install gawk
+    _awk_exe="gawk"  # Built-in awk can't handle multi-line. Does require brew install gawk
   else
-    awk_exe="awk"
+    _awk_exe="awk"
   fi
 
 #shellcheck disable=SC2016
-  output=$(${awk_exe} -v var="${var_name}" '
+  _output=$(${_awk_exe} -v var="${_var_name}" '
     BEGIN { __found = 0; __value = "" }
 
     # Skip empty lines and comments
@@ -3255,17 +3286,20 @@ __get_value_from_env() {
       print "EOF"
       print "__found=" __found
     }
-  ' "${env_file}")
+  ' "${_env_file}")
 
   # Parse __value using here-doc style
 #shellcheck disable=SC2016
-  parsed_value=$(${awk_exe} '/^__value<<EOF$/ {getline; while ($0 != "EOF") { print; getline } }' <<< "${output}")
-  # Parse __found directly into a global variable
+  _parsed_value=$(${_awk_exe} '/^__value<<EOF$/ {getline; while ($0 != "EOF") { print; getline } }' <<< "${_output}")
+  # Parse __found, and hand it back only if the caller asked for it
 #shellcheck disable=SC2016
-  __found=$(${awk_exe} -F= '/^__found=/ {print $2}' <<< "${output}")
+  _parsed_found=$(${_awk_exe} -F= '/^__found=/ {print $2}' <<< "${_output}")
+  if [[ -n "${_found_var}" ]]; then
+    printf -v "${_found_var}" '%s' "${_parsed_found}"
+  fi
 
   # assign __value to caller’s variable
-  printf -v "${output_var}" '%s' "${parsed_value}"
+  printf -v "${_output_var}" '%s' "${_parsed_value}"
 }
 
 
@@ -3365,12 +3399,14 @@ __update_value_in_env() {
 # backup that still has a sane value. Runs against .env.source, so the migration picks it up.
 __repair_core_files() {
   local candidate
+  local found
   local repaired
   local good_value=""
   local good_file=""
+  local core_files
 
-  __get_value_from_env "CORE_FILES" "${__env_file}.source" "__value"
-  if [[ "${__found}" -eq 0 ]] || [[ "${__value}" != *'$'* && "${__value}" != *'{'* ]]; then
+  __get_value_from_env "CORE_FILES" "${__env_file}.source" "core_files" "found"
+  if [[ "${found}" -eq 0 ]] || [[ "${core_files}" != *'$'* && "${core_files}" != *'{'* ]]; then
     return 0
   fi
 
@@ -3379,8 +3415,8 @@ __repair_core_files() {
     if [[ ! -f "${candidate}" ]]; then
       continue
     fi
-    __get_value_from_env "CORE_FILES" "${candidate}" "repaired"
-    if [[ "${__found}" -eq 1 && -n "${repaired}" && "${repaired}" != *'$'* && "${repaired}" != *'{'* ]]; then
+    __get_value_from_env "CORE_FILES" "${candidate}" "repaired" "found"
+    if [[ "${found}" -eq 1 && -n "${repaired}" && "${repaired}" != *'$'* && "${repaired}" != *'{'* ]]; then
       good_value="${repaired}"
       good_file="${candidate}"
     fi
@@ -3490,6 +3526,20 @@ __migrate_env() {
   local var
   local varname
   local lido_network
+  local network
+  local mev_boost
+  local mev_relays
+  local value
+  local found
+  local target_ver
+  local siren_password
+  local nethermind_flatdb
+  local cl_p2p_port
+  local prysm_udp_port
+  local el_archive_node
+  local el_minimal_node
+  local cl_archive_node
+  local cl_minimal_node
 
   if [[ ! -f "${__env_file}" ]]; then
     return 0
@@ -3522,14 +3572,14 @@ __migrate_env() {
 
 # Always make sure we have a SIREN password
   var="SIREN_PASSWORD"
-  __get_value_from_env "${var}" "${__env_file}" "SIREN_PASSWORD"
-  if [[ -z "${SIREN_PASSWORD}" ]]; then
-    SIREN_PASSWORD=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
+  __get_value_from_env "${var}" "${__env_file}" "siren_password"
+  if [[ -z "${siren_password}" ]]; then
+    siren_password=$(head -c 8 /dev/urandom | od -A n -t u8 | tr -d '[:space:]' | sha256sum | head -c 32)
+    __update_value_in_env "${var}" "${siren_password}" "${__env_file}"
   fi
 
   var=ENV_VERSION
-  __get_value_from_env "${var}" "default.env" "__target_ver"
+  __get_value_from_env "${var}" "default.env" "target_ver"
   __get_value_from_env "${var}" "${__env_file}" "__source_ver"
 
 # An unreadable ENV_VERSION reads as an empty string, and "" is 0 in arithmetic tests. That would
@@ -3547,16 +3597,15 @@ __migrate_env() {
     __final_msg+="\nsuch as Ansible, or from a template in your own repository, make sure ENV_VERSION is kept.\n"
   fi
 
-# shellcheck disable=SC2154
-  if [[ "${__keep_targets}" -eq 1 && "${__target_ver}" -le "${__source_ver}" ]]; then  # No changes in template, do nothing
+  if [[ "${__keep_targets}" -eq 1 && "${target_ver}" -le "${__source_ver}" ]]; then  # No changes in template, do nothing
     return 0
   fi
 
   if [[ "${__keep_targets}" -eq 0 ]]; then
     echo "Refreshing build targets in ${__env_file}"
   fi
-  if [[ "${__target_ver}" -gt "${__source_ver}" ]]; then
-    echo "Migrating ${__env_file} to version ${__target_ver}"
+  if [[ "${target_ver}" -gt "${__source_ver}" ]]; then
+    echo "Migrating ${__env_file} to version ${target_ver}"
     echo "Note this is not an ${__project_name} version, it is an internal config file version"
   fi
 
@@ -3588,21 +3637,21 @@ __migrate_env() {
       continue
     fi
 
-    __get_value_from_env "${var}" "${__env_file}.source" "__value"
-    if [[ "${__found}" -eq 1 ]]; then  # Only if variable isn't new in default.env
+    __get_value_from_env "${var}" "${__env_file}.source" "value" "found"
+    if [[ "${found}" -eq 1 ]]; then  # Only if variable isn't new in default.env
       if [[ "${var}" = "CORE_FILES" || "${var}" = "CUSTOM_FILES" ]]; then
-        __migrate_compose_files
+        __migrate_compose_files "${value}" "value"
       fi
       # Remove after Glamsterdam
       # A pre-54 .env had no CORE_FILES and COMPOSE_FILE held the yml files. Only split it up when
       # it really looks like that - a version 54 or later COMPOSE_FILE refers to CORE_FILES, and
       # copying that into CORE_FILES makes it self-referential and loses the client choice.
       if [[ "${__source_ver}" -lt "54" && "${var}" = "COMPOSE_FILE" ]]; then
-        if [[ "${__value}" == *'$'* || "${__value}" == *'{'* ]]; then
+        if [[ "${value}" == *'$'* || "${value}" == *'{'* ]]; then
           echo "Warning: ENV_VERSION in ${__env_file} is ${__source_ver}, but COMPOSE_FILE already is"
           echo "in the version 54 or later format. Not deriving CORE_FILES from it."
           __final_msg+="\nWARNING: Your ${__env_file} had ENV_VERSION ${__source_ver} with a COMPOSE_FILE of"
-          __final_msg+="\n\"${__value}\", which is the format used from ENV_VERSION 54 onwards."
+          __final_msg+="\n\"${value}\", which is the format used from ENV_VERSION 54 onwards."
           __final_msg+="\n${__me} does not create that combination, so something else wrote your ${__env_file}."
           __final_msg+="\nPlease check ${__env_file} against default.env, and confirm CORE_FILES lists the yml"
           __final_msg+="\nfiles you expect - \"${__me} config\" will rebuild it for you if it does not."
@@ -3610,200 +3659,200 @@ __migrate_env() {
           __final_msg+="\nin your own repository, check that it keeps ENV_VERSION in step with the rest of the"
           __final_msg+="\nfile. A stale ENV_VERSION makes ${__me} re-run old migrations against a current file.\n"
         else
-          __migrate_compose_files  # There was no CORE_FILES to apply yml renames to, so apply them here
-          __update_value_in_env "CORE_FILES" "${__value}" "${__env_file}"
+          # There was no CORE_FILES to apply yml renames to, so apply them here
+          __migrate_compose_files "${value}" "value"
+          __update_value_in_env "CORE_FILES" "${value}" "${__env_file}"
         fi
 # shellcheck disable=SC2016
-        __value='${CORE_FILES}${CUSTOM_FILES:+:${CUSTOM_FILES}}'
+        value='${CORE_FILES}${CUSTOM_FILES:+:${CUSTOM_FILES}}'
       fi
       # Remove after Glamsterdam
-      if [[ "${var}" = "NODE_EXPORTER_COLLECTOR_MOUNT_PATH" && "${__value}" = "/dev/null" ]]; then
-        __value=""
+      if [[ "${var}" = "NODE_EXPORTER_COLLECTOR_MOUNT_PATH" && "${value}" = "/dev/null" ]]; then
+        value=""
       fi
       # Remove after Glamsterdam
-      if [[ "${var}" = "CHECKPOINT_SYNC_URL" && "${__value}" =~ ^https://beaconstate.info ]]; then
-        __value="https://sync-mainnet.beaconcha.in"
+      if [[ "${var}" = "CHECKPOINT_SYNC_URL" && "${value}" =~ ^https://beaconstate.info ]]; then
+        value="https://sync-mainnet.beaconcha.in"
       fi
       # Remove after Glamsterdam
-      if [[ "${var}" = "CHECKPOINT_SYNC_URL" && "${__value}" =~ ^https://hoodi.beaconstate.info ]]; then
-        __value="https://hoodi.checkpoint.sigp.io"
+      if [[ "${var}" = "CHECKPOINT_SYNC_URL" && "${value}" =~ ^https://hoodi.beaconstate.info ]]; then
+        value="https://hoodi.checkpoint.sigp.io"
       fi
       # Remove after Glamsterdam
-      if [[ "${var}" = "CHECKPOINT_SYNC_URL" && "${__value}" =~ ^https://sepolia.beaconstate.info ]]; then
-        __value="https://checkpoint-sync.sepolia.ethpandaops.io"
+      if [[ "${var}" = "CHECKPOINT_SYNC_URL" && "${value}" =~ ^https://sepolia.beaconstate.info ]]; then
+        value="https://checkpoint-sync.sepolia.ethpandaops.io"
       fi
       # Remove after Glamsterdam
       if [[ "${__source_ver}" -lt "69" && "${var}" = "VALIDATOR_EJECTOR_TAG" ]]; then
-        __get_value_from_env "${var}" "default.env" "__value"  # Older ejectors cannot verify EDF oracle reports
+        __get_value_from_env "${var}" "default.env" "value"  # Older ejectors cannot verify EDF oracle reports
       fi
       # Remove after Glamsterdam
-      if [[ "${__source_ver}" -lt "69" && "${var}" = "VE_ORACLE_ADDRESSES_ALLOWLIST" && -n "${__value}" ]]; then
+      if [[ "${__source_ver}" -lt "69" && "${var}" = "VE_ORACLE_ADDRESSES_ALLOWLIST" && -n "${value}" ]]; then
         __get_value_from_env "NETWORK" "${__env_file}.source" "lido_network"
         if [[ "${lido_network}" =~ ^(mainnet|hoodi)$ ]]; then
-          __value="$(__lido_oracle_allowlist "${lido_network}")"
+          value="$(__lido_oracle_allowlist "${lido_network}")"
         fi
       fi
       # Remove after Glamsterdam
-      if [[ "${__source_ver}" -lt "59" && "${var}" = "CL_NODE_TYPE" && "${__value}" = "archive"
+      if [[ "${__source_ver}" -lt "59" && "${var}" = "CL_NODE_TYPE" && "${value}" = "archive"
             && ${COMPOSE_FILE} =~ (prysm\.yml|prysm-cl-only\.yml|lighthouse\.yml|lighthouse-cl-only\.yml|lodestar\.yml|lodestar-cl-only\.yml|caplin\.yml) ]]; then
-        __value="blob-archive"
+        value="blob-archive"
       fi
       # Remove after Glamsterdam
       if [[ "${__source_ver}" -lt "65" && "${var}" = "EL_EXTRAS" && "${COMPOSE_FILE}" =~ nethermind\.yml ]]; then
-        if [[ -z "${__value}" ]]; then
-          __value="--LogIndex.Enabled true"
-        elif [[ ! "${__value}" =~ Logindex\.Enabled|logindex-enabled ]]; then
-          __value+=" --LogIndex.Enabled true"
+        if [[ -z "${value}" ]]; then
+          value="--LogIndex.Enabled true"
+        elif [[ ! "${value}" =~ Logindex\.Enabled|logindex-enabled ]]; then
+          value+=" --LogIndex.Enabled true"
         fi
       fi
       # Remove after Glamsterdam
       if [[ "${__source_ver}" -lt "71" && "${var}" = "EL_EXTRAS" && "${COMPOSE_FILE}" =~ nethermind\.yml ]]; then
-        __get_value_from_env "NETHERMIND_FLATDB" "${__env_file}.source" "NETHERMIND_FLATDB"
-        if [[ "${NETHERMIND_FLATDB}" = "flatintrie" ]]; then
-          if [[ -z "${__value}" ]]; then
-            __value="--FlatDb.Layout=FlatInTrie"
-          elif [[ ! "${__value}" =~ --FlatDb\.Layout|flatdb-layout ]]; then
-            __value+=" --FlatDb.Layout=FlatInTrie"
+        __get_value_from_env "NETHERMIND_FLATDB" "${__env_file}.source" "nethermind_flatdb"
+        if [[ "${nethermind_flatdb}" = "flatintrie" ]]; then
+          if [[ -z "${value}" ]]; then
+            value="--FlatDb.Layout=FlatInTrie"
+          elif [[ ! "${value}" =~ --FlatDb\.Layout|flatdb-layout ]]; then
+            value+=" --FlatDb.Layout=FlatInTrie"
           fi
         fi
       fi
       # Remove after Glamsterdam
-      if [[ "${__source_ver}" -lt "72" && "${var}" = "EPBS_BUILD_FACTOR" && "${__value}" =~ ^0*100$ ]]; then
-        __value="always"  # 100 used to mean "always", it now means "maxprofit"
+      if [[ "${__source_ver}" -lt "72" && "${var}" = "EPBS_BUILD_FACTOR" && "${value}" =~ ^0*100$ ]]; then
+        value="always"  # 100 used to mean "always", it now means "maxprofit"
       fi
       # Remove after Hegotá
       # Adjust RIGHT after each network's Glamsterdam hardfork
-      if [[ "${__source_ver}" -lt "73" && "${var}" = "MEV_BOOST" && "${__value}" = "true" ]]; then
-        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
-        if [[ "${NETWORK:-}" =~ ^(sepolia)$ ]]; then
-          __value=false
-          echo "Disabled MEV Boost on ${NETWORK}"
-          __final_msg+="\n${NETWORK} has gone through Glamsterdam hardfork. MEV Boost has been disabled. Use ePBS instead.\n"
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "MEV_BOOST" && "${value}" = "true" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "network"
+        if [[ "${network}" =~ ^(sepolia)$ ]]; then
+          value=false
+          echo "Disabled MEV Boost on ${network}"
+          __final_msg+="\n${network} has gone through Glamsterdam hardfork. MEV Boost has been disabled. Use ePBS instead.\n"
         fi
       fi
-      if [[ "${__source_ver}" -lt "73" && "${var}" = "MEV_RELAYS" && -n "${__value}" ]]; then
-        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
-        if [[ "${NETWORK:-}" =~ ^(sepolia)$ ]]; then
-          __value=""
-        fi
-      fi
-      # Adjust before each network's Glamsterdam hardfork, when builder URLs are known
-      if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDERS" && "${__value}" = "false" ]]; then
-        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
-        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
-        if [[ "${NETWORK:-}" =~ ^(sepolia)$ && "${MEV_BOOST}" = "true" ]]; then
-          __value=true
-          echo "Enabled ePBS on ${NETWORK}"
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "MEV_RELAYS" && -n "${value}" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "network"
+        if [[ "${network}" =~ ^(sepolia)$ ]]; then
+          value=""
         fi
       fi
       # Adjust before each network's Glamsterdam hardfork, when builder URLs are known
-      if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDER_URLS" && -z "${__value}" ]]; then
-        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
-        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
-        if [[ "${NETWORK:-}" =~ ^(sepolia)$ && "${MEV_BOOST}" = "true" ]]; then
-          __get_value_from_env "MEV_RELAYS" "${__env_file}.source" "MEV_RELAYS"
-          __value=$(__adjust_epbs_urls "${NETWORK}" "${MEV_RELAYS}")
-          echo "Set ePBS builder URLs on ${NETWORK}"
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDERS" && "${value}" = "false" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "network"
+        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "mev_boost"
+        if [[ "${network}" =~ ^(sepolia)$ && "${mev_boost}" = "true" ]]; then
+          value=true
+          echo "Enabled ePBS on ${network}"
+        fi
+      fi
+      # Adjust before each network's Glamsterdam hardfork, when builder URLs are known
+      if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDER_URLS" && -z "${value}" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "network"
+        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "mev_boost"
+        if [[ "${network}" =~ ^(sepolia)$ && "${mev_boost}" = "true" ]]; then
+          __get_value_from_env "MEV_RELAYS" "${__env_file}.source" "mev_relays"
+          value=$(__adjust_epbs_urls "${network}" "${mev_relays}")
+          echo "Set ePBS builder URLs on ${network}"
         fi
       fi
 
       if [[ "${var}" = "CL_QUIC_PORT" ]]; then
-        __get_value_from_env "CL_P2P_PORT" "${__env_file}.source" "CL_P2P_PORT"
-        if [[ -n "${CL_P2P_PORT}" && "${CL_P2P_PORT}" = "${__value}" ]]; then
-          __value=$((__value + 1))
-          echo "Adjusted CL_QUIC_PORT to ${__value} so it does not conflict with CL_P2P_PORT"
+        __get_value_from_env "CL_P2P_PORT" "${__env_file}.source" "cl_p2p_port"
+        if [[ -n "${cl_p2p_port}" && "${cl_p2p_port}" = "${value}" ]]; then
+          value=$((value + 1))
+          echo "Adjusted CL_QUIC_PORT to ${value} so it does not conflict with CL_P2P_PORT"
         fi
-        __get_value_from_env "PRYSM_UDP_PORT" "${__env_file}.source" "PRYSM_UDP_PORT"
-        if [[ -n "${PRYSM_UDP_PORT}" && "${PRYSM_UDP_PORT}" = "${__value}" ]]; then  # just in case this is one ahead
-          __value=$((__value + 1))
-          echo "Adjusted CL_QUIC_PORT to ${__value} so it does not conflict with PRYSM_UDP_PORT"
+        __get_value_from_env "PRYSM_UDP_PORT" "${__env_file}.source" "prysm_udp_port"
+        if [[ -n "${prysm_udp_port}" && "${prysm_udp_port}" = "${value}" ]]; then  # just in case this is one ahead
+          value=$((value + 1))
+          echo "Adjusted CL_QUIC_PORT to ${value} so it does not conflict with PRYSM_UDP_PORT"
         fi
       fi
 
       if [[ "${__keep_targets}" -eq 0 && "${var}" =~ (_TAG|_REPO|_TARGET|_DOCKERFILE)$ && ! "${var}" = "PG_DOCKER_TAG" ]]; then
-        __get_value_from_env "${var}" "default.env" "__value"  # Reset build target to default.env __value
+        __get_value_from_env "${var}" "default.env" "value"  # Reset build target to default.env value
       fi
-      __update_value_in_env "${var}" "${__value}" "${__env_file}"
+      __update_value_in_env "${var}" "${value}" "${__env_file}"
     else  # New variables, but they need to be adjusted
       # Remove after Glamsterdam
       if [[ "${__source_ver}" -lt "48" && "${var}" = "EL_NODE_TYPE" ]]; then
-        __get_value_from_env "EL_ARCHIVE_NODE" "${__env_file}.source" "EL_ARCHIVE_NODE"
-        if [[ "${EL_ARCHIVE_NODE}" = "true" ]]; then
-          __value=archive
+        __get_value_from_env "EL_ARCHIVE_NODE" "${__env_file}.source" "el_archive_node"
+        if [[ "${el_archive_node}" = "true" ]]; then
+          value=archive
         else
-          __get_value_from_env "EL_MINIMAL_NODE" "${__env_file}.source" "EL_MINIMAL_NODE"
-          case "${EL_MINIMAL_NODE}" in
-            true) __value=pre-merge-expiry;;
-            aggressive) __value=aggressive-expiry;;
-            rolling) __value=rolling-expiry;;
-            *) __value=full;;
+          __get_value_from_env "EL_MINIMAL_NODE" "${__env_file}.source" "el_minimal_node"
+          case "${el_minimal_node}" in
+            true) value=pre-merge-expiry;;
+            aggressive) value=aggressive-expiry;;
+            rolling) value=rolling-expiry;;
+            *) value=full;;
           esac
         fi
-        __update_value_in_env "${var}" "${__value}" "${__env_file}"
+        __update_value_in_env "${var}" "${value}" "${__env_file}"
       fi
       # Remove after Glamsterdam
       if [[ "${__source_ver}" -lt "48" && "${var}" = "CL_NODE_TYPE" ]]; then
-        __get_value_from_env "CL_ARCHIVE_NODE" "${__env_file}.source" "CL_ARCHIVE_NODE"
-        if [[ "${CL_ARCHIVE_NODE}" = "true" ]]; then
-          __value=archive
+        __get_value_from_env "CL_ARCHIVE_NODE" "${__env_file}.source" "cl_archive_node"
+        if [[ "${cl_archive_node}" = "true" ]]; then
+          value=archive
         else
-          __get_value_from_env "CL_MINIMAL_NODE" "${__env_file}.source" "CL_MINIMAL_NODE"
-          case "${CL_MINIMAL_NODE}" in
-            true) __value=pruned;;
-            *) __value=full;;
+          __get_value_from_env "CL_MINIMAL_NODE" "${__env_file}.source" "cl_minimal_node"
+          case "${cl_minimal_node}" in
+            true) value=pruned;;
+            *) value=full;;
           esac
         fi
-        __update_value_in_env "${var}" "${__value}" "${__env_file}"
+        __update_value_in_env "${var}" "${value}" "${__env_file}"
       fi
       # Remove after Glamsterdam
       # These could be new or existing; cover either case
       # Adjust RIGHT after each network's Glamsterdam hardfork
       if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDERS" ]]; then
-        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
-        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
-        if [[ "${NETWORK:-}" =~ ^(sepolia)$ && "${MEV_BOOST}" = "true" ]]; then
-          __value=true
-          echo "Enabled ePBS on ${NETWORK}"
-          __update_value_in_env "${var}" "${__value}" "${__env_file}"
+        __get_value_from_env "NETWORK" "${__env_file}.source" "network"
+        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "mev_boost"
+        if [[ "${network}" =~ ^(sepolia)$ && "${mev_boost}" = "true" ]]; then
+          value=true
+          echo "Enabled ePBS on ${network}"
+          __update_value_in_env "${var}" "${value}" "${__env_file}"
         fi
       fi
       if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDER_URLS" ]]; then
-        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
-        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
-        if [[ "${NETWORK:-}" =~ ^(sepolia)$ && "${MEV_BOOST}" = "true" ]]; then
-          __get_value_from_env "MEV_RELAYS" "${__env_file}.source" "MEV_RELAYS"
-          __value=$(__adjust_epbs_urls "${NETWORK}" "${MEV_RELAYS}")
-          echo "Set ePBS builder URLs on ${NETWORK}"
-          __update_value_in_env "${var}" "${__value}" "${__env_file}"
+        __get_value_from_env "NETWORK" "${__env_file}.source" "network"
+        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "mev_boost"
+        if [[ "${network}" =~ ^(sepolia)$ && "${mev_boost}" = "true" ]]; then
+          __get_value_from_env "MEV_RELAYS" "${__env_file}.source" "mev_relays"
+          value=$(__adjust_epbs_urls "${network}" "${mev_relays}")
+          echo "Set ePBS builder URLs on ${network}"
+          __update_value_in_env "${var}" "${value}" "${__env_file}"
         fi
       fi
     fi
   done < "./default.env"
 
-  # Move __value from old variable name(s) to new one(s)
+  # Move value from old variable name(s) to new one(s)
   for index in "${!old_vars[@]}"; do
     var=${old_vars[index]}
-    __get_value_from_env "${var}" "${__env_file}.source" "__value"
+    __get_value_from_env "${var}" "${__env_file}.source" "value" "found"
     # Remove after Glamsterdam
-    if [[ "${__source_ver}" -lt "67" && "${var}" = "CB_PBS_DOCKER_REPO" && ${__value} = "ghcr.io/commit-boost/pbs" ]]; then
-      __value="ghcr.io/commit-boost/commit-boost"
+    if [[ "${__source_ver}" -lt "67" && "${var}" = "CB_PBS_DOCKER_REPO" && ${value} = "ghcr.io/commit-boost/pbs" ]]; then
+      value="ghcr.io/commit-boost/commit-boost"
     fi
     # Remove after Glamsterdam
-    if [[ "${__source_ver}" -lt "72" && "${var}" = "MEV_BUILD_FACTOR" && "${__value}" =~ ^0*100$ ]]; then
-      __value="always"  # 100 used to mean "always", it now means "maxprofit"
+    if [[ "${__source_ver}" -lt "72" && "${var}" = "MEV_BUILD_FACTOR" && "${value}" =~ ^0*100$ ]]; then
+      value="always"  # 100 used to mean "always", it now means "maxprofit"
     fi
-    if [[ "${__found}" -eq 1 ]]; then
-      __update_value_in_env "${new_vars[index]}" "${__value}" "${__env_file}"
+    if [[ "${found}" -eq 1 ]]; then
+      __update_value_in_env "${new_vars[index]}" "${value}" "${__env_file}"
     fi
   done
 # Check whether we run a CL or VC, if so nag about FEE_RECIPIENT
-  __value="${COMPOSE_FILE}"
 # It's CL&VC, CL-only, or VC-only
-  if [[ "${__value}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-cl-only\.yml|-allin1\.yml|-vc-only\.yml) ]]; then
+  if [[ "${COMPOSE_FILE}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-cl-only\.yml|-allin1\.yml|-vc-only\.yml) ]]; then
     # Check for rewards
     var="FEE_RECIPIENT"
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    if [[ -z "${__value}" || ${__value} != 0x* || ${#__value} -ne 42 ]]; then
+    __get_value_from_env "${var}" "${__env_file}" "value"
+    if [[ -z "${value}" || ${value} != 0x* || ${#value} -ne 42 ]]; then
       if [[ "${__non_interactive}" -eq 0 ]]; then
         whiptail --msgbox "A fee recipient ETH wallet address is required in order to start the client. This is \
 for priority fees and, optionally, MEV. Please enter a valid ETH address in the next screen. Refer to \
@@ -4103,6 +4152,7 @@ __run_post_update_script() {
 # Arguments are passed, but shellcheck doesn't recognize that
 # shellcheck disable=SC2120
 update() {
+  local var
   local targetcli
   local script_dir
   local uniq_id
@@ -4116,6 +4166,9 @@ update() {
   local latest_tag
   local env_ts
   local tempo_ts  # Remove after Glamsterdam
+  local eth_docker_tag
+  local repo_free_space
+  local regex
 
   if [[ "$*" =~ --debug ]]; then
     __debug=1
@@ -4151,14 +4204,14 @@ update() {
     dirty=0
   fi
 
-  __free_space=$(df -P "$(pwd)" | awk '/[0-9]%/{print $(NF-2)}')
+  repo_free_space=$(df -P "$(pwd)" | awk '/[0-9]%/{print $(NF-2)}')
 
-  __regex='^[0-9]+$'
-  if [[ ! "${__free_space}" =~ ${__regex} ]] ; then
+  regex='^[0-9]+$'
+  if [[ ! "${repo_free_space}" =~ ${regex} ]] ; then
     echo "Unable to determine free disk space. This is likely a bug."
-    echo "df reports $(df -P "$(pwd)") and __free_space is ${__free_space}"
+    echo "df reports $(df -P "$(pwd)") and free space is ${repo_free_space}"
     exit 70
-  elif [[ "$(df -P "$(pwd)" | awk '/[0-9]%/{print $(NF-2)}')" -lt 1024 ]]; then
+  elif [[ "${repo_free_space}" -lt 1024 ]]; then
     echo "You have less than 1 MiB of space left on $(pwd)."
     echo "Aborting, as an update is not safe."
     exit 1
@@ -4257,8 +4310,8 @@ update() {
 
     set +e
     var="ETH_DOCKER_TAG"
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    if [[ -z "${__value}" || "${__value}" = "latest" ]]; then
+    __get_value_from_env "${var}" "${__env_file}" "eth_docker_tag"
+    if [[ -z "${eth_docker_tag}" || "${eth_docker_tag}" = "latest" ]]; then
       export ETHDPINNED=""
       branch=$(git rev-parse --abbrev-ref HEAD)
       if [[ "${branch}" =~ ^tag-* ]]; then
@@ -4266,7 +4319,7 @@ update() {
       fi
       ${__as_owner} git pull origin main
     else
-      if [[ "${__value}" = "stable" ]]; then
+      if [[ "${eth_docker_tag}" = "stable" ]]; then
         if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
           if ! dpkg-query -W -f='${Status}' curl 2>/dev/null | grep -q "ok installed" || ! dpkg-query -W -f='${Status}' jq 2>/dev/null | grep -q "ok installed"; then
             if [[ "${__cannot_sudo}" -eq 0 ]]; then
@@ -4288,11 +4341,11 @@ update() {
           echo "Try again later or change to a specific pinned tag for \"ETH_DOCKER_TAG\" in \".env\""
           exit 1
         fi
-        __value="${latest_tag}"
+        eth_docker_tag="${latest_tag}"
       fi
-      export ETHDPINNED="${__value}"
+      export ETHDPINNED="${eth_docker_tag}"
       ${__as_owner} git fetch --tags
-      ${__as_owner} git checkout -B "tag-${__value}" "tags/${__value}"
+      ${__as_owner} git checkout -B "tag-${eth_docker_tag}" "tags/${eth_docker_tag}"
     fi
     export GITEXITCODE=$?
     set -e
@@ -4505,15 +4558,16 @@ __verify_ancient_dir() {
 
 
 resync-execution() {
+  local var
   local el_volume
   local el_client
   local extra_msg
   local yn
+  local ancient_dir
 
 # Check for EL client
-  __value="${COMPOSE_FILE}"
 
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *erigon.yml*)
       el_volume='erigon-el-data'
       el_client="Erigon"
@@ -4597,10 +4651,10 @@ resync-execution() {
     fi
   fi
   var="ANCIENT_DIR"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if __verify_ancient_dir "${__value}"; then
-    echo "Removing contents of ancient/static directory ${__value}"
-    ${__auto_sudo} rm -rf "${__value%/}/"*
+  __get_value_from_env "${var}" "${__env_file}" "ancient_dir"
+  if __verify_ancient_dir "${ancient_dir}"; then
+    echo "Removing contents of ancient/static directory ${ancient_dir}"
+    ${__auto_sudo} rm -rf "${ancient_dir%/}/"*
   fi
   echo
   echo "${el_client} stopped and database deleted."
@@ -4611,14 +4665,15 @@ resync-execution() {
 
 
 resync-consensus() {
+  local var
   local cl_volume
   local cl_client
   local yn
+  local checkpoint_sync_url
 
   # Check for CL client
-  __value="${COMPOSE_FILE}"
 
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *lighthouse.yml*|*lighthouse-cl-only.yml*) cl_volume='lhconsensus-data'; cl_client="Lighthouse";;
     *teku-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Teku";;
     *teku.yml*|*teku-cl-only.yml*) cl_volume='tekuconsensus-data'; cl_client="Teku";;
@@ -4647,9 +4702,9 @@ resync-consensus() {
 
   # Can we checkpoint sync?
   var="CHECKPOINT_SYNC_URL"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __get_value_from_env "${var}" "${__env_file}" "checkpoint_sync_url"
   echo "This will stop ${cl_client} and delete its database to force a resync."
-  if [[ -z "${__value}" ]]; then
+  if [[ -z "${checkpoint_sync_url}" ]]; then
     read -rp "WARNING - CHECKPOINT_SYNC_URL not set, resync may take days. Do you wish to continue? (No/yes) " yn
   else
     read -rp "CHECKPOINT_SYNC_URL set, resync should finish in minutes. Do you wish to continue? (No/yes) " yn
@@ -4716,6 +4771,7 @@ prune-besu() {
   local exitstatus
   local regex
   local yn
+  local el_node_type
 
   while :
   do
@@ -4744,8 +4800,8 @@ prune-besu() {
 
   # Check for archive node
   var="EL_NODE_TYPE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "archive" ]]; then
+  __get_value_from_env "${var}" "${__env_file}" "el_node_type"
+  if [[ "${el_node_type}" = "archive" ]]; then
     echo "Besu is an archive node: Aborting."
     exit 1
   fi
@@ -4811,6 +4867,7 @@ prune-reth() {
   local sync_status
   local exitstatus
   local yn
+  local el_node_type
 
   while :
   do
@@ -4839,8 +4896,8 @@ prune-reth() {
 
   # Check for archive node
   var="EL_NODE_TYPE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "archive" ]]; then
+  __get_value_from_env "${var}" "${__env_file}" "el_node_type"
+  if [[ "${el_node_type}" = "archive" ]]; then
     echo "Reth is an archive node: Aborting."
     exit 1
   fi
@@ -4912,6 +4969,9 @@ prune-nethermind() {
   local sync_status
   local exitstatus
   local prune_result
+  local el_node_type
+  local network
+  local autoprune_nm
 
   while :
   do
@@ -4940,8 +5000,8 @@ prune-nethermind() {
 
   # Check for archive node
   var="EL_NODE_TYPE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "archive" ]]; then
+  __get_value_from_env "${var}" "${__env_file}" "el_node_type"
+  if [[ "${el_node_type}" = "archive" ]]; then
     echo "Nethermind is an archive node: Aborting."
     exit 1
   fi
@@ -4958,9 +5018,9 @@ prune-nethermind() {
   __get_docker_free_space
 
   var="NETWORK"
-  __get_value_from_env "${var}" "${__env_file}" "NETWORK"
+  __get_value_from_env "${var}" "${__env_file}" "network"
 
-  if [[ "${NETWORK}" =~ ^(mainnet|gnosis)$ ]]; then
+  if [[ "${network}" =~ ^(mainnet|gnosis)$ ]]; then
     min_free=262144000
     min_gib=250
   else
@@ -5007,12 +5067,12 @@ prune-nethermind() {
   fi
 
   var="AUTOPRUNE_NM"
-  __get_value_from_env "${var}" "${__env_file}" "AUTOPRUNE_NM"
+  __get_value_from_env "${var}" "${__env_file}" "autoprune_nm"
 
   if [[ "${__non_interactive}" -eq 0 ]]; then
     while true; do
-      if [[ "${AUTOPRUNE_NM}" = true ]]; then
-        if [[ "${NETWORK}" =~ ^(mainnet|gnosis)$ ]]; then
+      if [[ "${autoprune_nm}" = true ]]; then
+        if [[ "${network}" =~ ^(mainnet|gnosis)$ ]]; then
           threshold="350"
         else
           threshold="50"
@@ -5077,6 +5137,8 @@ prune-history() {
   local target_level
   local current_level
   local must_resync
+  local network
+  local el_node_type
 
   target=""
 
@@ -5121,27 +5183,27 @@ prune-history() {
 
 # pre-merge is only meaningful on mainnet or sepolia
   var=NETWORK
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${target}" = "pre-merge" && ! "${__value}" =~ ^(mainnet|sepolia)$ ]]; then
-    echo "There is no ${target} history for ${__value} network."
+  __get_value_from_env "${var}" "${__env_file}" "network"
+  if [[ "${target}" = "pre-merge" && ! "${network}" =~ ^(mainnet|sepolia)$ ]]; then
+    echo "There is no ${target} history for ${network} network."
     echo "Nothing to do. Aborting."
     exit 0
   fi
 
 # Check whether this has already been done
   var=EL_NODE_TYPE
-  __get_value_from_env "${var}" "${__env_file}" "EL_NODE_TYPE"
-  if [[ "${EL_NODE_TYPE}" = "${target}-expiry" ]]; then
-    echo "This node is already configured for \"${var}=${EL_NODE_TYPE}\"."
+  __get_value_from_env "${var}" "${__env_file}" "el_node_type"
+  if [[ "${el_node_type}" = "${target}-expiry" ]]; then
+    echo "This node is already configured for \"${var}=${el_node_type}\"."
     echo "Nothing to do. Aborting."
     exit 0
   fi
-  if [[ "${EL_NODE_TYPE}" = "archive" ]]; then
+  if [[ "${el_node_type}" = "archive" ]]; then
     echo "This node is an archive node, and should not use expired history"
     echo "Nothing to do. Aborting"
     exit 0
   fi
-  if [[ "${EL_NODE_TYPE}" = "custom" ]]; then
+  if [[ "${el_node_type}" = "custom" ]]; then
     echo "This node uses custom database settings, and ${__me} can't reconfigure it"
     echo "Edit \".env\" and change \"EL_NODE_TYPE\" and \"EL_EXTRAS\" as desired, then run"
     echo "\"${__me} resync-execution\""
@@ -5201,7 +5263,7 @@ prune-history() {
       ;;
   esac
 
-  case "${EL_NODE_TYPE}" in
+  case "${el_node_type}" in
     full)
       current_level=0
       ;;
@@ -5224,7 +5286,7 @@ prune-history() {
       current_level=6
       ;;
     *)
-      echo "Unable to parse node type ${EL_NODE_TYPE}. This is a bug. Aborting"
+      echo "Unable to parse node type ${el_node_type}. This is a bug. Aborting"
       exit 70
       ;;
   esac
@@ -5320,9 +5382,7 @@ prune-history() {
         esac
       done
     fi
-    var=EL_NODE_TYPE
-    EL_NODE_TYPE=${target}-expiry
-    __update_value_in_env "${var}" "${!var}" "${__env_file}"
+    __update_value_in_env "EL_NODE_TYPE" "${target}-expiry" "${__env_file}"
     __non_interactive=1
     resync-execution
     return 0
@@ -5369,9 +5429,7 @@ prune-history() {
     done
   fi
 
-  var=EL_NODE_TYPE
-  EL_NODE_TYPE=${target}-expiry
-  __update_value_in_env "${var}" "${!var}" "${__env_file}"
+  __update_value_in_env "EL_NODE_TYPE" "${target}-expiry" "${__env_file}"
   echo
   echo "Starting ${client} ${target} history prune"
   __docompose run --rm set-prune-marker "touch ${prune_marker}"
@@ -5392,6 +5450,7 @@ prune-lighthouse() {
   local exitstatus
   local regex
   local yn
+  local cl_node_type
 
   while :
   do
@@ -5413,16 +5472,15 @@ prune-lighthouse() {
     __non_interactive=1
   fi
 
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ (lighthouse.\yml|lighthouse-cl-only\.yml) ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ (lighthouse\.yml|lighthouse-cl-only\.yml) ]]; then
     echo "You do not appear to be using Lighthouse, aborting."
     exit 1
   fi
 
   # Check for archive node
   var="CL_NODE_TYPE"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" =~ archive$ ]]; then
+  __get_value_from_env "${var}" "${__env_file}" "cl_node_type"
+  if [[ "${cl_node_type}" =~ archive$ ]]; then
     echo "Lighthouse is an archive node: Aborting."
     exit 1
   fi
@@ -5483,8 +5541,7 @@ __prep-keyimport() {
   local var
   local files
 
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-allin1\.yml|vc-only\.yml) ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-allin1\.yml|vc-only\.yml) ]]; then
     echo "You do not appear to be running a validator client. Aborting."
     exit 1
   fi
@@ -5561,16 +5618,16 @@ __prep-keyimport() {
 
 __i_haz_deposit_cli() {
   local var
+  local network
 
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ deposit-cli\.yml ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ deposit-cli\.yml ]]; then
     echo "Please edit the ${__env_file} file and make sure \":deposit-cli.yml\" is added to the \"CORE_FILES\" line"
     echo "For example, \"nano ${__env_file}\" will open the nano text editor with the \"${__env_file}\" file loaded."
     echo "Without it, this step cannot be run"
     echo
     var="NETWORK"
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    if [[ "${__value}" = "mainnet" ]]; then
+    __get_value_from_env "${var}" "${__env_file}" "network"
+    if [[ "${network}" = "mainnet" ]]; then
       echo "WARNING: On Ethereum mainnet, best practice is to run key generation on an air-gapped live USB,"
       echo "such as Ubuntu Live or Tails."
       echo
@@ -5584,8 +5641,7 @@ __i_haz_ethdo() {
   local var
   local yn
 
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ ethdo\.yml ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ ethdo\.yml ]]; then
     echo "Please edit the ${__env_file} file and make sure \"ethdo.yml\" is added to the \"CUSTOM_FILES\" line"
     echo "For example, \"nano ${__env_file}\" will open the nano text editor with the \"${__env_file}\" file loaded."
     echo "Without it, this step cannot be run"
@@ -5610,15 +5666,15 @@ __i_haz_ethdo() {
 __i_haz_web3signer() {
   local var
   local yn
+  local web3signer
 
   var="WEB3SIGNER"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ ! "${__value}" = "true" ]]; then
+  __get_value_from_env "${var}" "${__env_file}" "web3signer"
+  if [[ ! "${web3signer}" = "true" ]]; then
     return 0
   fi
 
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ web3signer\.yml ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ web3signer\.yml ]]; then
     echo "WEB3SIGNER=true in ${__env_file}, but web3signer.yml is not in use"
     echo "Please edit the ${__env_file} file and make sure \":web3signer.yml\" is added to the \"CORE_FILES\" line"
     echo "For example, \"nano ${__env_file}\" will open the nano text editor with the \"${__env_file}\" file loaded."
@@ -5824,6 +5880,7 @@ keys() {
   local failed
   local exitstatus
   local yn
+  local cl_node
 
   if [[ "$#" -eq 0 || "$1" =~ (help|-h|--help) ]]; then
     __keys_usage
@@ -5839,8 +5896,7 @@ keys() {
     __prep-keyimport "$@"
     __docompose run --rm -e OWNER_UID="${owner_uid}" validator-keys import "${__keys_args}"
   elif [[ "${1:-}" = "create-prysm-wallet" ]]; then
-    __value="${COMPOSE_FILE}"
-    if [[ ! "${__value}" =~ (prysm\.yml|prysm-vc-only\.yml) ]]; then
+    if [[ ! "${COMPOSE_FILE}" =~ (prysm\.yml|prysm-vc-only\.yml) ]]; then
       echo "You do not appear to be using a Prysm validator. Aborting."
       exit 1
     fi
@@ -5997,8 +6053,8 @@ keys() {
     fi
   elif [[ "${1:-}" = "send-exit" ]]; then
     var="CL_NODE"
-    __get_value_from_env "${var}" "${__env_file}" "CL_NODE"
-    CL_NODE="${CL_NODE%%,*}"
+    __get_value_from_env "${var}" "${__env_file}" "cl_node"
+    cl_node="${cl_node%%,*}"
     network_name="$(__compose_network_name)"
     __ensure_vc_utils_image
     __dodocker run --rm \
@@ -6007,7 +6063,7 @@ keys() {
       --name send-exit \
       -v "$(pwd)/.eth/exit_messages:/exit_messages" \
       -v "/etc/localtime:/etc/localtime:ro" \
-      -e "CL_NODE=${CL_NODE}" \
+      -e "CL_NODE=${cl_node}" \
       --entrypoint "keymanager.sh" \
       vc-utils:local /var/lib/lighthouse/nonesuch.txt eth2 send-exit
   else
@@ -6086,12 +6142,11 @@ __adjust_grandine_permissions() {
   local datadir_owner
   local datadir_volume
 
-  __value="${COMPOSE_FILE}"
-  if [[ ! "${__value}" =~ grandine ]]; then
+  if [[ ! "${COMPOSE_FILE}" =~ grandine ]]; then
     return 0
   fi
 
-  if [[ "${__value}" =~ grandine-plugin ]]; then
+  if [[ "${COMPOSE_FILE}" =~ grandine-plugin ]]; then
     datadir_owner=10001
   else
     datadir_owner=10002
@@ -6131,13 +6186,14 @@ __write_eth_docker_version_metric() {
   local commit
   local var
   local textfile_dir
+  local value
 
   tag=$(grep -m1 "^This is ${__project_name} v" README.md 2>/dev/null | sed -E "s/^This is ${__project_name} //") || tag=""
   commit=$(${__as_owner} git rev-parse --short HEAD 2>/dev/null) || commit=""
 
   var=NODE_EXPORTER_COLLECTOR_MOUNT_PATH
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  textfile_dir="${__value:-./prometheus/node-exporter-text}"
+  __get_value_from_env "${var}" "${__env_file}" "value"
+  textfile_dir="${value:-./prometheus/node-exporter-text}"
 
   ${__as_owner} mkdir -p "${textfile_dir}"
   {
@@ -6158,10 +6214,11 @@ __write_eth_docker_version_metric() {
 # start so toggling ALLOY_FILTER_BY_PROJECT_NAME takes effect on the next up.
 __set_alloy_project_name() {
   local var
+  local value
 
   var=ALLOY_FILTER_BY_PROJECT_NAME
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "true" ]]; then
+  __get_value_from_env "${var}" "${__env_file}" "value"
+  if [[ "${value}" = "true" ]]; then
     ALLOY_PROJECT_NAME=$(__compose_config_project_name) || ALLOY_PROJECT_NAME=""
   else
     ALLOY_PROJECT_NAME=""
@@ -6267,6 +6324,7 @@ __query_network() {
   local -a choices=()
   local num_items
   local menu_height
+  local prev_network
 
   __write_vars+=("NETWORK")
 
@@ -6282,7 +6340,7 @@ __query_network() {
   menu_height=$(( 8 + num_items ))
 
   var="NETWORK"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __get_value_from_env "${var}" "${__env_file}" "prev_network"
   NETWORK=$(whiptail --notags --title "Select Network" --menu \
     "Which network do you want to run on?" "${menu_height}" 65 "${num_items}" \
     "${choices[@]}" 3>&1 1>&2 2>&3)
@@ -6312,7 +6370,7 @@ screen.\n\nCustom testnets only work with a URL to fetch their configuration fro
       ;;
   esac
 # shellcheck disable=SC2154
-  if [[ ! "${NETWORK}" = "${__value}" ]]; then
+  if [[ ! "${NETWORK}" = "${prev_network}" ]]; then
     __network_change=1
   else
     __network_change=0
@@ -6990,8 +7048,10 @@ __query_grafana() {
 
 
 __configure_grafana_ufw() {
+  local var
   local node_exporter_port
   local ufw_status
+  local value
 
   if [[ "${__cannot_sudo}" -eq 1 ]]; then
     return
@@ -7010,8 +7070,8 @@ __configure_grafana_ufw() {
   fi
 
   var=NODE_EXPORTER_PORT
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  node_exporter_port="${__value:-9199}"
+  __get_value_from_env "${var}" "${__env_file}" "value"
+  node_exporter_port="${value:-9199}"
 
   if [[ "${ufw_status}" == *"${node_exporter_port}/tcp"*"ALLOW"*"172.16.0.0/12"* ]] &&
      [[ "${ufw_status}" == *"${node_exporter_port}/tcp"*"ALLOW"*"192.168.0.0/16"* ]]; then
@@ -7223,6 +7283,7 @@ __query_epbs() {
   local ultrasound_default="ON"
   local ultrasound_filtered_default="ON"
   local nflaig_default="ON"
+  local prev_epbs_builders
 
   __write_vars+=("EPBS_BUILDERS")
   __write_vars+=("EPBS_BUILDER_URLS")
@@ -7268,12 +7329,12 @@ __query_epbs() {
   fi
 
   var="EPBS_BUILDERS"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
+  __get_value_from_env "${var}" "${__env_file}" "prev_epbs_builders"
   var="EPBS_BUILDER_URLS"
   __get_value_from_env "${var}" "${__env_file}" "${var}"
 
 # Plataberget has titanrelay and ultrasound live. Rest placeholders and tbd
-  if [[ "${__value}" = "true" && "${__network_change}" -eq 0 ]]; then  #  EPBS was already configured, default disable anything the user hadn't chosen previously
+  if [[ "${prev_epbs_builders}" = "true" && "${__network_change}" -eq 0 ]]; then  #  EPBS was already configured, default disable anything the user hadn't chosen previously
     if [[ ! "${EPBS_BUILDER_URLS}" =~ aestus ]]; then
       aestus_default="OFF"
     fi
@@ -7363,7 +7424,7 @@ __query_epbs() {
     fi
   else  # Not lido_ deployment
     message="Do you want to use ePBS Builders?"
-    if [[ "${MEV_BOOST}" = "false" && "${__value}" = "false" ]]; then
+    if [[ "${MEV_BOOST}" = "false" && "${prev_epbs_builders}" = "false" ]]; then
       default="--defaultno"
     else
       default=""
@@ -7522,6 +7583,8 @@ __query_mev() {
   local titan_regional_default="ON"
   local ultrasound_default="ON"
   local ultrasound_filtered_default="ON"
+  local prev_mev_boost
+  local prev_mev_relays
 
   __write_vars+=("MEV_BOOST" "MEV_RELAYS")
 
@@ -7570,33 +7633,33 @@ https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4
   fi
 
   var="MEV_BOOST"
-  __get_value_from_env "${var}" "${__env_file}" "__value"
-  if [[ "${__value}" = "true" && "${__network_change}" -eq 0 ]]; then  # MEV_BOOST=true was already configured, default disable anything the user hadn't chosen previously
+  __get_value_from_env "${var}" "${__env_file}" "prev_mev_boost"
+  if [[ "${prev_mev_boost}" = "true" && "${__network_change}" -eq 0 ]]; then  # MEV_BOOST=true was already configured, default disable anything the user hadn't chosen previously
     var="MEV_RELAYS"
-    __get_value_from_env "${var}" "${__env_file}" "__value"
+    __get_value_from_env "${var}" "${__env_file}" "prev_mev_relays"
 
-    if [[ ! "${__value}" =~ aestus ]]; then
+    if [[ ! "${prev_mev_relays}" =~ aestus ]]; then
       aestus_default="OFF"
     fi
-    if [[ ! "${__value}" =~ agnostic ]]; then
+    if [[ ! "${prev_mev_relays}" =~ agnostic ]]; then
       agnostic_default="OFF"
     fi
-    if [[ ! "${__value}" =~ bloxroute ]]; then
+    if [[ ! "${prev_mev_relays}" =~ bloxroute ]]; then
       bloxroute_default="OFF"
     fi
-    if [[ ! "${__value}" =~ flashbots ]]; then
+    if [[ ! "${prev_mev_relays}" =~ flashbots ]]; then
       flashbots_default="OFF"
     fi
-    if [[ ! "${__value}" =~ (hoodi\.titanrelay|global\.titanrelay) ]]; then
+    if [[ ! "${prev_mev_relays}" =~ (hoodi\.titanrelay|global\.titanrelay) ]]; then
       titan_global_default="OFF"
     fi
-    if [[ ! "${__value}" =~ regional\.titanrelay ]]; then
+    if [[ ! "${prev_mev_relays}" =~ regional\.titanrelay ]]; then
       titan_regional_default="OFF"
     fi
-    if [[ ! "${__value}" =~ (relay\.ultrasound|relay-hoodi\.ultrasound) ]]; then
+    if [[ ! "${prev_mev_relays}" =~ (relay\.ultrasound|relay-hoodi\.ultrasound) ]]; then
       ultrasound_default="OFF"
     fi
-    if [[ ! "${__value}" =~ relay-filtered.*\.ultrasound ]]; then
+    if [[ ! "${prev_mev_relays}" =~ relay-filtered.*\.ultrasound ]]; then
       ultrasound_filtered_default="OFF"
     fi
   fi
@@ -8194,14 +8257,12 @@ __check_legacy() {
   local var
   local client
 
-  __value="${COMPOSE_FILE}"
-
-if [[ "${__value}" =~ -allin1\.yml && ! "${__value}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then # Warn re Grandine once VC
-    if [[ "${__value}" =~ teku-allin1\.yml ]]; then
+  if [[ "${COMPOSE_FILE}" =~ -allin1\.yml && ! "${COMPOSE_FILE}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then # Warn re Grandine once VC
+    if [[ "${COMPOSE_FILE}" =~ teku-allin1\.yml ]]; then
       client="Teku"
-    elif [[ "${__value}" =~ nimbus-allin1\.yml ]]; then
+    elif [[ "${COMPOSE_FILE}" =~ nimbus-allin1\.yml ]]; then
       client="Nimbus"
-    elif [[ "${__value}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then
+    elif [[ "${COMPOSE_FILE}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then
       client="Grandine"
     else
       client="Mystery"
@@ -8595,13 +8656,14 @@ config() {
 version() {
   local var
   local w3s_exec=""
+  local w3s_docker_tag
+  local w3s_dockerfile
 
   grep "^This is ${__project_name} v" README.md
   echo
-  __value="${COMPOSE_FILE}"
 
   # CL versions
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *lighthouse.yml*|*lighthouse-cl-only*)
       __docompose exec consensus lighthouse --version
       echo
@@ -8639,7 +8701,7 @@ version() {
   esac
 
   # EL versions
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *geth.yml*)
       __docompose exec execution geth version
       echo
@@ -8672,7 +8734,7 @@ version() {
   esac
 
   # VC versions
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *lighthouse-vc-only*)
       __docompose exec validator lighthouse --version
       echo
@@ -8704,7 +8766,7 @@ version() {
   esac
 
   # DVT versions
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *lido-obol.yml*)
       __docompose exec charon charon version
       echo
@@ -8720,13 +8782,13 @@ version() {
   esac
 
   # Web3signer version
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *web3signer.yml*)
       var=W3S_DOCKER_TAG
-      __get_value_from_env "${var}" "${__env_file}" "${var}"
+      __get_value_from_env "${var}" "${__env_file}" "w3s_docker_tag"
       var=W3S_DOCKERFILE
-      __get_value_from_env "${var}" "${__env_file}" "${var}"
-      if [[ "${W3S_DOCKERFILE}" = "Dockerfile.binary" && "${W3S_DOCKER_TAG}" =~ distroless ]]; then
+      __get_value_from_env "${var}" "${__env_file}" "w3s_dockerfile"
+      if [[ "${w3s_dockerfile}" = "Dockerfile.binary" && "${w3s_docker_tag}" =~ distroless ]]; then
         w3s_exec="java -cp /opt/web3signer/lib/* tech.pegasys.web3signer.Web3SignerApp"
       else
         w3s_exec="/opt/web3signer/bin/web3signer"
@@ -8740,7 +8802,7 @@ version() {
   esac
 
   # PBS versions
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *mev-boost.yml*)
       __docompose exec mev-boost /app/mev-boost -version
       echo
@@ -8752,7 +8814,7 @@ version() {
   esac
 
   # RPC proxy version
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *nimbus-vp.yml*)
       __docompose exec rpc-proxy nimbus_verified_proxy --version
       echo
@@ -8760,7 +8822,7 @@ version() {
   esac
 
   # Grafana version
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *grafana.yml*)
       echo -n "Grafana "
       __docompose exec grafana /run.sh -v
@@ -8769,7 +8831,7 @@ version() {
   esac
 
   # Traefik version
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *traefik-*.yml*)
       echo "Traefik"
       __docompose exec traefik traefik version
@@ -8778,7 +8840,7 @@ version() {
   esac
 
   # Contributoor version
-  case "${__value}" in
+  case "${COMPOSE_FILE}" in
     *contributoor.yml*)
       echo -n "Contributoor "
       __docompose exec contributoor sentry --release
@@ -8804,6 +8866,8 @@ __get_compose_file() {
 # env file exists, and if version passed, is minimum version
 __verify_env_file() {
   local var
+  local min_version
+  local env_version
 
   if [[ ! -f "${__env_file}" ]]; then
     echo "Error: ${__env_file} not found. Please run \"${__me} config\" first to create it."
@@ -8812,10 +8876,10 @@ __verify_env_file() {
 
   if [[ "${1:-}" = "--enforce-min" ]]; then
     var=ENV_VERSION
-    __get_value_from_env "${var}" "./default.env" "${var}"
-    __get_value_from_env "${var}" "${__env_file}" "__value"
-    if [[ "${__value}" -lt "${ENV_VERSION}" ]]; then
-      echo "Error: ${var} version ${__value} in ${__env_file} is less than required version ${ENV_VERSION}."
+    __get_value_from_env "${var}" "./default.env" "min_version"
+    __get_value_from_env "${var}" "${__env_file}" "env_version"
+    if [[ "${env_version}" -lt "${min_version}" ]]; then
+      echo "Error: ${var} version ${env_version} in ${__env_file} is less than required version ${min_version}."
       echo "Please run \"${__me} update\", or manually adjust ${__env_file} from default.env."
       exit 1
     fi

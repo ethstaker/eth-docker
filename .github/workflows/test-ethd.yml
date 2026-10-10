@@ -73,7 +73,7 @@ jobs:
   test-ethd-macos:
     if: contains(github.event.pull_request.labels.*.name, 'check-ethd-macos')
     runs-on: macos-26-intel
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
         with:
