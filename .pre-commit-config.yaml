@@ -63,7 +63,7 @@ repos:
 
   # Dockerfiles
   - repo: https://github.com/hadolint/hadolint
-    rev: b3db4dd2cb10607a53ebb87f2105bfceb9eb19b4
+    rev: 23779d47e5810f898b9583122dc309c6b612c6a2
     hooks:
       - id: hadolint-docker
 
