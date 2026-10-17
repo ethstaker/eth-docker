@@ -3707,7 +3707,17 @@ __migrate_env() {
       if [[ "${__source_ver}" -lt "73" && "${var}" = "EPBS_BUILDER_URLS" && -z "${__value}" ]]; then
         __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
         __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
-        if [[ "${NETWORK:-}" =~ ^(sepolia)$ && "${MEV_BOOST}" = "true" ]]; then
+        if [[ "${NETWORK:-}" = "sepolia" && "${MEV_BOOST}" = "true" ]]; then
+          __get_value_from_env "MEV_RELAYS" "${__env_file}.source" "MEV_RELAYS"
+          __value=$(__adjust_epbs_urls "${NETWORK}" "${MEV_RELAYS}")
+          echo "Set ePBS builder URLs on ${NETWORK}"
+        fi
+      fi
+      # Adjust before each network's Glamsterdam hardfork, when builder URLs are known
+      if [[ "${__source_ver}" -lt "74" && "${var}" = "EPBS_BUILDER_URLS" && -z "${__value}" ]]; then
+        __get_value_from_env "NETWORK" "${__env_file}.source" "NETWORK"
+        __get_value_from_env "MEV_BOOST" "${__env_file}.source" "MEV_BOOST"
+        if [[ "${NETWORK:-}" = "hoodi" && "${MEV_BOOST}" = "true" ]]; then
           __get_value_from_env "MEV_RELAYS" "${__env_file}.source" "MEV_RELAYS"
           __value=$(__adjust_epbs_urls "${NETWORK}" "${MEV_RELAYS}")
           echo "Set ePBS builder URLs on ${NETWORK}"
