@@ -1,4 +1,4 @@
-# grandine-plugin-allin1.yml to be used with nethermind.yml for Nethermind with Grandine plugin and Grandine VC
+# grandine-plugin-allin1.yml to be used with nethermind.yml for Nethermind with Grandine plugin and Grandine built-in VC
 services:
   execution:
     ports:

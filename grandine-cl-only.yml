@@ -66,6 +66,7 @@ services:
     entrypoint:
       - docker-entrypoint.sh
       - grandine
+      - bn
       - --disable-upnp
       - --data-dir
       - /var/lib/grandine
