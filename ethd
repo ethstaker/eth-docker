@@ -2991,9 +2991,8 @@ __check_nethermind_flat() {
 
   if __nethermind_is_patricia "${volume_name}"; then
     __final_msg+="\nWARNING: Your Nethermind database is using Patricia layout. This will continue to work for now, but Nethermind is expected to drop support in a future version.\n"
-    __final_msg+="\nYou can switch to Flat layout by either resyncing with \"${__me} resync-execution\","
-    __final_msg+="\nor adding \"FlatDb.ImportFromPruningTrieState=true FlatDb.DropPruningTrieState=true\" to \"EL_EXTRAS\" in \"${__env_file}\" followed by \"${__me} up\"."
-    __final_msg+="\nThe conversion parameters in \"EL_EXTRAS\" can be removed after DB conversion is complete.\n"
+    __final_msg+="\nYou can switch to Flat layout by either migrating with \"${__me} migrate-nethermind\","
+    __final_msg+="\nor resyncing with \"${__me} resync-execution\".\n"
   fi
   if __nethermind_db_exists "${og_volume_name}"; then
     __final_msg+="\nWARNING: You are using a legacy Nethermind Docker volume ${og_volume_name}. ${__project_name} will remove support when Nethermind drops support for Patricia DB layout.\n"
@@ -3127,6 +3126,51 @@ migrate-geth() {
   __docompose exec execution touch /var/lib/geth/migrate-v2
   echo "Restarting Geth to initiate migration"
   echo "You can monitor progress with \"./ethd logs -f execution\"."
+  restart execution
+}
+
+
+# Remove when Nethermind drops Patricia support
+migrate-nethermind() {
+  local var
+  local el_node_type
+  local yn
+
+# Check for Nethermind
+  if [[ ! "${COMPOSE_FILE}" =~ nethermind\.yml ]]; then
+    echo "You do not appear to be using Nethermind. Aborting"
+    return 0
+  fi
+
+  var="EL_NODE_TYPE"
+  __get_value_from_env "${var}" "${__env_file}" "el_node_type"
+  if [[ "${el_node_type}" = "archive" ]]; then
+    echo "Nethermind is an archive node, which cannot be migrated to FlatDB. Aborting"
+    return 0
+  fi
+
+  __get_compose_project_name
+  if ! __nethermind_is_patricia "${__compose_project}_nethermind-el-data" \
+     && ! __nethermind_is_patricia "${__compose_project}_nm-eth1-data"; then
+    echo "Nethermind is not using Patricia layout - it is either on FlatDB already, or it has no database yet. Aborting"
+    return 0
+  fi
+
+  if [[ "${__non_interactive}" -eq 0 ]]; then
+    echo
+    while true; do
+      read -rp "WARNING - About to migrate the Nethermind database to FlatDB. Do you wish to continue? (Y/n) " yn
+      case "${yn}" in
+        [Nn]o|[Nn]) echo "Skipping Nethermind database migration"; return 0;;
+        *) break;;
+      esac
+    done
+  fi
+
+  __docompose run --rm set-prune-marker "touch /var/lib/nethermind/migrate-flatdb"
+  echo "Restarting Nethermind to initiate migration"
+  echo "Nethermind will stop when migration is done, and restart on FlatDB."
+  echo "You can monitor progress with \"${__me} logs -f execution\"."
   restart execution
 }
 
@@ -8950,22 +8994,24 @@ __full_help() {
   echo "    executes an arbitrary Docker Compose command. Use \"cmd help\" to list them"
   echo "  terminate"
   echo "    stops the Ethereum node and destroys all data stores"
-  echo "  prune-nethermind [--non-interactive]"
-  echo "    restarts the Nethermind execution client and prunes its DB."
+  echo "  prune-history [--non-interactive] [--pre-merge|--rolling]"
+  echo "    stops the execution client and configures history expiry."
   echo "  prune-besu [--non-interactive]"
   echo "    stops the Besu execution client and prunes trie-logs."
   echo "  prune-reth [--non-interactive]"
   echo "    stops the Reth execution client and prunes its DB."
-  echo "  prune-history [--non-interactive] [--pre-merge|--rolling]"
-  echo "    stops the execution client and configures history expiry."
+  echo "  prune-nethermind [--non-interactive]"
+  echo "    restarts the Nethermind execution client and prunes its DB."
   echo "  prune-lighthouse [--non-interactive]"
   echo "    stops the Lighthouse consensus client and prunes state."
   echo "  repair-reth"
   echo "    stops the Reth execution client and repairs its database."
-  echo "  migrate-reth"
-  echo "    stops the Reth execution client and migrates its database to v2."
   echo "  migrate-geth"
   echo "    stops the Geth execution client and migrates its database to Pebble v2."
+  echo "  migrate-nethermind"
+  echo "    restarts the Nethermind execution client and migrates its database to FlatDB."
+  echo "  migrate-reth"
+  echo "    stops the Reth execution client and migrates its database to v2."
   echo "  resync-execution"
   echo "    removes the execution layer database and forces a resync."
   echo "  resync-consensus"
@@ -9138,7 +9184,7 @@ case "${__command}" in
     ;;
   keys|up|start|down|stop|restart|version|logs|prune-nethermind\
 |prune-besu|prune-reth|prune-history|prune-lighthouse|resync-execution|resync-consensus|attach-geth\
-|repair-reth|migrate-reth|migrate-geth|space|port-check)
+|repair-reth|migrate-reth|migrate-geth|migrate-nethermind|space|port-check)
     __verify_env_file --enforce-min
     __get_compose_file
     ${__command} "$@"

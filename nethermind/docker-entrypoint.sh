@@ -467,9 +467,18 @@ else
   __grandine_graffiti_args=()
 fi
 
+# Remove when Nethermind drops Patricia support
+# Set by "ethd migrate-nethermind". Nethermind exits when the import is done, and restarts on FlatDB
+__migrate=""
+if [[ -f /var/lib/nethermind/migrate-flatdb ]]; then
+  rm -f /var/lib/nethermind/migrate-flatdb  # Remove first, so a failed migration doesn't loop
+  echo "Migrating Nethermind database to FlatDB. Nethermind will stop when done, and restart on FlatDB."
+  __migrate="--FlatDb.ImportFromPruningTrieState=true --FlatDb.DropPruningTrieState=true"
+fi
+
 __strip_empty_args "$@"
 set -- "${__args[@]}"
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__datadir} ${__network} ${__prune} ${__ere} ${__grandine} "${__grandine_graffiti_args[@]}" ${EL_EXTRAS}
+exec "$@" ${__datadir} ${__network} ${__prune} ${__ere} ${__grandine} "${__grandine_graffiti_args[@]}" ${__migrate} ${EL_EXTRAS}
