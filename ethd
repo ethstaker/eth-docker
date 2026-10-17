@@ -7260,9 +7260,9 @@ __query_epbs() {
 https://hoodi.aestus.live,
 https://boost-relay-hoodi.flashbots.net,
 https://builder-hoodi.nflaig.dev,
-https://builder-hoodi.pk910.de,
 https://hoodi.titanrelay.xyz,
-https://relay-hoodi.ultrasound.money
+https://relay-hoodi.ultrasound.money,
+https://builder-hoodi.pk910.de
 "'
         ;;
     esac
@@ -7342,17 +7342,17 @@ https://relay-hoodi.ultrasound.money
           ['Aestus']="https://hoodi.aestus.live"
           ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
           ['nflaig']="https://builder-hoodi.nflaig.dev"
-          ['pk910']="https://builder-hoodi.pk910.de"
           ['Titan']="https://hoodi.titanrelay.xyz"
           ['Ultra Sound']="https://relay-hoodi.ultrasound.money"
+          ['pk910']="https://builder-hoodi.pk910.de"
         )
         choices=(
           "Aestus" "(unfiltered)" "${aestus_default}"
           "Flashbots" "(unfiltered)" "${flashbots_default}"
           "nflaig" "(unfiltered)" "${nflaig_default}"
-          "pk910" "(unfiltered)" "${pk910_default}"
           "Titan" "(unfiltered)" "${titan_global_default}"
           "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+          "pk910" "(unfiltered)" "${pk910_default}"
         )
         ;;
       *)
@@ -7420,23 +7420,24 @@ https://relay-hoodi.ultrasound.money
           ['Aestus']="https://hoodi.aestus.live"
           ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
           ['nflaig']="https://builder-hoodi.nflaig.dev"
-          ['pk910']="https://builder-hoodi.pk910.de"
           ['Titan']="https://hoodi.titanrelay.xyz"
           ['Ultra Sound']="https://relay-hoodi.ultrasound.money"
+          ['pk910']="https://builder-hoodi.pk910.de"
         )
         choices=(
           "Aestus" "(unfiltered)" "${aestus_default}"
           "Flashbots" "(unfiltered)" "${flashbots_default}"
           "nflaig" "(unfiltered)" "${nflaig_default}"
-          "pk910" "(unfiltered)" "${pk910_default}"
           "Titan" "(unfiltered)" "${titan_global_default}"
           "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
+          "pk910" "(unfiltered)" "${pk910_default}"
         )
         ;;
       mainnet)
 #        builders=(
 #          ['Aestus']="https://aestus.live"
 #          ['Flashbots']="https://boost-relay.flashbots.net"
+#          ['nflaig']="https://builder.nflaig.dev"
 #          ['Titan Global']="https://global.titanrelay.xyz"
 #          ['Titan Regional']="https://regional.titanrelay.xyz"
 #          ['Ultra Sound']="https://relay.ultrasound.money"
@@ -7445,6 +7446,7 @@ https://relay-hoodi.ultrasound.money
 #        choices=(
 #          "Aestus" "" "${aestus_default}"
 #          "Flashbots" "" "${flashbots_default}"
+#          "nflaig" "(unfiltered)" "${nflaig_default}"
 #          "Titan Global" "(unfiltered)" "${titan_global_default}"
 #          "Titan Regional" "" "${titan_regional_default}"
 #          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
