@@ -6,6 +6,7 @@
 # variable self-referential, which empties COMPOSE_FILE and loses the client choice.
 # They also cover later value migrations, such as the EPBS_BUILD_FACTOR meaning of 100, and the
 # move from MEV_BOOST and MEV_RELAYS to EPBS_BUILDERS and EPBS_BUILDER_URLS after Glamsterdam.
+# Before a network's own Glamsterdam, EPBS_BUILDER_URLS is filled in while MEV Boost stays on.
 #
 # Run from the root of an eth-docker checkout. It replaces .env, so only run this in CI or in a
 # scratch checkout, never against a live node.
@@ -91,6 +92,16 @@ check_output() {  # check_output <description> <needle> <haystack>
   else
     echo "  FAIL  $1 - output did not contain \"$2\""
     __fail=$((__fail + 1))
+  fi
+}
+
+check_no_output() {  # check_no_output <description> <needle> <haystack>
+  if grep -qF -- "$2" <<< "$3"; then
+    echo "  FAIL  $1 - output contained \"$2\""
+    __fail=$((__fail + 1))
+  else
+    echo "  PASS  $1"
+    __pass=$((__pass + 1))
   fi
 }
 
@@ -250,22 +261,65 @@ output=$(run_update)
 check_equals "EPBS_BUILDERS stays false" "false" "$(get_value EPBS_BUILDERS)"
 check_equals "EPBS_BUILDER_URLS stays empty" "" "$(get_raw_value EPBS_BUILDER_URLS)"
 
-echo "== Hoodi keeps MEV Boost until its own Glamsterdam =="
-sepolia_mev_env 72
+# Adjust before each network's Glamsterdam hardfork, when builder URLs are known
+__hoodi_urls=$'"\nhttps://boost-relay-hoodi.flashbots.net,\nhttps://hoodi.titanrelay.xyz,\nhttps://relay-hoodi.ultrasound.money\n"'
+
+echo "== Hoodi keeps MEV Boost until its own Glamsterdam, and gets ePBS builder URLs =="
+sepolia_mev_env 73
 set_in_env NETWORK hoodi
 __relays="$(get_raw_value MEV_RELAYS)"
 output=$(run_update)
 check_equals "MEV_BOOST stays true" "true" "$(get_value MEV_BOOST)"
 check_equals "MEV_RELAYS is kept" "${__relays}" "$(get_raw_value MEV_RELAYS)"
 check_equals "EPBS_BUILDERS stays false" "false" "$(get_value EPBS_BUILDERS)"
+check_equals "EPBS_BUILDER_URLS holds the builders matching the relays" "${__hoodi_urls}" "$(get_raw_value EPBS_BUILDER_URLS)"
+check_output "it says builder URLs were set" "Set ePBS builder URLs on hoodi" "${output}"
+
+echo "== Hoodi builder URLs the user set are kept =="
+sepolia_mev_env 73
+set_in_env NETWORK hoodi
+set_in_env EPBS_BUILDER_URLS https://example.builder
+output=$(run_update)
+check_equals "EPBS_BUILDER_URLS is left alone" "https://example.builder" "$(get_raw_value EPBS_BUILDER_URLS)"
+
+echo "== Hoodi without MEV Boost gets no builder URLs =="
+sepolia_mev_env 73
+set_in_env NETWORK hoodi
+set_in_env MEV_BOOST false
+output=$(run_update)
 check_equals "EPBS_BUILDER_URLS stays empty" "" "$(get_raw_value EPBS_BUILDER_URLS)"
+
+echo "== A Hoodi .env already at ENV_VERSION 74 is not migrated again =="
+sepolia_mev_env 74
+set_in_env NETWORK hoodi
+output=$(run_update)
+check_equals "MEV_BOOST stays true" "true" "$(get_value MEV_BOOST)"
+check_equals "EPBS_BUILDER_URLS stays empty" "" "$(get_raw_value EPBS_BUILDER_URLS)"
+check_no_output "it does not set builder URLs" "Set ePBS builder URLs" "${output}"
 
 echo "== A Sepolia .env already at ENV_VERSION 73 is not migrated again =="
 sepolia_mev_env 73
 set_relays "${__titan_relay}"
 output=$(run_update)
 check_equals "MEV_BOOST stays true" "true" "$(get_value MEV_BOOST)"
+check_equals "MEV_RELAYS is kept" "${__titan_relay}" "$(get_raw_value MEV_RELAYS)"
 check_equals "EPBS_BUILDERS stays false" "false" "$(get_value EPBS_BUILDERS)"
+check_equals "EPBS_BUILDER_URLS stays empty" "" "$(get_raw_value EPBS_BUILDER_URLS)"
+check_no_output "it does not set builder URLs" "Set ePBS builder URLs" "${output}"
+
+echo "== A Sepolia .env migrated to ePBS at ENV_VERSION 73 keeps its builder URLs =="
+sepolia_mev_env 73
+set_in_env MEV_BOOST false
+set_relays ""
+set_in_env EPBS_BUILDERS true
+del_from_env EPBS_BUILDER_URLS
+printf 'EPBS_BUILDER_URLS="\nhttps://sepolia.titanrelay.xyz,\nhttps://builder-sepolia.nflaig.dev\n"\n' >> .env
+__urls="$(get_raw_value EPBS_BUILDER_URLS)"
+output=$(run_update)
+check_equals "MEV_BOOST stays false" "false" "$(get_value MEV_BOOST)"
+check_equals "EPBS_BUILDERS stays true" "true" "$(get_value EPBS_BUILDERS)"
+check_equals "EPBS_BUILDER_URLS is unchanged" "${__urls}" "$(get_raw_value EPBS_BUILDER_URLS)"
+check_no_output "it does not set builder URLs" "Set ePBS builder URLs" "${output}"
 
 # Leave a pristine .env behind, the way the checkout had it before this ran
 rm -f .env.new .env.source .env.partial .env.bak.*
