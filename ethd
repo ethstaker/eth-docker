@@ -8714,7 +8714,7 @@ version() {
       echo
       ;;
     *anchor.yml*)
-      __docompose exec anchor anchor node --version
+      __docompose exec anchor anchor --version
       echo
       ;;
   esac
