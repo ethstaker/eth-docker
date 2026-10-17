@@ -3427,6 +3427,7 @@ __adjust_epbs_urls() {
       ;;
     hoodi)
       builders=(
+        ['Aestus']="https://hoodi.aestus.live"
         ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
         ['nflaig']="https://builder-hoodi.nflaig.dev"
         ['pk910']="https://builder-hoodi.pk910.de"
@@ -7231,6 +7232,7 @@ __query_epbs() {
   local message
   local default
   local message_mandatory=""
+  local aestus_default="ON"
   local flashbots_default="ON"
   local titan_global_default="ON"
   local titan_regional_default="ON"
@@ -7255,6 +7257,7 @@ __query_epbs() {
     case "${NETWORK}" in
       hoodi)
         EPBS_BUILDER_URLS='"
+https://hoodi.aestus.live,
 https://boost-relay-hoodi.flashbots.net,
 https://builder-hoodi.nflaig.dev,
 https://builder-hoodi.pk910.de,
@@ -7281,6 +7284,9 @@ https://relay-hoodi.ultrasound.money
   __get_value_from_env "${var}" "${__env_file}" "${var}"
 
   if [[ "${__value}" = "true" && "${__network_change}" -eq 0 ]]; then  #  EPBS was already configured, default disable anything the user hadn't chosen previously
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ aestus ]]; then
+      aestus_default="OFF"
+    fi
     if [[ ! "${EPBS_BUILDER_URLS}" =~ flashbots ]]; then
       flashbots_default="OFF"
     fi
@@ -7312,6 +7318,7 @@ https://relay-hoodi.ultrasound.money
     case "${NETWORK}" in
       mainnet)
 #        builders=(
+#          ['Aestus']="https://aestus.live"
 #          ['Flashbots']="https://boost-relay.flashbots.net"
 #          ['Ultra Sound']="https://relay.ultrasound.money"
 #          ['Ultra Sound Filtered']="https://relay-filtered.ultrasound.money"
@@ -7321,6 +7328,7 @@ https://relay-hoodi.ultrasound.money
 #          ['Titan Regional']='https://regional.titanrelay.xyz'
 #        )
 #        choices=(
+#          "Aestus" "" "${aestus_default}"
 #          "Flashbots" "" "${flashbots_default}"
 #          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
 #          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
@@ -7331,6 +7339,7 @@ https://relay-hoodi.ultrasound.money
         ;;
       hoodi)
         builders=(
+          ['Aestus']="https://hoodi.aestus.live"
           ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
           ['nflaig']="https://builder-hoodi.nflaig.dev"
           ['pk910']="https://builder-hoodi.pk910.de"
@@ -7338,7 +7347,8 @@ https://relay-hoodi.ultrasound.money
           ['Ultra Sound']="https://relay-hoodi.ultrasound.money"
         )
         choices=(
-          "Flashbots" "" "${flashbots_default}"
+          "Aestus" "(unfiltered)" "${aestus_default}"
+          "Flashbots" "(unfiltered)" "${flashbots_default}"
           "nflaig" "(unfiltered)" "${nflaig_default}"
           "pk910" "(unfiltered)" "${pk910_default}"
           "Titan" "(unfiltered)" "${titan_global_default}"
@@ -7407,6 +7417,7 @@ https://relay-hoodi.ultrasound.money
         ;;
       hoodi)
         builders=(
+          ['Aestus']="https://hoodi.aestus.live"
           ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
           ['nflaig']="https://builder-hoodi.nflaig.dev"
           ['pk910']="https://builder-hoodi.pk910.de"
@@ -7414,7 +7425,8 @@ https://relay-hoodi.ultrasound.money
           ['Ultra Sound']="https://relay-hoodi.ultrasound.money"
         )
         choices=(
-          "Flashbots" "" "${flashbots_default}"
+          "Aestus" "(unfiltered)" "${aestus_default}"
+          "Flashbots" "(unfiltered)" "${flashbots_default}"
           "nflaig" "(unfiltered)" "${nflaig_default}"
           "pk910" "(unfiltered)" "${pk910_default}"
           "Titan" "(unfiltered)" "${titan_global_default}"
@@ -7423,6 +7435,7 @@ https://relay-hoodi.ultrasound.money
         ;;
       mainnet)
 #        builders=(
+#          ['Aestus']="https://aestus.live"
 #          ['Flashbots']="https://boost-relay.flashbots.net"
 #          ['Titan Global']="https://global.titanrelay.xyz"
 #          ['Titan Regional']="https://regional.titanrelay.xyz"
@@ -7430,6 +7443,7 @@ https://relay-hoodi.ultrasound.money
 #          ['Ultra Sound Filtered']="https://relay-filtered.ultrasound.money"
 #        )
 #        choices=(
+#          "Aestus" "" "${aestus_default}"
 #          "Flashbots" "" "${flashbots_default}"
 #          "Titan Global" "(unfiltered)" "${titan_global_default}"
 #          "Titan Regional" "" "${titan_regional_default}"
