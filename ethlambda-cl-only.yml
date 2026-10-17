@@ -1,0 +1,91 @@
+x-logging: &logging
+  logging:
+    driver: ${LOG_DRIVER}
+    options:
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
+
+x-build: &ethlambda-build
+  context: ./ethlambda
+  additional_contexts:
+    ephemery: ./ephemery
+  dockerfile: ${ETHLAMBDA_DOCKERFILE:-Dockerfile.binary}
+  args:
+    - BUILD_TARGET=${ETHLAMBDA_SRC_BUILD_TARGET:-beacon-chain-integration}
+    - SRC_REPO=${ETHLAMBDA_SRC_REPO:-https://github.com/lambdaclass/ethlambda}
+    - DOCKER_TAG=${ETHLAMBDA_DOCKER_TAG:-beacon}
+    - DOCKER_REPO=${ETHLAMBDA_DOCKER_REPO:-ghcr.io/lambdaclass/ethlambda}
+
+services:
+  consensus:
+    restart: "unless-stopped"
+    build:
+      <<: *ethlambda-build
+    image: ethlambda:local
+    pull_policy: never
+    user: ethlambda
+    stop_grace_period: 1m
+    volumes:
+      - ethlambda-consensus-data:/var/lib/ethlambda
+      - /etc/localtime:/etc/localtime:ro
+      - jwtsecret:/var/lib/ethlambda/ee-secret
+    environment:
+      - CHECKPOINT_SYNC_URL=${CHECKPOINT_SYNC_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - MEV_BOOST=${MEV_BOOST}
+      - CL_EXTRAS=${CL_EXTRAS:-}
+      - NODE_TYPE=${CL_NODE_TYPE:-pruned}
+      - EL_NODE_TYPE=${EL_NODE_TYPE}
+      - EL_NODE=${EL_NODE}
+      - IPV6=${IPV6:-false}
+      - HOST_IP=${HOST_IP:-}
+      - NETWORK=${NETWORK}
+      - RUST_LOG=${LOG_LEVEL:-info}
+    ports:
+      # discv5 is UDP only. libp2p listens on the QUIC port for both QUIC (UDP) and TCP
+      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
+      - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/tcp
+      - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp
+    networks:
+      default:
+        aliases:
+          - eth2
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${CL_ALIAS:-default-consensus}
+    <<: *logging
+    entrypoint:
+      - docker-entrypoint.sh
+      - ethlambda
+      - beacon
+      - --data-dir
+      - /var/lib/ethlambda/beacon
+      - --node-key
+      - /var/lib/ethlambda/node.key
+      - --http-address
+      - 0.0.0.0
+      - --api-port
+      - ${CL_REST_PORT:-5052}
+      - --discovery.port
+      - ${CL_P2P_PORT:-9000}
+      - --gossipsub-port
+      - ${CL_QUIC_PORT:-9001}
+      - ${CL_MAX_PEER_COUNT:+--discovery.target-peers}
+      - ${CL_MAX_PEER_COUNT:+${CL_MAX_PEER_COUNT}}
+      - --metrics-port
+      - "8008"
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=8008
+      - metrics.instance=consensus
+      - metrics.network=${NETWORK}
+      - logs.collect=true
+
+volumes:
+  ethlambda-consensus-data:
+  jwtsecret:
+
+networks:
+  default:
+    enable_ipv6: ${IPV6:-false}

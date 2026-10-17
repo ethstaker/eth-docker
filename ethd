@@ -2680,6 +2680,13 @@ __source_build() {
           __docompose build --pull --no-cache consensus
       fi
       ;;
+    *ethlambda-cl-only.yml*)
+      var="ETHLAMBDA_DOCKERFILE"
+      __get_value_from_env "${var}" "${__env_file}" "value"
+      if [[ "${value}" = "Dockerfile.source" ]]; then
+          __docompose build --pull --no-cache consensus
+      fi
+      ;;
   esac
   case "${COMPOSE_FILE}" in
     *vero-vc-only.yml*)
@@ -4755,6 +4762,7 @@ resync-consensus() {
     *grandine-plugin.yml*|*grandine-plugin-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Grandine Plugin";;
     *grandine-allin1.yml*) cl_volume='wipe-cl-db'; cl_client="Grandine";;
     *grandine.yml*|*grandine-cl-only.yml*) cl_volume='grandineconsensus-data'; cl_client="Grandine";;
+    *ethlambda-cl-only.yml*) cl_volume='ethlambda-consensus-data'; cl_client="ethlambda";;
     *caplin.yml*) cl_volume='wipe-cl-db'; cl_client="Caplin";;
     *) echo "You do not appear to be running a consensus layer client. Nothing to do."; return;;
   esac
@@ -8763,6 +8771,10 @@ version() {
       ;;
     *grandine.yml*|*grandine-allin1.yml*|*grandine-cl-only*)
       __docompose exec consensus grandine --version
+      echo
+      ;;
+    *ethlambda-cl-only*)
+      __docompose exec consensus ethlambda --version
       echo
       ;;
   esac

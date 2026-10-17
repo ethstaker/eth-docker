@@ -40,6 +40,7 @@ jobs:
 
   # Turns the labels into the matrix, so combos without a matching label never get a runner.
   # A combo runs for either of its labels, for "test-all", and on every push to main.
+  # A combo's optional skip_env drops the env_vars entries that start with any of its prefixes.
   select:
     if: |
       contains(join(github.event.pull_request.labels.*.name, ','), 'test-')
@@ -95,6 +96,11 @@ jobs:
              "env": ["CORE_FILES=lighthouse.yml:ethrex.yml:mev-boost.yml",
                      "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
              "test_cl": true, "test_el": true, "test_vc": true},
+            {"labels": ["test-ethlambda"],
+             "env": ["CORE_FILES=ethlambda-cl-only.yml:reth.yml",
+                     "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
+             "skip_env": ["MEV_BOOST=true", "CHECKPOINT_SYNC_URL="],
+             "test_cl": true, "test_el": true, "test_vc": false},
             {"labels": ["test-lighthouse", "test-reth"],
              "env": ["CORE_FILES=lighthouse.yml:reth.yml:mev-boost.yml",
                      "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86"],
@@ -158,6 +164,7 @@ jobs:
             | [ .[] | . as $c
                 | select($event == "push" or any($l[]; . == "test-all" or IN($c.labels[])))
                 | $env_vars[] as $v
+                | select(any($c.skip_env[]?; . as $p | $v | startswith($p)) | not)
                 | $c + {"env-var": $v, name: ($c.env[0] | sub("^CORE_FILES="; ""))} ]' <<< "${combos}")"
           echo "Selected $(jq length <<< "${include}") jobs:"
           jq -r '.[] | "  \(.name) \(."env-var")"' <<< "${include}"
