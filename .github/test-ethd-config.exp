@@ -108,6 +108,7 @@ proc all-defaults {} {
     expect_or_fail "MEV Boost" yes
     expect_or_fail "Relays list" accept_default
     expect_or_fail "ePBS Builders" yes
+    expect_or_fail "Builder list" accept_default
     # This prompt waits on speedtest-cli in __query_epbs_build_factor, which took 31.5s
     # when measured. On macOS the speed test is skipped and "Grafana" arrives at once.
     expect_optional "ePBS Build Factor" yes "Grafana" 45
@@ -126,6 +127,7 @@ proc no-epbs {} {
     expect_or_fail "Configure CL checkpoint sync URL" accept_default
     expect_or_fail "MEV Boost" no
     expect_or_fail "ePBS Builders" yes
+    expect_or_fail "Builder list" accept_default
     expect_or_fail "Grafana" yes
     expect_or_fail "Configure rewards address" accept_default
     expect_or_fail "Configure Graffiti" accept_default
@@ -142,6 +144,7 @@ proc no-grafana {} {
     expect_or_fail "MEV Boost" yes
     expect_or_fail "Relays list" accept_default
     expect_or_fail "ePBS Builders" yes
+    expect_or_fail "Builder list" accept_default
     # This prompt waits on speedtest-cli in __query_epbs_build_factor, which took 31.5s
     # when measured. On macOS the speed test is skipped and "Grafana" arrives at once.
     expect_optional "ePBS Build Factor" yes "Grafana" 45
