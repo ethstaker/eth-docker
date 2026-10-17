@@ -108,11 +108,11 @@ fi
 case "${NODE_TYPE}" in
   archive)
     echo "Prysm archive node without history pruning"
-    __prune="--slots-per-archive-point=32"
+    __prune="--slots-per-archive-point=32 --enable-archive"
     ;;
   blob-archive)
     echo "Prysm blob archive node without blob or history pruning"
-    __prune="--slots-per-archive-point=32 --blob-retention-epochs=4294967295"
+    __prune="--slots-per-archive-point=32 --blob-retention-epochs=4294967295 --enable-archive"
     ;;
   full)
     echo "Prysm node without beacon DB pruning"
