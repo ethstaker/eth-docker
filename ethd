@@ -525,6 +525,7 @@ __handle_docker() {
 __adjust_umask_for_group() {
   local current_umask
   local new_umask
+  local s u g o
 
   current_umask=$(umask)
 
@@ -580,7 +581,6 @@ __mode_after_umask() {
 # __owner and __owner_group are set at script entry and have the user:group owners of the directory
 __handle_ownership() {
   local g
-  local can_sudo=0
   local is_in_group=0
   local perms
   local group_w
@@ -975,7 +975,6 @@ __check_traefik_version() {
 
 
 __prep_conffiles() {
-  local env
   local file
   local dir
   local mode
@@ -1547,11 +1546,13 @@ __cl_api_query() {
 
   # Locals are "_name" because "printf -v" assigns by name - see CONTRIBUTING.md
   for _out_name in "${_out_body}" "${_out_via}"; do
-    if [[ "${_out_name}" =~ ^(_path|_out_body|_out_via|_url|_body|_via|_errexit|_exitstatus|_network_name|_cl_host|_out_name)$ ]]; then
-      echo "__cl_api_query was called with a conflicting output variable: ${_out_name}"
-      echo "This is a bug."
-      exit 70
-    fi
+    case "${_out_name}" in
+      _path|_out_body|_out_via|_url|_body|_via|_errexit|_exitstatus|_network_name|_cl_host|_out_name)
+        echo "__cl_api_query was called with a conflicting output variable: ${_out_name}"
+        echo "This is a bug."
+        exit 70
+        ;;
+    esac
   done
 
   # Not every client image ships both wget and curl, so try either one
@@ -1940,11 +1941,13 @@ __host_route_v4() {
 
   # Locals are "_name" because "printf -v" assigns by name - see CONTRIBUTING.md
   for _out_name in "${_out_src}" "${_out_gateway}"; do
-    if [[ "${_out_name}" =~ ^(_out_src|_out_gateway|_route_info|_src_addr|_gateway_addr|_interface_name|_out_name)$ ]]; then
-      echo "__host_route_v4 was called with a conflicting output variable: ${_out_name}"
-      echo "This is a bug."
-      exit 70
-    fi
+    case "${_out_name}" in
+      _out_src|_out_gateway|_route_info|_src_addr|_gateway_addr|_interface_name|_out_name)
+        echo "__host_route_v4 was called with a conflicting output variable: ${_out_name}"
+        echo "This is a bug."
+        exit 70
+        ;;
+    esac
   done
 
   if [[ "$OSTYPE" = "darwin"* ]]; then
@@ -2457,7 +2460,7 @@ __display_docker_space() {
 
 
 # Warn user if space is low, so they can prune
-# This runs after any ethd command: It is safe to assign to uppercase vars
+# This runs after any ethd command
 __check_disk_space() {
   local low=0
   local var
@@ -2544,7 +2547,7 @@ Full\". Free space:"
 
 
 # Check whether there's a source-built client and if so, force it with --no-cache
-# This is called after writing to .env; it is safe to assign to uppercase variables
+# This is called after writing to .env
 __source_build() {
   local var
   local value
@@ -2553,7 +2556,6 @@ __source_build() {
     *deposit-cli.yml*)
       var="DEPCLI_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "value"
-# shellcheck disable=SC2154
       if [[ "${value}" = "Dockerfile.source" ]]; then
         __docompose --profile tools build --pull --no-cache deposit-cli-new
       fi
@@ -2563,7 +2565,6 @@ __source_build() {
     *web3signer.yml*)
       var="W3S_DOCKERFILE"
       __get_value_from_env "${var}" "${__env_file}" "value"
-# shellcheck disable=SC2154
       if [[ "${value}" = "Dockerfile.source" ]]; then
         __docompose build --pull --no-cache web3signer
       fi
@@ -2718,28 +2719,31 @@ __migrate_alloy_obol() {
 }
 
 
-# Call with the CORE_FILES or CUSTOM_FILES value from .env, and the name of a variable to receive
-# that value rebuilt with any file name changes applied
+# Call with a list of yml files from .env - CORE_FILES, CUSTOM_FILES, or a pre-54 COMPOSE_FILE - the
+# NETWORK from .env, and the name of a variable to receive that list rebuilt with any file name
+# changes applied
 __migrate_compose_files() {
   local _compose_files="$1"
-  local _out_files="$2"
+  local _network="$2"
+  local _out_files="$3"
   local _migrated=""
   local _ymlarray
   local _ymlfile
   local _n
   local _index
-  local _network
 
 # Some files have been renamed and others removed altogether
   local _from_yml=("lido-obol-promtail.yml" "prysm-web-shared.yml")
   local _to_yml=("lido-obol-alloy.yml" "")
 
   # Locals are "_name" because "printf -v" assigns by name - see CONTRIBUTING.md
-  if [[ "${_out_files}" =~ ^(_compose_files|_out_files|_migrated|_ymlarray|_ymlfile|_n|_index|_from_yml|_to_yml|_network)$ ]]; then
-    echo "__migrate_compose_files was called with a conflicting output variable: ${_out_files}"
-    echo "This is a bug."
-    exit 70
-  fi
+  case "${_out_files}" in
+    _compose_files|_network|_out_files|_migrated|_ymlarray|_ymlfile|_n|_index|_from_yml|_to_yml)
+      echo "__migrate_compose_files was called with a conflicting output variable: ${_out_files}"
+      echo "This is a bug."
+      exit 70
+      ;;
+  esac
 
   IFS=":"
   set -o noglob
@@ -2769,7 +2773,6 @@ __migrate_compose_files() {
 
 # Remove after Hegotá
 # Adjust RIGHT after each network's Glamsterdam hardfork
-  __get_value_from_env "NETWORK" "${__env_file}.source" "_network"
   _from_yml=("mev-boost.yml" "commit-boost-pbs.yml")
   _to_yml=("" "")
   if [[ "${_network}" =~ ^(sepolia)$ ]]; then
@@ -2805,6 +2808,7 @@ __migrate_compose_files() {
 
 
 __upgrade_postgres() {
+  local var
   local source_vol
   local source_pg
   local source_size
@@ -3189,11 +3193,13 @@ __get_value_from_env() {
 
   # Locals are "_name" because "printf -v" assigns by name - see CONTRIBUTING.md
   for _out_name in "${_output_var}" "${_found_var}"; do
-    if [[ "${_out_name}" =~ ^(_parsed_value|_parsed_found|_output_var|_found_var|_output|_env_file|_var_name|_awk_exe|_out_name)$ ]]; then
-      echo "__get_value_from_env was called with a conflicting output variable: ${_out_name}"
-      echo "This is a bug."
-      exit 70
-    fi
+    case "${_out_name}" in
+      _parsed_value|_parsed_found|_output_var|_found_var|_output|_env_file|_var_name|_awk_exe|_out_name)
+        echo "__get_value_from_env was called with a conflicting output variable: ${_out_name}"
+        echo "This is a bug."
+        exit 70
+        ;;
+    esac
   done
 
   if [[ "$OSTYPE" = "darwin"* ]]; then
@@ -3648,7 +3654,8 @@ __migrate_env() {
     __get_value_from_env "${var}" "${__env_file}.source" "value" "found"
     if [[ "${found}" -eq 1 ]]; then  # Only if variable isn't new in default.env
       if [[ "${var}" = "CORE_FILES" || "${var}" = "CUSTOM_FILES" ]]; then
-        __migrate_compose_files "${value}" "value"
+        __get_value_from_env "NETWORK" "${__env_file}.source" "network"
+        __migrate_compose_files "${value}" "${network}" "value"
       fi
       # Remove after Glamsterdam
       # A pre-54 .env had no CORE_FILES and COMPOSE_FILE held the yml files. Only split it up when
@@ -3668,7 +3675,8 @@ __migrate_env() {
           __final_msg+="\nfile. A stale ENV_VERSION makes ${__me} re-run old migrations against a current file.\n"
         else
           # There was no CORE_FILES to apply yml renames to, so apply them here
-          __migrate_compose_files "${value}" "value"
+          __get_value_from_env "NETWORK" "${__env_file}.source" "network"
+          __migrate_compose_files "${value}" "${network}" "value"
           __update_value_in_env "CORE_FILES" "${value}" "${__env_file}"
         fi
 # shellcheck disable=SC2016
@@ -5142,6 +5150,9 @@ execution | grep Full\" to see whether it is."
 prune-history() {
   local var
   local rpc_line
+  local rpc_port
+  local sync_status
+  local exitstatus
   local regex
   local client
   local extra_msg
@@ -5556,7 +5567,6 @@ prune-lighthouse() {
 
 
 __prep-keyimport() {
-  local var
   local files
 
   if [[ ! "${COMPOSE_FILE}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-allin1\.yml|vc-only\.yml) ]]; then
@@ -6387,7 +6397,6 @@ screen.\n\nCustom testnets only work with a URL to fetch their configuration fro
       done
       ;;
   esac
-# shellcheck disable=SC2154
   if [[ ! "${NETWORK}" = "${prev_network}" ]]; then
     __network_change=1
   else
@@ -7830,6 +7839,7 @@ __query_epbs_factor() {
   local down_speed
   local up_speed
   local max_blobs
+  local exitstatus
 
   var="EPBS_BUILD_FACTOR"
   __get_value_from_env "${var}" "${__env_file}" "${var}"
@@ -8262,7 +8272,6 @@ __handle_error() {
 
 
 __check_legacy() {
-  local var
   local client
 
   if [[ "${COMPOSE_FILE}" =~ -allin1\.yml && ! "${COMPOSE_FILE}" =~ (grandine-allin1\.yml|grandine-plugin-allin1\.yml) ]]; then # Warn re Grandine once VC
@@ -8460,7 +8469,7 @@ __config_lido_ssv() {
 # Interactive configuration of a Lido SimpleDVT Obol node, with CL, EL and Obol Charon
 __config_lido_obol() {
   local cluster_lock_is_valid
-  local obol_prom_remote_token
+  local cluster_definition_is_valid
 
   __write_vars+=("VE_LOCATOR_ADDRESS" "VE_ORACLE_ADDRESSES_ALLOWLIST" "VE_STAKING_MODULE_ID" "LIDO_DV_EXIT_EXIT_EPOCH" \
     "VE_OPERATOR_ID" "OBOL_CLUSTER_NAME" "OBOL_CLUSTER_PEER" "OBOL_CHARON_REMOTE_LOKI_ADDRESSES" "ENABLE_DIST_ATTESTATION_AGGR" \
