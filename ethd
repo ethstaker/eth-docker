@@ -5293,23 +5293,23 @@ prune-history() {
 
     case "${COMPOSE_FILE}" in
       *besu.yml*)
-        choices+=("rolling" "Rolling expiry (experimental)")
+        choices+=("rolling" "Rolling expiry, keeps ~5 months (experimental)")
         ;;
       *erigon.yml*)
-        choices+=("rolling" "Rolling expiry")
+        choices+=("rolling" "Rolling expiry, keeps ~5 months")
         ;;
       *nethermind.yml*)
-        choices+=("rolling" "Rolling expiry")
+        choices+=("rolling" "Rolling expiry, keeps ~5 months")
         ;;
       *reth.yml*)
-        choices+=("rolling" "Rolling expiry")
+        choices+=("rolling" "Rolling expiry, keeps ~5 months")
         ;;
       *geth.yml*)
         ;;
       *ethrex.yml*)
         ;;
       *nimbus-el.yml*|*nimbus-unified.yml*)
-        choices+=("rolling" "Rolling expiry")
+        choices+=("rolling" "Rolling expiry, keeps ~5 months")
         ;;
     esac
 
@@ -7046,13 +7046,13 @@ __query_4444() {
   # ssv should have pre-merge followed by rolling and full; rpc should have full and archive followed by pre-merge and rolling
   # All others in order of more disk space used
   if [[ ! "${__deployment}" =~ ^(rpc|.*ssv)$ && ! "${EXECUTION_CLIENT}" =~ ^(ethrex\.yml|geth\.yml)$ ]]; then
-    choices+=("rolling-expiry" "Rolling expiry")
+    choices+=("rolling-expiry" "Rolling expiry, keeps ~5 months")
   fi
   if [[ "${__deployment}" != "rpc" ]]; then
     choices+=("pre-merge-expiry" "Pre-merge expiry")
   fi
   if [[ "${__deployment}" =~ ^(.*ssv)$ && ! "${EXECUTION_CLIENT}" =~ ^(ethrex\.yml|geth\.yml)$ ]]; then
-    choices+=("rolling-expiry" "Rolling expiry")
+    choices+=("rolling-expiry" "Rolling expiry, keeps ~5 months")
   fi
   choices+=("full" "Full node without expiry, 4TB disk or more")
   if [[ "${__deployment}" = "rpc" ]]; then
@@ -7061,7 +7061,7 @@ __query_4444() {
     fi
     choices+=("pre-merge-expiry" "Pre-merge expiry")
     if [[ ! "${EXECUTION_CLIENT}" =~ ^(ethrex\.yml|geth\.yml)$ ]]; then
-      choices+=("rolling-expiry" "Rolling expiry")
+      choices+=("rolling-expiry" "Rolling expiry, keeps ~5 months")
     fi
   fi
 
@@ -8996,6 +8996,7 @@ __full_help() {
   echo "    stops the Ethereum node and destroys all data stores"
   echo "  prune-history [--non-interactive] [--pre-merge|--rolling]"
   echo "    stops the execution client and configures history expiry."
+  echo "    --rolling keeps ~5 months of history."
   echo "  prune-besu [--non-interactive]"
   echo "    stops the Besu execution client and prunes trie-logs."
   echo "  prune-reth [--non-interactive]"
