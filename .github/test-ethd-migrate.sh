@@ -262,7 +262,7 @@ check_equals "EPBS_BUILDERS stays false" "false" "$(get_value EPBS_BUILDERS)"
 check_equals "EPBS_BUILDER_URLS stays empty" "" "$(get_raw_value EPBS_BUILDER_URLS)"
 
 # Adjust before each network's Glamsterdam hardfork, when builder URLs are known
-__hoodi_urls=$'"\nhttps://boost-relay-hoodi.flashbots.net,\nhttps://hoodi.titanrelay.xyz,\nhttps://relay-hoodi.ultrasound.money\n"'
+__hoodi_urls=$'"\nhttps://hoodi.aestus.live,\nhttps://boost-relay-hoodi.flashbots.net,\nhttps://hoodi.titanrelay.xyz,\nhttps://relay-hoodi.ultrasound.money\n"'
 
 echo "== Hoodi keeps MEV Boost until its own Glamsterdam, and gets ePBS builder URLs =="
 sepolia_mev_env 73
