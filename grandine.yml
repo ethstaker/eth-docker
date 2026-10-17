@@ -152,7 +152,6 @@ services:
       - "8009"
       - --suggested-fee-recipient
       - ${FEE_RECIPIENT}
-      - --track-liveness
       - --keystore-storage-password-file
       - /var/lib/grandine-vc/wallet-password.txt
       - --enable-validator-api
