@@ -18,6 +18,14 @@ runs:
     - name: Start client combo
       run: ./ethd up
       shell: bash
+    - name: Start memory sampler
+      run: |
+        nohup bash -c 'while true; do
+          docker stats --no-stream \
+            --format "{{.Name}} {{.MemUsage}}" | sed "s/^/$(date +%T) /"
+          sleep 2
+        done' > /tmp/docker-stats.log 2>&1 &
+      shell: bash
     - name: Pause for 15 seconds
       run: sleep 15
       shell: bash
@@ -36,3 +44,16 @@ runs:
     - name: Test version
       run: ./ethd version
       shell: bash
+    - name: Diagnose failure
+      if: failure()
+      shell: bash
+      run: |
+        sudo dmesg -T | grep -iE 'oom|killed process' || true
+        docker inspect $(docker compose ps -aq) --format \
+          '{{.Name}} OOMKilled={{.State.OOMKilled}} Exit={{.State.ExitCode}}' \
+          || true
+        docker compose exec -T execution cat /sys/fs/cgroup/memory.peak || true
+        free -m
+        tail -n 100 /tmp/docker-stats.log || true
+        docker compose ps -a || true
+        docker compose logs --tail 200 || true
