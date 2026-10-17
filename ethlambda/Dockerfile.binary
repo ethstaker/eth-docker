@@ -1,0 +1,49 @@
+# hadolint global ignore=DL3007,DL3008,DL3022,DL3059,DL3066
+ARG DOCKER_TAG=beacon
+ARG DOCKER_REPO=ghcr.io/lambdaclass/ethlambda
+
+FROM ${DOCKER_REPO}:${DOCKER_TAG}
+
+# Unused, this is here to avoid build time complaints
+ARG BUILD_TARGET
+ARG SRC_REPO
+
+ARG USER=ethlambda
+ARG UID=10002
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  wget \
+  curl \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# See https://stackoverflow.com/a/55757473/12429735RUN
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    "${USER}"
+
+# Create data mount point with permissions
+RUN mkdir -p /var/lib/ethlambda/ee-secret && chown -R ${USER}:${USER} /var/lib/ethlambda \
+&& chmod -R 700 /var/lib/ethlambda && chmod 777 /var/lib/ethlambda/ee-secret
+# Cannot assume buildkit, hence no chmod
+COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+COPY --from=ephemery --chown=${USER}:${USER} ephemery-config.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
+USER ethlambda
+
+ENTRYPOINT ["ethlambda"]

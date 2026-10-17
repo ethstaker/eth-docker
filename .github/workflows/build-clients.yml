@@ -116,6 +116,12 @@ jobs:
             test_el: true
             test_vc: true
           - env: |-
+              CORE_FILES=ethlambda-cl-only.yml:reth.yml
+              ETHLAMBDA_DOCKERFILE=Dockerfile.source
+            test_cl: true
+            test_el: true
+            test_vc: false
+          - env: |-
               CORE_FILES=lighthouse.yml:reth.yml
               LH_DOCKERFILE=Dockerfile.source
               FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86

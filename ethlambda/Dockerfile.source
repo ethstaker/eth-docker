@@ -1,0 +1,81 @@
+# hadolint global ignore=DL3007,DL3008,DL3022,DL3059,DL3066,DL4006
+# Build ethlambda in a stock Rust build container
+FROM rust:trixie AS builder
+
+# Unused, this is here to avoid build time complaints
+ARG DOCKER_TAG
+ARG DOCKER_REPO
+
+RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install-recommends clang libclang-dev pkg-config
+
+ARG BUILD_TARGET
+ARG SRC_REPO
+
+WORKDIR /usr/src
+
+ARG SRC_DIR=ethlambda
+RUN --mount=type=cache,sharing=locked,id=ethlambda-target,target=/usr/src/target/ \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/git/db \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry/ \
+  bash -eo pipefail <<'EOF'
+git clone "$SRC_REPO" "$SRC_DIR"
+cd "$SRC_DIR"
+git config advice.detachedHead false
+git fetch --all --tags
+CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+TARGET=$(eval echo "$CLEANED")
+if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
+  git fetch origin pull/${TARGET#pr-}/head:build-pr
+  git checkout build-pr
+else
+  git checkout "$TARGET"
+fi
+# The target dir is a cache mount, so the binary has to leave it within this RUN
+CARGO_TARGET_DIR=/usr/src/target cargo build --release --locked --bin ethlambda
+cp /usr/src/target/release/ethlambda /usr/local/bin/
+EOF
+
+
+# Pull all binaries into a second stage deploy debian container
+FROM debian:trixie-slim
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  gosu \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  wget \
+  curl \
+  && gosu nobody true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG USER=ethlambda
+ARG UID=10002
+
+# See https://stackoverflow.com/a/55757473/12429735RUN
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    "${USER}"
+
+# Create data mount point with permissions
+RUN mkdir -p /var/lib/ethlambda/ee-secret && chown -R ${USER}:${USER} /var/lib/ethlambda \
+&& chmod -R 700 /var/lib/ethlambda && chmod 777 /var/lib/ethlambda/ee-secret
+# Cannot assume buildkit, hence no chmod
+COPY --from=builder --chown=${USER}:${USER} /usr/local/bin/ethlambda /usr/local/bin/
+COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+COPY --from=ephemery --chown=${USER}:${USER} ephemery-config.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
+USER ethlambda
+
+ENTRYPOINT ["ethlambda"]
