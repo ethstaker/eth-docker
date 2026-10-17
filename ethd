@@ -7346,6 +7346,7 @@ __query_epbs() {
   local default
   local message_mandatory=""
   local aestus_default="ON"
+  local bombora_default="ON"
   local flashbots_default="ON"
   local titan_global_default="ON"
   local titan_regional_default="ON"
@@ -7400,6 +7401,9 @@ https://builder-hoodi.pk910.de
   if [[ "${prev_epbs_builders}" = "true" && "${__network_change}" -eq 0 ]]; then  #  EPBS was already configured, default disable anything the user hadn't chosen previously
     if [[ ! "${EPBS_BUILDER_URLS}" =~ aestus ]]; then
       aestus_default="OFF"
+    fi
+    if [[ ! "${EPBS_BUILDER_URLS}" =~ bombora ]]; then
+      bombora_default="OFF"
     fi
     if [[ ! "${EPBS_BUILDER_URLS}" =~ flashbots ]]; then
       flashbots_default="OFF"
@@ -7521,10 +7525,12 @@ https://builder-hoodi.pk910.de
         ;;
       sepolia)
         builders=(
+          ['Bombora']="https://sepolia.bombora.workers.dev"
           ['nflaig']="https://builder-sepolia.nflaig.dev"
           ['Titan']="https://sepolia.titanrelay.xyz"
         )
         choices=(
+          "Bombora" "(unfiltered)" "${bombora_default}"
           "nflaig" "(unfiltered)" "${nflaig_default}"
           "Titan" "(unfiltered)" "${titan_global_default}"
         )
