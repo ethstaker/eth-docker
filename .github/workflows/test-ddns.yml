@@ -60,3 +60,18 @@ jobs:
       - name: Report test result
         if: always()
         run: exit "${{ steps.tests.outputs.status }}"
+
+  build-ddns:
+    if: contains(github.event.pull_request.labels.*.name, 'check-ddns')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build -t ddns:ci traefik-utils
+
+      - name: Import modules in image
+        run: >-
+          docker run --rm ddns:ci python -c
+          "import updater, cf_provider, route53_provider, provider_registry"
