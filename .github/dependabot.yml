@@ -10,15 +10,14 @@ updates:
       - dependency-type: "all"
     cooldown:
       default-days: 7
-    directories:
-      - "*"
+    directory: "/traefik-utils/app"
     schedule:
       interval: "weekly"
     groups:
       pydantic-deps:
         patterns:
           - "pydantic*"
-      pip-deps:
+      uv-deps:
         patterns:
           - "*"
   - package-ecosystem: "docker"
