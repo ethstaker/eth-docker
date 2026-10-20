@@ -1,0 +1,69 @@
+# hadolint global ignore=DL3007,DL3008,DL3059,DL4006
+# Build eRPC in a stock Go build container
+FROM golang:1.26-trixie AS builder
+
+# Included here to avoid build-time complaints
+ARG DOCKER_TAG
+ARG DOCKER_REPO
+
+ARG BUILD_TARGET
+ARG SRC_REPO
+
+WORKDIR /usr/src
+
+ARG SRC_DIR=erpc
+RUN bash -eo pipefail <<'EOT'
+  git clone "$SRC_REPO" "$SRC_DIR"
+  cd "$SRC_DIR"
+  git config advice.detachedHead false
+  git fetch --all --tags
+  CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+  TARGET=$(eval echo "$CLEANED")
+  if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
+    git fetch origin pull/$(echo "$TARGET" | cut -d '-' -f 2)/head:build-pr
+    git checkout build-pr
+  else
+    git checkout "$TARGET"
+  fi
+  CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s \
+    -X github.com/erpc/erpc/common.ErpcVersion=$(git describe --tags --always) \
+    -X github.com/erpc/erpc/common.ErpcCommitSha=$(git rev-parse --short HEAD)" \
+    -o /usr/src/erpc-server ./cmd/erpc/main.go
+EOT
+
+
+# Pull the binary into a second stage deploy debian container
+FROM debian:trixie-slim
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  adduser \
+  bash \
+  curl \
+  jq \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG USER=user
+ARG UID=11001
+
+# See https://stackoverflow.com/a/55757473/12429735RUN
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/usr/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    "${USER}"
+
+# Cannot assume buildkit, hence no chmod
+COPY --from=builder --chown=${USER}:${USER} /usr/src/erpc-server /usr/local/bin/
+COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
+USER ${USER}
+
+ENTRYPOINT ["erpc-server"]

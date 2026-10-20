@@ -1,0 +1,145 @@
+// eRPC configuration for Eth Docker's erpc.yml
+//
+// "./ethd update" and "./ethd up" copy this file to erpc.ts if that does not exist yet. Edit erpc.ts, not this
+// sample. erpc.ts is not tracked by git, and your changes are safe across updates.
+//
+// Docs: https://docs.erpc.cloud
+//
+// Most settings come from .env, and do not need to be changed here:
+//   RPC_URLS        - remote RPC providers, comma-separated. https://, or wss:// which is converted to https://
+//   EL_RPC_NODE     - the local execution client
+//   PROXY_RPC_PORT  - the port eRPC listens on
+//   CHAIN_ID        - derived from NETWORK in .env, or queried from EL_RPC_NODE
+//
+// What this configuration does:
+// - eth_getLogs and other calls go to the local execution client first, as long as the requested blocks are within
+//   the range the local client keeps. See LOCAL_HISTORY_BLOCKS below, and adjust it to your EL_NODE_TYPE.
+// - Requests the local client cannot serve go to the remote providers in RPC_URLS
+// - Remote providers that return too many 429s are taken out of rotation for a while, and traffic shifts to the
+//   others. A rate limit budget keeps each provider below its quota to begin with.
+//
+// Things to know:
+// - An eth_getLogs whose range crosses the edge of the local client's history is sent to a remote provider in full.
+//   eRPC does not split a request at that edge.
+// - If all remote providers are throttled, clients get an HTTP 200 with a JSON-RPC error body, not an HTTP 429
+// - WebSocket is not enabled. Clients connect to http://rpc-proxy:PROXY_RPC_PORT/, or the PROXY_RPC_HOST traefik
+//   host when using rpc-proxy-traefik.yml
+
+// How many recent blocks the local execution client has. Adjust this to match EL_NODE_TYPE in .env:
+// - rolling-expiry keeps about 5 months of history. 1_000_000 blocks is about 4.6 months on Ethereum, which leaves
+//   a safety margin
+// - full or archive: set this to null, the client has all blocks
+// - pre-merge-expiry: set this to null, and use "exactBlock" with the merge block in "blockAvailability" of the local
+//   upstream below. That is 15537394 on mainnet and 1735371 on Sepolia.
+const LOCAL_HISTORY_BLOCKS: number | null = 1_000_000;
+
+// Requests per second eRPC sends to each remote provider. Set this to the quota of your plan. The budget tunes
+// itself downward when a provider returns errors, and back up when it recovers.
+const REMOTE_REQUESTS_PER_SECOND = 10;
+
+// How often eRPC tries a request, across upstreams, before it returns an error
+const RETRY_ATTEMPTS = 4;
+
+const env = process.env;
+
+const CHAIN_ID = Number(env.CHAIN_ID);
+
+// Entries that still hold the <ApiKey> placeholder from default.env are skipped.
+// eRPC does not take wss:// upstreams. Those are converted to https:// on the same host and path, which is how most
+// providers serve both. Infura is the exception, its WebSocket path has an additional /ws/
+const remoteUrls = (env.RPC_URLS ?? "")
+  .split(",")
+  .map((url) => url.trim())
+  .filter((url) => url.length > 0 && !url.includes("<ApiKey>"))
+  .map((url) => url.replace(/^ws(s?):\/\//, "http$1://").replace(".infura.io/ws/", ".infura.io/"));
+
+const remotes = remoteUrls.map((endpoint, i) => ({ id: `remote-${i + 1}`, endpoint }));
+
+export default {
+  logLevel: "info",
+
+  server: {
+    httpHostV4: "0.0.0.0",
+    httpPortV4: Number(env.PROXY_RPC_PORT),
+    // Serve the chain at the root path, so that clients do not need to use /main/evm/CHAIN_ID
+    aliasing: {
+      rules: [
+        { matchDomain: "*", serveProject: "main", serveArchitecture: "evm", serveChain: String(CHAIN_ID) },
+      ],
+    },
+  },
+
+  // Metrics are served on port 4001, and erpc.yml labels the service for scraping by Eth Docker's Prometheus
+
+  rateLimiters: {
+    // One budget per remote provider. To give a provider its own limit, change maxCount for its "remote-N" id here,
+    // where N is its position in RPC_URLS
+    budgets: remotes.map((remote) => ({
+      id: remote.id,
+      rules: [{ method: "*", maxCount: REMOTE_REQUESTS_PER_SECOND, period: "second" }],
+    })),
+  },
+
+  projects: [
+    {
+      id: "main",
+      networks: [
+        {
+          architecture: "evm",
+          evm: {
+            chainId: CHAIN_ID,
+            // Retry empty results only up to the finalized block, not up to the chain head
+            emptyResultConfidence: "finalizedBlock",
+          },
+          directiveDefaults: {
+            // Check eth_getLogs ranges against the blocks each upstream has, and skip upstreams that lack them
+            enforceGetLogsBlockRange: true,
+          },
+          failsafe: [{ matchMethod: "*", retry: { maxAttempts: RETRY_ATTEMPTS } }],
+          selectionPolicy: {
+            evalFunc: `(upstreams, ctx) =>
+              upstreams
+                .removeCordoned()
+                .excludeIf(all(samplesAbove(10), errorRateAbove(0.7)))
+                .excludeIf(all(samplesAbove(5), throttleRateAbove(0.2)))
+                .whenEmpty(() => upstreams)
+                .sortByScore(PREFER_LEAST_ERRORS)
+                .probeExcluded({ sampleRate: 0.1, minSamples: 5, minSamplesWindow: '60s',
+                                 maxConcurrent: 1, timeout: '10s' })`,
+          },
+        },
+      ],
+
+      upstreams: [
+        // The local execution client
+        {
+          id: "local",
+          endpoint: env.EL_RPC_NODE,
+          tags: ["tier:local"],
+          // Rank the local client well ahead of the remote providers, so it is tried first. The remote providers
+          // stay in the list, and take over for requests the local client cannot serve.
+          routing: {
+            scoreMultipliers: [{ network: "", method: "", overall: 10 }],
+          },
+          // Do not use "earliestBlockPlus" with the default blockHeader probe: A client that has expired history
+          // still serves block headers, and would wrongly report that it has all blocks.
+          ...(LOCAL_HISTORY_BLOCKS
+            ? { evm: { blockAvailability: { lower: { latestBlockMinus: LOCAL_HISTORY_BLOCKS } } } }
+            : {}),
+        },
+
+        // Remote providers from RPC_URLS. To add one that is not in RPC_URLS, append it to this list, with its own
+        // budget in "rateLimiters" above.
+        // eth_getLogs block range limits differ by provider and plan. "getLogsAutoSplittingRangeThreshold" under
+        // "evm" splits large requests up front, but eRPC uses the smallest threshold of all providers for every one
+        // of them.
+        ...remotes.map((remote) => ({
+          ...remote,
+          tags: ["tier:fallback"],
+          rateLimitBudget: remote.id,
+          rateLimitAutoTune: { enabled: true, minBudget: 1, decreaseFactor: 0.7 },
+        })),
+      ],
+    },
+  ],
+};

@@ -1,4 +1,5 @@
-# To be used in conjunction with nimbus-vp.yml
+# To be used in conjunction with nimbus-vp.yml or erpc.yml
+# eRPC serves only the RPC port and host, not the WS ones
 services:
   rpc-proxy:
     ports:

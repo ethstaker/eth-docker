@@ -1,0 +1,60 @@
+name: Test eRPC
+
+defaults:
+  run:
+    shell: bash
+
+# ethd skips the warnings it prints after a command
+env:
+  ETHD_FRONTEND: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-erpc:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'check-erpc') ||
+      contains(github.event.pull_request.labels.*.name, 'test-all') ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Remove podman
+        run: sudo apt-get remove -y podman
+      - name: Create .env file
+        run: cp default.env .env
+      - name: Set eRPC
+        run: |
+          source ./.github/helper.sh
+          NETWORK=mainnet
+          var=NETWORK
+          set_value_in_env
+          CORE_FILES=erpc.yml:rpc-proxy-shared.yml
+          var=CORE_FILES
+          set_value_in_env
+          RPC_URLS=https://ethereum-rpc.publicnode.com,https://eth.drpc.org
+          var=RPC_URLS
+          set_value_in_env
+      - name: Start eRPC
+        run: ./ethd up
+      - name: Pause for 30 seconds
+        run: sleep 30
+      - name: Test eRPC
+        run: ./.github/check-service.sh rpc-proxy
+      - name: Test RPC request
+        run: |
+          curl -s -f -m 30 -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+            http://127.0.0.1:48545/ | tee /dev/stderr | jq -e '.result | test("^0x[0-9a-f]+$")'
+      - name: Test version
+        run: ./ethd version

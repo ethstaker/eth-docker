@@ -1,0 +1,55 @@
+x-logging: &logging
+  logging:
+    driver: ${LOG_DRIVER}
+    options:
+      max-size: ${LOG_MAX_SIZE}
+      max-file: ${LOG_MAX_FILE}
+      tag: ${LOG_TAG}
+
+services:
+  rpc-proxy:
+    restart: "unless-stopped"
+    build:
+      context: ./erpc
+      dockerfile: ${ERPC_DOCKERFILE}
+      args:
+        - BUILD_TARGET=${ERPC_SRC_BUILD_TARGET:-main}
+        - SRC_REPO=${ERPC_SRC_REPO:-https://github.com/erpc/erpc}
+        - DOCKER_TAG=${ERPC_DOCKER_TAG:-latest}
+        - DOCKER_REPO=${ERPC_DOCKER_REPO:-ghcr.io/erpc/erpc}
+    stop_grace_period: 30s
+    image: erpc:local
+    pull_policy: never
+    user: user
+    environment:
+      - NETWORK=${NETWORK}
+      - EL_RPC_NODE=${EL_RPC_NODE}
+      - RPC_URLS=${RPC_URLS:-}
+      - PROXY_RPC_PORT=${PROXY_RPC_PORT:-48545}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - PROXY_EXTRAS=${PROXY_EXTRAS:-}
+    volumes:
+      - ./erpc/erpc.ts:/erpc.ts:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      default:
+        aliases:
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${RPC_PROXY_ALIAS:-default-rpc-proxy}
+    <<: *logging
+    entrypoint:
+      - docker-entrypoint.sh
+      - erpc-server
+      - --require-config
+      - --config=/erpc.ts
+    labels:
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=4001
+      - metrics.instance=rpc-proxy
+      - metrics.network=${NETWORK}
+      - logs.collect=true
+
+networks:
+  default:
+    enable_ipv6: ${IPV6:-false}

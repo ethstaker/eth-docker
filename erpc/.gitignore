@@ -1,0 +1,6 @@
+*
+!*.sample
+!.gitignore
+!Dockerfile.binary
+!Dockerfile.source
+!docker-entrypoint.sh
