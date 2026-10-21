@@ -1,0 +1,14 @@
+# Python dependencies of the CI test scripts in .github, such as test-ethd-config.py
+[project]
+name = "ethd-test-tools"
+version = "1.0.0"
+requires-python = ">=3.15,<4"
+dependencies = [
+    "pexpect",
+    # Transitive dependencies. Listed explicitly because Dependabot cannot
+    # update transitive dependencies in uv.lock. Not imported directly.
+    "ptyprocess",
+]
+
+[tool.uv]
+package = false

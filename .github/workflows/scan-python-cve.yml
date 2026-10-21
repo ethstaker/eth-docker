@@ -11,9 +11,15 @@ concurrency:
 jobs:
   audit:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - traefik-utils/app
+          - .github/test-tools
     defaults:
       run:
-        working-directory: traefik-utils/app
+        working-directory: ${{ matrix.project }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7

@@ -20,6 +20,18 @@ updates:
       uv-deps:
         patterns:
           - "*"
+  - package-ecosystem: "uv"
+    allow:
+      - dependency-type: "all"
+    cooldown:
+      default-days: 7
+    directory: "/.github/test-tools"
+    schedule:
+      interval: "weekly"
+    groups:
+      test-tools-deps:
+        patterns:
+          - "*"
   - package-ecosystem: "docker"
     cooldown:
       default-days: 7

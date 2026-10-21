@@ -33,8 +33,14 @@ jobs:
           fetch-depth: 0
       - name: Prerequisites on Ubuntu
         run: |
-          sudo apt-get install -y expect whiptail
+          sudo apt-get install -y whiptail
           sudo apt-get remove -y podman
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: '3.15'
+          enable-cache: true
+          cache-dependency-glob: .github/test-tools/uv.lock
       - name: Use default.env
         run: cp default.env .env
       - name: Set old .env version
@@ -55,33 +61,43 @@ jobs:
       - name: Remove .env
         run: rm .env
       - name: Test ethd config defaults
-        run: expect -d ./.github/test-ethd-config.exp all-defaults
+        run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py all-defaults
         env:
           TERM: xterm
       - name: Test ethd config no epbs
-        run: expect -d ./.github/test-ethd-config.exp no-epbs
+        run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py no-epbs
         env:
           TERM: xterm
       - name: Test ethd config no grafana
-        run: expect -d ./.github/test-ethd-config.exp no-grafana
+        run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py no-grafana
         env:
           TERM: xterm
 
-  # The whole thing on macOS, Colima and a syncing client pair included. It does not fit in the
-  # half hour the Ubuntu job takes, and Colima is slow enough that it is not worth running on
-  # every push - so it waits for its own label.
+  # ethd's shell logic on macOS userland. Hosted macOS runners have no nested virtualization, so no
+  # container runtime can start there: Docker is stubbed, and the Ubuntu job covers the real Docker runs.
+  # It waits for its own label.
   test-ethd-macos:
     if: contains(github.event.pull_request.labels.*.name, 'check-ethd-macos')
-    runs-on: macos-26-intel
-    timeout-minutes: 90
+    runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Set up Docker on macOS
-        uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
       - name: Prerequisites on macOS
-        run: brew install bash newt coreutils expect gawk
+        run: brew install bash newt coreutils gawk
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: '3.15'
+          enable-cache: true
+          cache-dependency-glob: .github/test-tools/uv.lock
+      - name: Stub Docker
+        run: |
+          mkdir -p "${RUNNER_TEMP}/stub-bin"
+          cp ./.github/macos-docker-stub.sh "${RUNNER_TEMP}/stub-bin/docker"
+          echo "${RUNNER_TEMP}/stub-bin" >> "${GITHUB_PATH}"
+          echo "DOCKER_STUB_LOG=${RUNNER_TEMP}/docker-stub.log" >> "${GITHUB_ENV}"
       - name: Use default.env
         run: cp default.env .env
       - name: Set old .env version
@@ -95,26 +111,32 @@ jobs:
           set_value_in_env
       - name: Test ethd update
         run: ./ethd update --debug --non-interactive
-      # The space report is the only path that always shows the Docker volume table, which is
-      # otherwise only printed when the disk runs low. On macOS it uses gawk and busybox df.
+      # ethd exits 0 when it cannot call Docker, so check that update got as far as pulling
+      - name: Check ethd update ran
+        run: |
+          cat "${DOCKER_STUB_LOG}"
+          grep -qx 'compose --profile tools pull' "${DOCKER_STUB_LOG}"
+      # On macOS the space report uses gawk and busybox df, here answered by the stub
       - name: Test ethd space
         run: ./ethd space
       # "keys prepare-address-change" downloads ethdo and jq on the host; macOS has no wget
       - name: Test GitHub release downloads
         run: ./.github/test-get-github-release.sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}  # Hosted macOS runners share IPs, and use up the API's rate limit
       - name: Test .env migration edge cases
         run: ./.github/test-ethd-migrate.sh
       - name: Remove .env
         run: rm .env
       - name: Test ethd config defaults
-        run: expect -d ./.github/test-ethd-config.exp all-defaults
+        run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py all-defaults
         env:
           TERM: xterm
       - name: Test ethd config no epbs
-        run: expect -d ./.github/test-ethd-config.exp no-epbs
+        run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py no-epbs
         env:
           TERM: xterm
       - name: Test ethd config no grafana
-        run: expect -d ./.github/test-ethd-config.exp no-grafana
+        run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py no-grafana
         env:
           TERM: xterm

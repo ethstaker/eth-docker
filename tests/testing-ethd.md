@@ -88,6 +88,36 @@ Lido Obol can't be tested without a live Obol cluster, but run through it as far
 
 Lido SSV is identical to SSV
 
+### Automated config runs
+
+`.github/test-ethd-config.py` drives `./ethd config` through its whiptail dialogs with pexpect.
+The `Test ethd` workflow runs it on Ubuntu, and on macOS with label `check-ethd-macos`, with three
+scenarios: `all-defaults` starts without `.env`, and `no-epbs` and `no-grafana` then reuse the `.env`
+it wrote. Its Python dependencies are locked in `.github/test-tools`, so it needs `uv` and
+`whiptail` (`newt` on macOS), but not `expect`.
+
+It writes `.env`, so run it in a throwaway clone, never in a checkout that holds a live node's `.env`.
+From the root of that clone:
+
+```bash
+rm -f .env
+for scenario in all-defaults no-epbs no-grafana; do
+  ETHD_FRONTEND=ci TERM=xterm uv run --locked --project .github/test-tools \
+    ./.github/test-ethd-config.py "${scenario}" || break
+done
+```
+
+`ETHD_FRONTEND=ci` keeps config from pulling and building. The dialogs are echoed as they arrive,
+and a failure names the prompt it was waiting for: `Timeout waiting for: Grafana`.
+
+Two things make it fail on a workstation that pass in CI:
+- With `ufw` installed, the Grafana step asks for a sudo password, which the script cannot type. Run
+  it where sudo needs no password, or where `ufw` is not installed
+- `no-epbs` waits 15 seconds for the Grafana prompt while ethd runs its speed test. A slow uplink takes
+  longer, and the run times out on `Grafana`
+
+To add a scenario, add a function next to `no_grafana` and an entry for it in `ACTIONS`.
+
 ## Multi-user test paths
 
 tests/test-multiuser.sh encodes the below tests
@@ -165,7 +195,14 @@ that the expected values in the script are the right ones, paste either into
 for a record whose signature does not hold up.
 
 What that cannot tell you is how the real BSD tools behave - only that our branches handle the
-output we believe they produce. On an actual Mac, still check:
+output we believe they produce.
+
+The `test-port-check-macos` job, label `check-ethd-port-check-macos`, runs `offline` and `online`
+on a macOS runner. Hosted macOS cannot run containers, so `.github/macos-docker-stub.sh` stands in
+for Docker, and after `./ethd up` it answers the Beacon API with the fixture ENR and a canned peer
+list. The whole `./ethd port-check` command then runs on the real BSD tools: `route` and `ipconfig`,
+openssl and python3 for the public key, Homebrew bash and gawk. The client answers are canned
+though, and the runner has no NAT to speak of or IPv6. On an actual Mac, still check:
 
 - `./ethd port-check --debug` on a Mac behind NAT: `Host route` must name a real `src` and
   `via`, from `route -n get` and `ipconfig getifaddr`, and the `IPv4` row must say `(behind NAT)`.

@@ -85,21 +85,27 @@ jobs:
         if: ${{ failure() }}
         run: docker compose logs consensus execution
 
-  # The whole thing on macOS, Colima and a syncing client pair included. It does not fit in the
-  # half hour the Ubuntu job takes, and Colima is slow enough that it is not worth running on
-  # every push - so it waits for its own label.
+  # ethd's port-check logic on macOS userland. Hosted macOS runners have no nested virtualization,
+  # so no container runtime can start there: Docker is stubbed, and answers the Beacon API with
+  # canned data once "ethd up" has run. The Ubuntu job above covers real clients. It waits for its
+  # own label.
   test-port-check-macos:
     if: contains(github.event.pull_request.labels.*.name, 'check-ethd-port-check-macos')
-    runs-on: macos-26-intel
-    timeout-minutes: 90
+    runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Set up Docker on macOS
-        uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
       - name: Prerequisites
         run: brew install bash newt coreutils gawk
+      - name: Stub Docker
+        run: |
+          mkdir -p "${RUNNER_TEMP}/stub-bin"
+          cp ./.github/macos-docker-stub.sh "${RUNNER_TEMP}/stub-bin/docker"
+          echo "${RUNNER_TEMP}/stub-bin" >> "${GITHUB_PATH}"
+          echo "DOCKER_STUB_LOG=${RUNNER_TEMP}/docker-stub.log" >> "${GITHUB_ENV}"
+          echo "DOCKER_STUB_STATE=${RUNNER_TEMP}/docker-stub-up" >> "${GITHUB_ENV}"
       - name: Use default.env
         run: cp default.env .env
       - name: Set env variables
@@ -118,10 +124,14 @@ jobs:
         run: ./.github/test-port-check.sh offline
       - name: Start the client pair
         run: ./ethd up
-      - name: Wait for the Beacon API
-        run: ./.github/wait-for-beacon-api.sh consensus 5052 600
       - name: Test port-check against the running client
         run: ./.github/test-port-check.sh online
-      - name: Dump client logs on failure
+      # ethd hides the stderr of its Beacon API query, so the stub's log is what shows it answered
+      - name: Check port-check reached the Beacon API
+        run: |
+          cat "${DOCKER_STUB_LOG}"
+          grep -q "^compose exec -T consensus sh -c .*/eth/v1/node/identity'" "${DOCKER_STUB_LOG}"
+          grep -q "^compose exec -T consensus sh -c .*/eth/v1/node/peers'" "${DOCKER_STUB_LOG}"
+      - name: Dump the Docker stub log on failure
         if: ${{ failure() }}
-        run: docker compose logs consensus execution
+        run: cat "${DOCKER_STUB_LOG}"

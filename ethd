@@ -5979,6 +5979,7 @@ __get_github_release() {
   local suffix=$2
   local dirname=$3
   local targetname=$4
+  local -a api_auth=()
 
 # curl, not wget: macOS does not ship wget. A minimal Debian or Ubuntu may lack curl, so install it
 # the way update() does.
@@ -5994,9 +5995,15 @@ __get_github_release() {
     fi
   fi
 
+# The unauthenticated API allows 60 requests an hour per IP, which a shared IP - a CI runner, CGNAT - can
+# use up. A GITHUB_TOKEN lifts that. It goes to api.github.com only, not to the asset download.
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    api_auth=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+  fi
+
   ${__as_owner} mkdir -p "${dirname}"
   if [[ "${targetname}" = "__untar__" ]]; then
-    curl -fsSL https://api.github.com/repos/"${repo}"/releases/latest | grep "browser_download_url.*${suffix}" \
+    curl -fsSL "${api_auth[@]}" https://api.github.com/repos/"${repo}"/releases/latest | grep "browser_download_url.*${suffix}" \
       | head -1 \
       | cut -d : -f 2,3 \
       | tr -d \" \
@@ -6006,7 +6013,7 @@ __get_github_release() {
   else
 # __as_owner is empty or "sudo -u owner", and has to split
 # shellcheck disable=SC2086
-    curl -fsSL https://api.github.com/repos/"${repo}"/releases/latest | grep "browser_download_url.*${suffix}" \
+    curl -fsSL "${api_auth[@]}" https://api.github.com/repos/"${repo}"/releases/latest | grep "browser_download_url.*${suffix}" \
       | head -1 \
       | cut -d : -f 2,3 \
       | tr -d \" \
