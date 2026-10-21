@@ -7181,6 +7181,9 @@ __query_reth_snapshot() {
 
 __query_web3signer() {
   if [[ "${__minty_fresh}" -eq 0 ]]; then  # Do not force a key migration, only query on fresh install
+    if [[ "${COMPOSE_FILE}" =~ web3signer\.yml ]]; then
+      CORE_FILES+=":web3signer.yml"
+    fi
     return
   fi
 

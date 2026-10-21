@@ -70,6 +70,8 @@ jobs:
         run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py no-epbs
         env:
           TERM: xterm
+      - name: Test ethd config keeps web3signer.yml
+        run: grep -q '^CORE_FILES=.*web3signer\.yml' .env
       - name: Test ethd config no grafana
         run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py no-grafana
         env:
@@ -138,6 +140,8 @@ jobs:
         run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py no-epbs
         env:
           TERM: xterm
+      - name: Test ethd config keeps web3signer.yml
+        run: grep -q '^CORE_FILES=.*web3signer\.yml' .env
       - name: Test ethd config no grafana
         run: uv run --locked --project .github/test-tools ./.github/test-ethd-config.py no-grafana
         env:
