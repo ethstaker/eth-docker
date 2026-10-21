@@ -3587,6 +3587,7 @@ __adjust_epbs_urls() {
       ;;
     sepolia)
       builders=(
+        ['Bombora']="https://sepolia.bombora.workers.dev"
         ['nflaig']="https://builder-sepolia.nflaig.dev"
         ['Titan']="https://sepolia.titanrelay.xyz"
       )
@@ -3594,6 +3595,7 @@ __adjust_epbs_urls() {
     hoodi)
       builders=(
         ['Aestus']="https://hoodi.aestus.live"
+        ['Bombora']="https://hoodi.bombora.network"
         ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
         ['nflaig']="https://builder-hoodi.nflaig.dev"
         ['pk910']="https://builder-hoodi.pk910.de"
@@ -7442,7 +7444,6 @@ __query_epbs() {
   local ultrasound_filtered_default="ON"
   local nflaig_default="ON"
   local pk910_default="ON"
-  local sigp_default="ON"
   local prev_epbs_builders
 
   __write_vars+=("EPBS_BUILDERS")
@@ -7461,6 +7462,7 @@ __query_epbs() {
       hoodi)
         EPBS_BUILDER_URLS='"
 https://hoodi.aestus.live,
+https://hoodi.bombora.network,
 https://boost-relay-hoodi.flashbots.net,
 https://builder-hoodi.nflaig.dev,
 https://hoodi.titanrelay.xyz,
@@ -7514,9 +7516,6 @@ https://builder-hoodi.pk910.de
     if [[ ! "${EPBS_BUILDER_URLS}" =~ pk910 ]]; then
       pk910_default="OFF"
     fi
-    if [[ ! "${EPBS_BUILDER_URLS}" =~ sigp ]]; then
-      sigp_default="OFF"
-    fi
   fi
 
   if [[ "${__deployment}" =~ lido_ ]]; then
@@ -7525,7 +7524,9 @@ https://builder-hoodi.pk910.de
       mainnet)
 #        builders=(
 #          ['Aestus']="https://aestus.live"
+#          ['Bombora']="https://bombora.network"
 #          ['Flashbots']="https://boost-relay.flashbots.net"
+#          ['nflaig']="https://builder.nflaig.dev"
 #          ['Ultra Sound']="https://relay.ultrasound.money"
 #          ['Ultra Sound Filtered']="https://relay-filtered.ultrasound.money"
 #        )
@@ -7535,7 +7536,9 @@ https://builder-hoodi.pk910.de
 #        )
 #        choices=(
 #          "Aestus" "" "${aestus_default}"
+#          "Bombora" "" "${bombora_default}"
 #          "Flashbots" "" "${flashbots_default}"
+#          "nflaig" "" "${nflaig_default}"
 #          "Ultra Sound" "(unfiltered)" "${ultrasound_default}"
 #          "Ultra Sound Filtered" "" "${ultrasound_filtered_default}"
 #          "Titan Global" "(optional, unfiltered)" "${titan_global_default}"
@@ -7546,6 +7549,7 @@ https://builder-hoodi.pk910.de
       hoodi)
         builders=(
           ['Aestus']="https://hoodi.aestus.live"
+          ['Bombora']="https://hoodi.bombora.network"
           ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
           ['nflaig']="https://builder-hoodi.nflaig.dev"
           ['Titan']="https://hoodi.titanrelay.xyz"
@@ -7554,6 +7558,7 @@ https://builder-hoodi.pk910.de
         )
         choices=(
           "Aestus" "(unfiltered)" "${aestus_default}"
+          "Bombora" "(unfiltered)" "${bombora_default}"
           "Flashbots" "(unfiltered)" "${flashbots_default}"
           "nflaig" "(unfiltered)" "${nflaig_default}"
           "Titan" "(unfiltered)" "${titan_global_default}"
@@ -7626,6 +7631,7 @@ https://builder-hoodi.pk910.de
       hoodi)
         builders=(
           ['Aestus']="https://hoodi.aestus.live"
+          ['Bombora']="https://hoodi.bombora.network"
           ['Flashbots']="https://boost-relay-hoodi.flashbots.net"
           ['nflaig']="https://builder-hoodi.nflaig.dev"
           ['Titan']="https://hoodi.titanrelay.xyz"
@@ -7634,6 +7640,7 @@ https://builder-hoodi.pk910.de
         )
         choices=(
           "Aestus" "(unfiltered)" "${aestus_default}"
+          "Bombora" "(unfiltered)" "${bombora_default}"
           "Flashbots" "(unfiltered)" "${flashbots_default}"
           "nflaig" "(unfiltered)" "${nflaig_default}"
           "Titan" "(unfiltered)" "${titan_global_default}"
@@ -7644,6 +7651,7 @@ https://builder-hoodi.pk910.de
       mainnet)
 #        builders=(
 #          ['Aestus']="https://aestus.live"
+#          ['Bombora']="https://bombora.network"
 #          ['Flashbots']="https://boost-relay.flashbots.net"
 #          ['nflaig']="https://builder.nflaig.dev"
 #          ['Titan Global']="https://global.titanrelay.xyz"
@@ -7653,6 +7661,7 @@ https://builder-hoodi.pk910.de
 #        )
 #        choices=(
 #          "Aestus" "" "${aestus_default}"
+#          "Bombora" "" "${bombora_default}"
 #          "Flashbots" "" "${flashbots_default}"
 #          "nflaig" "(unfiltered)" "${nflaig_default}"
 #          "Titan Global" "(unfiltered)" "${titan_global_default}"
