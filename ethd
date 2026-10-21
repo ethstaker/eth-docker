@@ -8,7 +8,6 @@ __sample_service="consensus"
 __target_pg=18
 __current_docker=29
 __current_docker_io=29
-__docker_is_ce=0
 __min_ubuntu=22
 __eol_min_ubuntu=2027-05-31
 __upgrade_ubuntu="Guide to upgrading to 24.04: https://gist.github.com/yorickdowne/94f1e5538007f4c9d3da7b22b0dc28a4 , consider an upgrade to 26.04 after that"
@@ -18,9 +17,6 @@ __upgrade_debian="Guide to upgrading to 12: https://gist.github.com/yorickdowne/
 __stat_mode_param=()
 __docker_exe="docker"
 __old_docker=0
-__oldish_docker=0
-__old_rootless_docker=0
-__old_traefik=0
 __traefik_tag=""
 __docker_sudo=""
 __docker_version=""
@@ -32,7 +28,6 @@ __compose_version=""
 __compose_major=""
 __compose_minor=""
 __old_compose=0
-__compose_upgraded=0
 __distro=""
 __os_major_version=""
 __os_minor_version=""
@@ -73,6 +68,7 @@ __builder_args=()  # This and __keys_tty are set by __prep-builder-args, read by
 __keys_tty=""
 __no_warnings=0  # 1 skips the warnings after the command, for machine-readable output
 __final_msg=""
+__warning_msg=""  # Warnings shown after any command. Appended by checks, printed at the end of the main body
 __compose_project=""  # Compose project name, set by __get_compose_project_name
 __compose_project_exact=0  # 1 once read back from Compose itself
 __volumes=()  # This is a global to hand a result back from __project_volumes
@@ -420,10 +416,7 @@ __handle_docker() {
     fi
   fi
 
-  __docker_version=$(${__docker_exe} --version | awk '{ gsub(/,/, "", $3); print $3 }')
-  __docker_major_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[1]; }')
-  __docker_minor_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[2]; }')
-  __docker_patch_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[3]; }')
+  __get_docker_version
 
   if [[ "${use_docker}" -eq 1 && "${__docker_major_version}" -lt 23 ]]; then
   # Debian 12 has docker.io 20.10. From Debian 13, it's >= 26
@@ -432,17 +425,6 @@ __handle_docker() {
     __old_docker=1
   else
     __old_docker=0
-  fi
-
-# Warn user if their Docker-CE on Debian/Ubuntu is old. Maybe they're not updating.
-  if [[ "${__distro}" =~ (debian|ubuntu) && "${__docker_exe}" = "docker" && "${__docker_major_version}" -lt "${__current_docker}" ]] \
-        && dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
-    __oldish_docker=1
-    __docker_is_ce=1
-# Also warn user if on Ubuntu and docker.io is old. Debian does not change package major versions unless OS major version updates
-  elif [[ "${__distro}" = "ubuntu" && "${__docker_exe}" = "docker" && "${__docker_major_version}" -lt "${__current_docker_io}" ]] \
-         && dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
-    __oldish_docker=1
   fi
 
   if ! ${__docker_sudo} ${__docker_exe} images >/dev/null 2>&1; then
@@ -494,7 +476,9 @@ __handle_docker() {
         DOCKER_SOCK=/run/user/$(id -u)/docker.sock
         if [[ "${__docker_major_version}" -lt 29 \
               || ( "${__docker_major_version}" -eq 29 && "${__docker_minor_version}" -lt 5 ) ]]; then
-          __old_rootless_docker=1
+          __warning_msg+="\nYou are using Docker version ${__docker_version} in rootless mode."
+          __warning_msg+="\nRootless support has been greatly improved since version \"29.5.0\"."
+          __warning_msg+="\nConsider upgrading Docker, and reinstalling the rootless support after the upgrade.\n"
         fi
       else
         DOCKER_SOCK=/var/run/docker.sock
@@ -655,6 +639,64 @@ this directory, nor run \"sudo\"."
 }
 
 
+# Called by __handle_docker, and again by __upgrade_docker after it upgraded Docker-CE
+__get_docker_version() {
+  __docker_version=$(${__docker_exe} --version | awk '{ gsub(/,/, "", $3); print $3 }')
+  __docker_major_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[1]; }')
+  __docker_minor_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[2]; }')
+  __docker_patch_version=$(echo "${__docker_version}" | awk '{ split($1, version, "."); print version[3]; }')
+}
+
+
+# An OS upgrade disables third-party repos, such as Docker's. This reads apt's configured sources,
+# without network access or sudo.
+__docker_repo_enabled() {
+  # Not grep -q: it exits on the first match, apt-get then fails writing to the closed pipe, and pipefail sees that
+  # shellcheck disable=SC2016  # $(SITE) is an apt format field, not a shell expansion
+  apt-get indextargets --no-release-info --format '$(SITE)' 2>/dev/null | grep '^https://download.docker.com/' >/dev/null
+}
+
+
+# Warn user if their Docker on Debian/Ubuntu is old. Maybe they're not updating.
+# Runs after the command, so that it sees a Docker-CE that "update" upgraded
+__check_docker_current() {
+  local current_docker_release
+
+  if [[ ! "${__distro}" =~ (debian|ubuntu) || "${__docker_exe}" != "docker" ]]; then
+    return 0
+  fi
+
+  if [[ "${__docker_major_version}" -lt "${__current_docker}" ]] \
+      && dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
+    __warning_msg+="\nYou are using Docker-CE version ${__docker_version}, which is not current."
+    current_docker_release=$(curl -m5 -s -H "User-Agent: eth-docker" "https://api.github.com/repos/moby/moby/releases/latest" 2>/dev/null | jq -r '.name // empty' 2>/dev/null) || true
+    if [[ -n "${current_docker_release}" && "${current_docker_release}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      __warning_msg+="\nThe current Docker-CE release is ${current_docker_release}"
+    fi
+    if __docker_repo_enabled; then
+      __warning_msg+="\nTry a \"sudo apt update && sudo apt dist-upgrade\"."
+    else
+      __warning_msg+="\nDocker's apt repo is not enabled, which means Docker-CE does not receive updates."
+      __warning_msg+="\nAn OS upgrade likely disabled it. Check \"/etc/apt/sources.list.d\" for your Docker repo."
+      __warning_msg+="\nA \".sources\" file may have \"Enabled: no\", or a \".list\" file may have its lines commented out."
+      __warning_msg+="\nRe-enable it, or recreate it, and then run \"sudo apt update && sudo apt dist-upgrade\"."
+    fi
+    __warning_msg+="\nSee https://docs.docker.com/engine/install/ for instructions.\n"
+# Also warn user if on Ubuntu and docker.io is old. Debian does not change package major versions unless OS major version updates
+  elif [[ "${__distro}" = "ubuntu" && "${__docker_major_version}" -lt "${__current_docker_io}" ]] \
+      && dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
+    __warning_msg+="\nYou are using docker.io version ${__docker_version}, which is not current."
+    __warning_msg+="\nTry a \"sudo apt update && sudo apt dist-upgrade\". If that does not bring in an updated docker.io,"
+    __warning_msg+="\nyour Ubuntu repo files may be pointing to an outdated mirror, or DNS resolution might be failing."
+    if [[ "${__os_major_version}" -gt 22 ]]; then
+      __warning_msg+="\nCheck \"/etc/apt/sources.list.d\" for your \"ubuntu.sources\" and adjust if required.\n"
+    else
+      __warning_msg+="\nCheck \"/etc/apt/sources.list\" and adjust if required.\n"
+    fi
+  fi
+}
+
+
 __upgrade_docker() {
   local runc_version
   local runc_major_version
@@ -747,6 +789,10 @@ __upgrade_docker() {
           echo "${__project_name} cannot update Docker-CE on ${__distro} ${__os_major_version}."
           return
         fi
+        if ! __docker_repo_enabled; then  # apt would find nothing to upgrade. __check_docker_current explains
+          echo "Docker's apt repo is not enabled, so ${__project_name} cannot update Docker-CE. See below."
+          return
+        fi
         echo "It is recommended that you update Docker-CE"
         if [[ "${__non_interactive}" -eq 0 && "${__cannot_sudo}" -eq 0 ]]; then
           while true; do
@@ -755,6 +801,7 @@ __upgrade_docker() {
               [Nn]*) echo "Please be sure to update Docker CE yourself!"; return;;
               *)
                 ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install --only-upgrade docker-ce containerd.io
+                __get_docker_version
                 break
                 ;;
             esac
@@ -790,7 +837,6 @@ __upgrade_compose() {
     ${__auto_sudo} apt-get install -y docker-compose-v2 docker-buildx
     echo "Installed docker-compose-v2"
     __old_compose=0
-    __compose_upgraded=1
     if dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
       ${__auto_sudo} apt-mark manual docker.io
     elif dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
@@ -821,7 +867,6 @@ EOF
     ${__auto_sudo} apt-get install -y docker-compose-plugin docker-buildx-plugin
     echo "Installed docker-compose-plugin"
     __old_compose=0
-    __compose_upgraded=1
     if dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
         ${__auto_sudo} apt-mark manual docker.io
     elif dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
@@ -831,7 +876,12 @@ EOF
     echo "Removed docker-compose"
   else
     echo "${__project_name} does not know how to update Docker Compose on ${__distro}"
+    return
   fi
+  __warning_msg+="\nYou updated Docker Compose to V2."
+  __warning_msg+="\nThe \"docker-compose\" command is gone and replaced with \"docker compose\".\n"
+  __warning_msg+="\nOptionally, you can switch to docker-ce."
+  __warning_msg+="\nPlease see https://ethdocker.com/Usage/Prerequisites#switching-from-dockerio-to-docker-ce for instructions.\n"
 }
 
 
@@ -874,6 +924,13 @@ __check_compose_version() {
      __old_compose=1
    elif [[ "${__compose_major}" -eq 2 && "${__compose_minor}" -lt 18 ]]; then
      __old_compose=1
+     __warning_msg+="\nYou are using Docker Compose ${__compose_version}, which has been shown to cause issues with new features"
+     __warning_msg+="\n${__project_name} requires Compose v2.18 or later\n"
+     __warning_msg+="\nIt is recommended that you update Compose."
+     if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
+       __warning_msg+="\nPlease do so by running: \"sudo apt update && sudo apt dist-upgrade\""
+     fi
+     __warning_msg+="\n"
    fi
   elif ${__docker_sudo} docker-compose --version >/dev/null 2>&1; then
     __old_compose=1
@@ -941,6 +998,7 @@ __check_traefik_version() {
   local traefik_minor
   local traefik_patch
   local version
+  local old_traefik=0
 
   if [[ ! "${COMPOSE_FILE}" =~ (traefik-cf\.yml|traefik-aws\.yml) ]]; then
     return 0
@@ -959,7 +1017,7 @@ __check_traefik_version() {
   traefik_minor=${traefik_minor%%.*}
 
   if [[ "${traefik_major}" -lt 3 || ( "${traefik_major}" -eq 3 && "${traefik_minor}" -le 5 ) ]]; then
-    __old_traefik=1
+    old_traefik=1
   fi
 
 # In the unlikely case a user pinned v3.6.0
@@ -967,9 +1025,15 @@ __check_traefik_version() {
     if [[ "${version}" = *.*.* ]]; then
       traefik_patch=${version##*.}
       if [[ "${traefik_patch}" -eq 0 ]]; then
-        __old_traefik=1
+        old_traefik=1
       fi
     fi
+  fi
+
+  if [[ "${old_traefik}" -eq 1 ]]; then
+    __warning_msg+="\nYou are using the Traefik tag \"${__traefik_tag}\"."
+    __warning_msg+="\nThis version of Traefik does not support current Docker releases."
+    __warning_msg+="\nYou can run \"${__me} update --refresh-targets\" or manually change \"TRAEFIK_TAG\" in \"${__env_file}\".\n"
   fi
 }
 
@@ -9225,62 +9289,8 @@ esac
 if [[ "${__no_warnings}" -eq 0 ]]; then
   __check_disk_space
   __check_traefik_version
-
-  if [[ "${__compose_upgraded}" -eq 1 ]]; then
-    echo
-    echo "You updated Docker Compose to V2."
-    echo "The \"docker-compose\" command is gone and replaced with \"docker compose\"."
-    echo
-    echo "Optionally, you can switch to docker-ce."
-    echo "Please see https://ethdocker.com/Usage/Prerequisites#switching-from-dockerio-to-docker-ce for instructions."
-  fi
-
-  if [[ "${__old_compose}" -eq 1 && "${__compose_major}" -eq 2 ]]; then
-    echo "You are using Docker Compose ${__compose_version}, which has been shown to cause issues with new features"
-    echo "${__project_name} requires Compose v2.18 or later"
-    echo
-    echo "It is recommended that you update Compose."
-    if [[ "${__distro}" =~ (debian|ubuntu) ]]; then
-      echo "Please do so by running: \"sudo apt update && sudo apt dist-upgrade\""
-    fi
-  fi
-
-  if [[ "${__oldish_docker}" -eq 1 ]]; then
-    if [[ "${__docker_is_ce}" -eq 1 ]]; then
-      echo "You are using Docker-CE version ${__docker_version}, which is not current."
-      current_docker_release=$(curl -m5 -s -H "User-Agent: eth-docker" "https://api.github.com/repos/moby/moby/releases/latest" 2>/dev/null | jq -r '.name // empty' 2>/dev/null) || true
-      if [[ -n "${current_docker_release}" && "${current_docker_release}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "The current Docker-CE release is ${current_docker_release}"
-      fi
-      echo "Try a \"sudo apt update && sudo apt dist-upgrade\". If that does not bring in an updated Docker-CE,"
-      echo "its repo file may have become disabled during an OS upgrade. Check \"/etc/apt/sources.list.d\" for"
-      echo "your Docker repo \".list\" or \".sources\", and if it's been disabled, recreate it or re-enable it."
-      echo "See https://docs.docker.com/engine/install/ for instructions."
-    elif [[ "${__distro}" = "ubuntu" ]]; then
-      echo "You are using docker.io version ${__docker_version}, which is not current."
-      echo "Try a \"sudo apt update && sudo apt dist-upgrade\". If that does not bring in an updated docker.io,"
-      echo "your Ubuntu repo files may be pointing to an outdated mirror, or DNS resolution might be failing."
-      if [[ "${__os_major_version}" -gt 22 ]]; then
-        echo "Check \"/etc/apt/sources.list.d\" for your \"ubuntu.sources\" and adjust if required."
-      else
-        echo "Check \"/etc/apt/sources.list\" and adjust if required."
-      fi
-    else
-      echo "${__project_name} has been instructed to nag you about docker.io on ${__distro}, which is unexpected."
-      echo "This is likely a bug. You are running docker.io version ${__docker_version}, and on this OS, that should"
-      echo "not trigger a nag message."
-    fi
-  fi
-
-  if [[ "${__old_rootless_docker}" -eq 1 ]]; then
-    echo "You are using Docker version ${__docker_version} in rootless mode."
-    echo "Rootless support has been greatly improved since version \"29.5.0\"."
-    echo "Consider upgrading Docker, and reinstalling the rootless support after the upgrade."
-  fi
-
-  if [[ "${__old_traefik}" -eq 1 ]]; then
-    echo "You are using the Traefik tag \"${__traefik_tag}\"."
-    echo "This version of Traefik does not support current Docker releases."
-    echo "You can run \"${__me} update --refresh-targets\" or manually change \"TRAEFIK_TAG\" in \"${__env_file}\"."
+  __check_docker_current
+  if [[ -n "${__warning_msg}" ]]; then
+    echo -e "${__warning_msg}"
   fi
 fi
