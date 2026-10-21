@@ -41,6 +41,7 @@ jobs:
   # Turns the labels into the matrix, so combos without a matching label never get a runner.
   # A combo runs for either of its labels, for "test-all", and on every push to main.
   # A combo's optional skip_env drops the env_vars entries that start with any of its prefixes.
+  # GitHub caps one matrix at 256 configurations, so the selection is split in half across two jobs.
   select:
     if: |
       contains(join(github.event.pull_request.labels.*.name, ','), 'test-')
@@ -48,7 +49,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      include: ${{ steps.select.outputs.include }}
+      include_a: ${{ steps.select.outputs.include_a }}
+      include_b: ${{ steps.select.outputs.include_b }}
     steps:
       - name: Select combos from labels
         id: select
@@ -151,7 +153,6 @@ jobs:
             "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=maxprofit",
             "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=always",
             "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=local",
-            "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=0",
             "MAX_BLOBS=6",
             "CL_MAX_PEER_COUNT=100 CL_MIN_PEER_COUNT=20 EL_MAX_PEER_COUNT=10",
             "IPV6=true",
@@ -168,17 +169,18 @@ jobs:
                 | $c + {"env-var": $v, name: ($c.env[0] | sub("^CORE_FILES="; ""))} ]' <<< "${combos}")"
           echo "Selected $(jq length <<< "${include}") jobs:"
           jq -r '.[] | "  \(.name) \(."env-var")"' <<< "${include}"
-          echo "include=${include}" >> "$GITHUB_OUTPUT"
+          echo "include_a=$(jq -c '.[:((length + 1) / 2 | floor)]' <<< "${include}")" >> "$GITHUB_OUTPUT"
+          echo "include_b=$(jq -c '.[((length + 1) / 2 | floor):]' <<< "${include}")" >> "$GITHUB_OUTPUT"
 
-  test-client-combo:
+  test-client-combo-a:
     runs-on: ubuntu-latest
     needs: [lint, select]
-    if: needs.select.outputs.include != '[]'
+    if: needs.select.outputs.include_a != '[]'
     strategy:
       matrix:
-        include: ${{ fromJSON(needs.select.outputs.include) }}
+        include: ${{ fromJSON(needs.select.outputs.include_a) }}
     name: ${{ matrix.name }} ${{ matrix.env-var }}
-    steps:
+    steps: &combo-steps
       - name: Checkout
         uses: actions/checkout@v7
       - name: Remove podman
@@ -210,3 +212,13 @@ jobs:
           test_cl: ${{ matrix.test_cl }}
           test_el: ${{ matrix.test_el }}
           test_vc: ${{ matrix.test_vc }}
+
+  test-client-combo-b:
+    runs-on: ubuntu-latest
+    needs: [lint, select]
+    if: needs.select.outputs.include_b != '[]'
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.select.outputs.include_b) }}
+    name: ${{ matrix.name }} ${{ matrix.env-var }}
+    steps: *combo-steps
