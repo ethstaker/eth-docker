@@ -657,31 +657,38 @@ __docker_repo_enabled() {
 }
 
 
-# Warn user if their Docker on Debian/Ubuntu is old. Maybe they're not updating.
+# Warn user if their Docker on Debian/Ubuntu is old, or Docker's apt repo is disabled. Maybe they're not updating.
 # Runs after the command, so that it sees a Docker-CE that "update" upgraded
 __check_docker_current() {
   local current_docker_release
+  local docker_repo_enabled=1
 
   if [[ ! "${__distro}" =~ (debian|ubuntu) || "${__docker_exe}" != "docker" ]]; then
     return 0
   fi
 
-  if [[ "${__docker_major_version}" -lt "${__current_docker}" ]] \
-      && dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
-    __warning_msg+="\nYou are using Docker-CE version ${__docker_version}, which is not current."
-    current_docker_release=$(curl -m5 -s -H "User-Agent: eth-docker" "https://api.github.com/repos/moby/moby/releases/latest" 2>/dev/null | jq -r '.name // empty' 2>/dev/null) || true
-    if [[ -n "${current_docker_release}" && "${current_docker_release}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      __warning_msg+="\nThe current Docker-CE release is ${current_docker_release}"
+  if dpkg-query -W -f='${Status}' docker-ce 2>/dev/null | grep -q "ok installed"; then
+    if ! __docker_repo_enabled; then
+      docker_repo_enabled=0
     fi
-    if __docker_repo_enabled; then
-      __warning_msg+="\nTry a \"sudo apt update && sudo apt dist-upgrade\"."
-    else
+    if [[ "${__docker_major_version}" -lt "${__current_docker}" ]]; then
+      __warning_msg+="\nYou are using Docker-CE version ${__docker_version}, which is not current."
+      current_docker_release=$(curl -m5 -s -H "User-Agent: eth-docker" "https://api.github.com/repos/moby/moby/releases/latest" 2>/dev/null | jq -r '.name // empty' 2>/dev/null) || true
+      if [[ -n "${current_docker_release}" && "${current_docker_release}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        __warning_msg+="\nThe current Docker-CE release is ${current_docker_release}"
+      fi
+      if [[ "${docker_repo_enabled}" -eq 1 ]]; then
+        __warning_msg+="\nTry a \"sudo apt update && sudo apt dist-upgrade\"."
+        __warning_msg+="\nSee https://docs.docker.com/engine/install/ for instructions.\n"
+      fi
+    fi
+    if [[ "${docker_repo_enabled}" -eq 0 ]]; then
       __warning_msg+="\nDocker's apt repo is not enabled, which means Docker-CE does not receive updates."
       __warning_msg+="\nAn OS upgrade likely disabled it. Check \"/etc/apt/sources.list.d\" for your Docker repo."
       __warning_msg+="\nA \".sources\" file may have \"Enabled: no\", or a \".list\" file may have its lines commented out."
       __warning_msg+="\nRe-enable it, or recreate it, and then run \"sudo apt update && sudo apt dist-upgrade\"."
+      __warning_msg+="\nSee https://docs.docker.com/engine/install/ for instructions.\n"
     fi
-    __warning_msg+="\nSee https://docs.docker.com/engine/install/ for instructions.\n"
 # Also warn user if on Ubuntu and docker.io is old. Debian does not change package major versions unless OS major version updates
   elif [[ "${__distro}" = "ubuntu" && "${__docker_major_version}" -lt "${__current_docker_io}" ]] \
       && dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
