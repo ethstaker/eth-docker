@@ -440,7 +440,7 @@ handle_replacement "${status}" "${tmp}" "${file}"
 # Ethereum Metrics Exporter Dashboard, unless the exporter is disabled
 file='/etc/grafana/provisioning/dashboards/ethereum-metrics-exporter-single.json'
 case "${CLIENT}" in
-  *grafana-vc-only.yml* )
+  *grafana-for-vc.yml* )
     rm -f "${file}"
     ;;
   * )

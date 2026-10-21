@@ -58,6 +58,8 @@ jobs:
           ETHD_FRONTEND: ""  # Exercise the warnings ethd prints after a command
       - name: Test .env migration edge cases
         run: ./.github/test-ethd-migrate.sh
+      - name: Test double VC check
+        run: ./.github/test-double-vc.sh
       - name: Remove .env
         run: rm .env
       - name: Test ethd config defaults

@@ -2813,8 +2813,8 @@ __migrate_compose_files() {
   local _index
 
 # Some files have been renamed and others removed altogether
-  local _from_yml=("lido-obol-promtail.yml" "prysm-web-shared.yml")
-  local _to_yml=("lido-obol-alloy.yml" "")
+  local _from_yml=("lido-obol-promtail.yml" "prysm-web-shared.yml" "grafana-vc-only.yml")
+  local _to_yml=("lido-obol-alloy.yml" "" "grafana-for-vc.yml")
 
   # Locals are "_name" because "printf -v" assigns by name - see CONTRIBUTING.md
   case "${_out_files}" in
@@ -9026,6 +9026,43 @@ __get_compose_file() {
 }
 
 
+# Two VCs in one stack can load the same keys twice. Stop the stack and refuse to continue.
+__check_double_vc() {
+  local file
+  local vcs=" "
+  local count=0
+  local files
+
+  IFS=':' read -r -a files <<< "${COMPOSE_FILE}"
+  for file in "${files[@]}"; do
+    # grafana-vc-only.yml is the pre-77 name of grafana-for-vc.yml, not a VC; a .env keeps it until "update"
+    if [[ "${file}" = "grafana-vc-only.yml" || "${vcs}" = *" ${file} "* ]]; then
+      continue
+    fi
+    if [[ "${file}" =~ ^(prysm|lighthouse|teku|nimbus|lodestar)\.yml$|-allin1\.yml$|-vc-only\.yml$ ]]; then
+      vcs+="${file} "
+      count=$(( count + 1 ))
+    fi
+  done
+
+  if [[ "${count}" -lt 2 ]]; then
+    return 0
+  fi
+
+  echo
+  echo "DANGER: ${count} validator clients are configured in ${__env_file}:${vcs}"
+  echo "Two VCs running in the same stack risk loading the keys twice, which would lead to slashing."
+  echo "Fix this URGENTLY. One VC per stack, and keys loaded into exactly one place, the VC or Web3signer."
+  echo "Run \"${__me} config\", or edit CORE_FILES and CUSTOM_FILES in ${__env_file}."
+  echo
+  echo "Stopping the stack."
+  if ! __docompose down --remove-orphans; then
+    echo "Could not stop the stack. Stop it by hand with \"${__compose_exe} down\", then fix ${__env_file}."
+  fi
+  exit 1
+}
+
+
 # env file exists, and if version passed, is minimum version
 __verify_env_file() {
   local var
@@ -9283,6 +9320,7 @@ case "${__command}" in
   update)
     __verify_env_file
     __get_compose_file
+    __check_double_vc
     ${__command} "$@"
     ;;
   keys|up|start|down|stop|restart|version|logs|prune-nethermind\
@@ -9290,6 +9328,7 @@ case "${__command}" in
 |repair-reth|migrate-reth|migrate-geth|migrate-nethermind|space|port-check)
     __verify_env_file --enforce-min
     __get_compose_file
+    __check_double_vc
     ${__command} "$@"
     ;;
   *)
