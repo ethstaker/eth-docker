@@ -4,12 +4,13 @@
 # from .github/keymanager-keys in .eth/validator_keys. The keys are not deposited, which the
 # script checks before importing them, so nothing here is slashable, and sign-exit can only take
 # its "not on the beacon chain" path.
+# The checks end with "delete all", so they need a validator client without other keys. Test keys
+# left loaded by a run that stopped part way are deleted first.
 #
 # Environment:
 #   W3S              true when web3signer is in use
 #   PRYSM_WALLET     true to test create-prysm-wallet and get-prysm-wallet
 #   GRANDINE_WALLET  true to test get-grandine-wallet
-#   NO_BUILDER_API   true when the client does not serve the builder configuration API yet
 #   CL_SERVICE       the compose service serving the beacon API, consensus by default
 #   KEYSTORE_PASSWORD  password of the test keys, for import --non-interactive
 #
@@ -23,7 +24,6 @@ set -Eeuo pipefail
 w3s="${W3S:-false}"
 prysm_wallet="${PRYSM_WALLET:-false}"
 grandine_wallet="${GRANDINE_WALLET:-false}"
-no_builder_api="${NO_BUILDER_API:-false}"
 recipient=0x1111111111111111111111111111111111111111
 builder_url=https://builder.example.org:18550
 
@@ -189,15 +189,6 @@ check_listed() {
 test_builder() {
   local json_file
 
-# Clients without the builder configuration API only get the "not served" path checked. Once a
-# client serves it, this fails, and its no_builder_api line in the workflow can go.
-  if [[ "${no_builder_api}" = "true" ]]; then
-    run "get-builder, API not served" -- get-builder "${pk1}"
-    expect_rc 0
-    expect_out "did not serve the builder configuration API"
-    return
-  fi
-
   json_file="$(mktemp)"
 
   run "get-builder" -- get-builder "${pk1}"
@@ -267,6 +258,11 @@ if [[ "${grandine_wallet}" = "true" ]]; then
   expect_out "The password for the Grandine wallet is:"
 fi
 
+# A run that stopped part way leaves the test keys loaded. Delete them, and only them: any other
+# key fails the count check below, as the "delete all" at the end would take it too.
+run "delete leftover test keys" -- delete "${pk1},${pk2},${pk3}"
+expect_rc 0
+rm -f "${slashing_file}" "${slashing_file2}" "${slashing_file3}"
 check_count 0
 check_listed no "${pk1}" "${pk2}" "${pk3}"
 

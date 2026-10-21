@@ -37,8 +37,6 @@ jobs:
         env:
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
-          # Only Lodestar serves the builder configuration API so far. Delete a client's
-          # no_builder_api line once it does.
           # w3s_only clients get just the web3signer leg: Vero only signs through a remote signer.
           # Prysm runs on Ephemery: its VC only answers once the EL is fully synced, which a Hoodi
           # EL is not within a job, and an Ephemery Geth is in about a minute. It needs builder
@@ -46,24 +44,18 @@ jobs:
           # Optional: "env" adds VAR=value lines to .env, "cl_service" is the service serving the
           # beacon API (consensus by default), "beacon_wait" how long to wait for it (300 seconds).
           clients='[
-            {"label": "test-lighthouse", "files": "lighthouse.yml:geth.yml",
-             "no_builder_api": true},
+            {"label": "test-lighthouse", "files": "lighthouse.yml:geth.yml"},
             {"label": "test-lodestar", "files": "lodestar.yml:geth.yml"},
-            {"label": "test-nimbus", "files": "nimbus.yml:geth.yml",
-             "no_builder_api": true},
+            {"label": "test-nimbus", "files": "nimbus.yml:geth.yml"},
             {"label": "test-prysm", "files": "prysm.yml:geth.yml", "prysm_wallet": true,
-             "no_builder_api": true,
              "env": ["NETWORK=ephemery",
                      "CHECKPOINT_SYNC_URL=https://ephemery.beaconstate.ethstaker.cc",
                      "MEV_BOOST=true"]},
-            {"label": "test-teku", "files": "teku.yml:geth.yml",
-             "no_builder_api": true},
-            {"label": "test-grandine", "files": "grandine-allin1.yml:geth.yml", "grandine_wallet": true,
-             "no_builder_api": true},
-            {"label": "test-vero", "files": "nimbus-cl-only.yml:vero-vc-only.yml:geth.yml", "w3s_only": true,
-             "no_builder_api": true},
+            {"label": "test-teku", "files": "teku.yml:geth.yml"},
+            {"label": "test-grandine", "files": "grandine-allin1.yml:geth.yml", "grandine_wallet": true},
+            {"label": "test-vero", "files": "nimbus-cl-only.yml:vero-vc-only.yml:geth.yml", "w3s_only": true},
             {"label": "test-grandine-plugin", "files": "grandine-plugin-allin1.yml:nethermind.yml",
-             "grandine_wallet": true, "no_builder_api": true,
+             "grandine_wallet": true,
              "cl_service": "execution", "beacon_wait": 600,
              "env": ["NM_DOCKER_REPO=sifrai/grandine", "NM_DOCKER_TAG=unstable-nethermind",
                      "CL_NODE=http://execution:5052"]}
@@ -166,7 +158,6 @@ jobs:
           W3S: ${{ matrix.web3signer }}
           PRYSM_WALLET: ${{ matrix.prysm_wallet || false }}
           GRANDINE_WALLET: ${{ matrix.grandine_wallet || false }}
-          NO_BUILDER_API: ${{ matrix.no_builder_api || false }}
           CL_SERVICE: ${{ matrix.cl_service || 'consensus' }}
       - name: Logs on failure
         if: failure()
@@ -261,7 +252,6 @@ jobs:
         env:
           W3S: ${{ matrix.web3signer }}
           PRYSM_WALLET: true
-          NO_BUILDER_API: true
       - name: Logs on failure
         if: failure()
         run: docker compose logs --tail 300

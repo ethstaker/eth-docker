@@ -406,28 +406,6 @@ gas-delete() {
 }
 
 
-# Some clients, Lighthouse among them, return the graffiti as the raw 32-byte block field in hex.
-# Plain-text graffiti is at most 32 bytes, so "0x" and 64 hex digits can only be that encoding.
-__graffiti_text() {
-  local graffiti=$1
-  local hex
-  local bytes=""
-  local i
-
-  if [[ ! "${graffiti}" =~ ^0x[0-9a-fA-F]{64}$ ]]; then
-    printf '%s\n' "${graffiti}"
-    return
-  fi
-  hex=${graffiti#0x}
-# Zero bytes are the padding, and would print as invisible NULs anywhere else
-  for (( i=0; i<${#hex}; i+=2 )); do
-    [[ "${hex:i:2}" = "00" ]] && continue
-    bytes+="\\x${hex:i:2}"
-  done
-  printf '%b\n' "${bytes}"
-}
-
-
 graffiti-get() {
   local failed=0
 
@@ -439,7 +417,7 @@ graffiti-get() {
     __http_method=GET
     __call_api
     case "${__code}" in
-      200) echo "The graffiti for the validator with public key ${__pubkey} is:"; __graffiti_text "$(echo "${__result}" | jq -r '.data.graffiti')";;
+      200) echo "The graffiti for the validator with public key ${__pubkey} is:"; echo "${__result}" | jq -r '.data.graffiti';;
       400) echo "The pubkey was formatted wrong. Error: $(__print_jq_message "${__result}" '.message')"; (( failed+=1 ));;
       401) echo "No authorization token found. This is a bug. Error: $(__print_jq_message "${__result}" '.message')"; exit 70;;
       403) echo "The authorization token is invalid. Error: $(__print_jq_message "${__result}" '.message')"; exit 1;;
