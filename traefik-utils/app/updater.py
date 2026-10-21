@@ -60,8 +60,7 @@ def get_external_ip4() -> str:
     ip_services = [
         "https://ipv4.icanhazip.com",
         "https://checkip.amazonaws.com",
-        "http://whatismyip.akamai.com",
-        "http://ip.42.pl/raw",
+        "https://ipv4.whatismyip.akamai.com",
         "https://api64.ipify.org",
         "https://ipinfo.io/ip",
         "https://ifconfig.me",
