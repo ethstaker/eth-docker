@@ -15,12 +15,21 @@
 // - eth_getLogs and other calls go to the local execution client first, as long as the requested blocks are within
 //   the range the local client keeps. See LOCAL_HISTORY_BLOCKS below, and adjust it to your EL_NODE_TYPE.
 // - Requests the local client cannot serve go to the remote providers in RPC_URLS
-// - Remote providers that return too many 429s are taken out of rotation for a while, and traffic shifts to the
-//   others. A rate limit budget keeps each provider below its quota to begin with.
+// - Remote providers that return 429s rank lower, and traffic shifts to the others. Requests are retried with a
+//   backoff. A rate limit budget keeps each provider below its quota to begin with.
 //
 // Things to know:
 // - An eth_getLogs whose range crosses the edge of the local client's history is sent to a remote provider in full.
 //   eRPC does not split a request at that edge.
+// - A throttled remote provider slows down syncs that need old blocks, for example a fresh sync of a DVT or LST
+//   operator. If a provider's daily quota runs out, requests for old blocks fail until it resets. Add a second
+//   provider to RPC_URLS, or use a larger plan.
+// - Free plans are often too limited for a fresh operator sync that reads logs from expired history. Some cap the
+//   eth_getLogs block range, Alchemy free at 10 blocks for example, and others throttle eth_getLogs to a few requests
+//   per second. Use a paid plan for the initial sync, or an EL_NODE_TYPE that keeps the history the operator needs.
+//   Alchemy pay-as-you-go works well for this: upgrade the Alchemy account, set ALCHEMY_PLAN below to "payg", and
+//   sync. Then downgrade the account to Free, and set ALCHEMY_PLAN back to "free". Alchemy ranks below other remote
+//   providers, so that it mostly serves what they cannot.
 // - If all remote providers are throttled, clients get an HTTP 200 with a JSON-RPC error body, not an HTTP 429
 // - WebSocket is not enabled. Clients connect to http://rpc-proxy:PROXY_RPC_PORT/, or the PROXY_RPC_HOST traefik
 //   host when using rpc-proxy-traefik.yml
@@ -33,9 +42,29 @@
 //   upstream below. That is 15537394 on mainnet and 1735371 on Sepolia.
 const LOCAL_HISTORY_BLOCKS: number | null = 1_000_000;
 
-// Requests per second eRPC sends to each remote provider. Set this to the quota of your plan. The budget tunes
-// itself downward when a provider returns errors, and back up when it recovers.
+// Requests per second eRPC sends to each remote provider, counted per method: 10 allows 10 eth_call and 10
+// eth_getBlockByNumber in the same second. The budget tunes itself downward when a provider returns 429s, and back
+// up when it recovers. The local client has no limit. Alchemy uses ALCHEMY_PLAN instead, and neither this nor
+// REMOTE_GETLOGS_PER_SECOND applies to it.
 const REMOTE_REQUESTS_PER_SECOND = 10;
+
+// eth_getLogs requests per second eRPC sends to each remote provider. Most providers charge a lot more of their quota
+// for eth_getLogs than for other calls, and this lets you limit it separately. eRPC rejects requests above this limit
+// rather than queueing them, so a value that is too low fails requests the provider could have served. Like the
+// limit above, it tunes itself downward when a provider returns 429s.
+const REMOTE_GETLOGS_PER_SECOND = 10;
+
+// eth_getLogs requests per second for Infura, in place of REMOTE_GETLOGS_PER_SECOND. eth_getLogs is one of Infura's
+// most expensive calls, and its free plan throttles anything much above 2 per second. Raise this if you subscribe
+// to a paid Infura plan.
+const INFURA_GETLOGS_PER_SECOND = 2;
+
+// Alchemy's plan for the Alchemy key in RPC_URLS: "free" or "payg". Alchemy states its limits in compute units (CU)
+// per second, so eRPC budgets Alchemy in CU instead of the request limits above, with eRPC's built-in Alchemy price
+// table: eth_getLogs costs 60 CU, eth_call 26. Set this to "payg" while on pay-as-you-go, and back to "free" after
+// downgrading. Free also limits eth_getLogs to a 10 block range, which is too small to serve history.
+const ALCHEMY_PLAN: "free" | "payg" = "free";
+const ALCHEMY_CU_PER_SECOND = { free: 300, payg: 10_000 }[ALCHEMY_PLAN];
 
 // How often eRPC tries a request, across upstreams, before it returns an error
 const RETRY_ATTEMPTS = 4;
@@ -53,7 +82,12 @@ const remoteUrls = (env.RPC_URLS ?? "")
   .filter((url) => url.length > 0 && !url.includes("<ApiKey>"))
   .map((url) => url.replace(/^ws(s?):\/\//, "http$1://").replace(".infura.io/ws/", ".infura.io/"));
 
-const remotes = remoteUrls.map((endpoint, i) => ({ id: `remote-${i + 1}`, endpoint }));
+const remotes = remoteUrls.map((endpoint, i) => ({
+  id: `remote-${i + 1}`,
+  endpoint,
+  isAlchemy: /\.alchemy\.com\//.test(endpoint),
+  isInfura: /\.infura\.io\//.test(endpoint),
+}));
 
 export default {
   logLevel: "info",
@@ -73,10 +107,19 @@ export default {
 
   rateLimiters: {
     // One budget per remote provider. To give a provider its own limit, change maxCount for its "remote-N" id here,
-    // where N is its position in RPC_URLS
+    // where N is its position in RPC_URLS. An Alchemy budget is one pool of CU per second for all methods.
     budgets: remotes.map((remote) => ({
       id: remote.id,
-      rules: [{ method: "*", maxCount: REMOTE_REQUESTS_PER_SECOND, period: "second" }],
+      rules: remote.isAlchemy
+        ? [{ method: "*", maxCount: ALCHEMY_CU_PER_SECOND, period: "second" }]
+        : [
+            { method: "*", maxCount: REMOTE_REQUESTS_PER_SECOND, period: "second" },
+            {
+              method: "eth_getLogs",
+              maxCount: remote.isInfura ? INFURA_GETLOGS_PER_SECOND : REMOTE_GETLOGS_PER_SECOND,
+              period: "second",
+            },
+          ],
     })),
   },
 
@@ -90,18 +133,36 @@ export default {
             chainId: CHAIN_ID,
             // Retry empty results only up to the finalized block, not up to the chain head
             emptyResultConfidence: "finalizedBlock",
+            // The largest eth_getLogs block range eRPC accepts. eRPC's default of 30,000 rejects requests that some
+            // clients make, for example 250,000 blocks of deposit contract logs. A provider that complains about a
+            // large range gets the request split into smaller ones, which can mean many calls against a paid plan,
+            // or 429s on a free one.
+            getLogsMaxAllowedRange: 1_000_000,
           },
           directiveDefaults: {
             // Check eth_getLogs ranges against the blocks each upstream has, and skip upstreams that lack them
             enforceGetLogsBlockRange: true,
           },
-          failsafe: [{ matchMethod: "*", retry: { maxAttempts: RETRY_ATTEMPTS } }],
+          // Back off between retries, so that a throttled provider has time to recover
+          failsafe: [
+            {
+              matchMethod: "*",
+              retry: {
+                maxAttempts: RETRY_ATTEMPTS,
+                delay: "1s",
+                backoffFactor: 2,
+                backoffMaxDelay: "8s",
+                jitter: "500ms",
+              },
+            },
+          ],
+          // Throttled providers are ranked lower, but not excluded: When only one remote provider has the old blocks a
+          // request needs, excluding it fails that request outright
           selectionPolicy: {
             evalFunc: `(upstreams, ctx) =>
               upstreams
                 .removeCordoned()
                 .excludeIf(all(samplesAbove(10), errorRateAbove(0.7)))
-                .excludeIf(all(samplesAbove(5), throttleRateAbove(0.2)))
                 .whenEmpty(() => upstreams)
                 .sortByScore(PREFER_LEAST_ERRORS)
                 .probeExcluded({ sampleRate: 0.1, minSamples: 5, minSamplesWindow: '60s',
@@ -133,11 +194,25 @@ export default {
         // eth_getLogs block range limits differ by provider and plan. "getLogsAutoSplittingRangeThreshold" under
         // "evm" splits large requests up front, but eRPC uses the smallest threshold of all providers for every one
         // of them.
-        ...remotes.map((remote) => ({
-          ...remote,
+        ...remotes.map(({ id, endpoint, isAlchemy, isInfura }) => ({
+          id,
+          endpoint,
           tags: ["tier:fallback"],
-          rateLimitBudget: remote.id,
-          rateLimitAutoTune: { enabled: true, minBudget: 1, decreaseFactor: 0.7 },
+          rateLimitBudget: id,
+          // Infura rejects eth_getLogs over more than 10,000 blocks, with an error eRPC does not recognize as "range
+          // too large", so eRPC would neither split nor fail over. Split up front instead. As above, this splits every
+          // eth_getLogs, including the ones the local client serves.
+          ...(isInfura ? { evm: { getLogsAutoSplittingRangeThreshold: 10_000 } } : {}),
+          // Alchemy is counted in CU. Its floor stays above the 60 CU of one eth_getLogs.
+          // It also ranks below other remote providers, so that a pay-as-you-go plan is charged mainly for requests
+          // they cannot serve, for example while they are throttled.
+          ...(isAlchemy
+            ? {
+                rateLimitCountMode: "credit",
+                routing: { scoreMultipliers: [{ network: "", method: "", overall: 0.2 }] },
+              }
+            : {}),
+          rateLimitAutoTune: { enabled: true, minBudget: isAlchemy ? 100 : 1, decreaseFactor: 0.7 },
         })),
       ],
     },
