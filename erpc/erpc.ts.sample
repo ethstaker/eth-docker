@@ -199,10 +199,15 @@ export default {
           endpoint,
           tags: ["tier:fallback"],
           rateLimitBudget: id,
-          // Infura rejects eth_getLogs over more than 10,000 blocks, with an error eRPC does not recognize as "range
-          // too large", so eRPC would neither split nor fail over. Split up front instead. As above, this splits every
-          // eth_getLogs, including the ones the local client serves.
-          ...(isInfura ? { evm: { getLogsAutoSplittingRangeThreshold: 10_000 } } : {}),
+          evm: {
+            // eRPC polls every upstream for its latest and finalized block, every 30s by default. Remote providers
+            // mostly serve old blocks, so poll them less often, which saves quota.
+            statePollerInterval: "120s",
+            // Infura rejects eth_getLogs over more than 10,000 blocks, with an error eRPC does not recognize as
+            // "range too large", so eRPC would neither split nor fail over. Split up front instead. As above, this
+            // splits every eth_getLogs, including the ones the local client serves.
+            ...(isInfura ? { getLogsAutoSplittingRangeThreshold: 10_000 } : {}),
+          },
           // Alchemy is counted in CU. Its floor stays above the 60 CU of one eth_getLogs.
           // It also ranks below other remote providers, so that a pay-as-you-go plan is charged mainly for requests
           // they cannot serve, for example while they are throttled.
