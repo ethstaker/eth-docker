@@ -630,6 +630,8 @@ __builder_check_document() {
   local file=$1
   local count
   local dupes
+  local empty_auth
+  local bad_auth
   local long_urls
   local no_url
 
@@ -661,6 +663,19 @@ __builder_check_document() {
   long_urls=$(jq -r '[.builders[] | select(.url | length > 2048)] | length' "${file}")
   if [[ "${long_urls}" -gt 0 ]]; then
     echo "A builder url can be at most 2048 characters long."
+    exit 1
+  fi
+  empty_auth=$(jq -r '[.builders[] | select(has("auth_data") and (.auth_data == "" or .auth_data == "0x"))] | length' "${file}")
+  if [[ "${empty_auth}" -gt 0 ]]; then
+    echo "A builder's \"auth_data\" cannot be empty. Either give it a value, or leave it out"
+    echo "to have it derived from the builder's url."
+    exit 1
+  fi
+  bad_auth=$(jq -r '[.builders[] | select(has("auth_data") and .auth_data != null)
+    | select(.auth_data | (type == "string" and test("\\A0x(?:[a-fA-F0-9]{2}){1,4096}\\z")) | not)] | length' "${file}")
+  if [[ "${bad_auth}" -gt 0 ]]; then
+    echo "A builder's \"auth_data\" needs to be 0x followed by hex-encoded bytes, at most 4096 bytes,"
+    echo "for example \"0x68747470733a2f2f6275696c6465722e6578616d706c652e636f6d\" for https://builder.example.com."
     exit 1
   fi
 # No two entries may share both url and auth_data. An omitted auth_data is derived from the url,
