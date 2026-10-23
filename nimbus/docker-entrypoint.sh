@@ -266,10 +266,9 @@ if [[ "${EMBEDDED_VC}" = "true" ]]; then
           __epbs=""
           echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
           echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
-        else
-          __epbs="--builder-boost-factor=0"
-          echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
         fi
+        __epbs+=" --builder-boost-factor=0"
+        echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
         ;;
       always)
         __epbs+=" --builder-boost-factor=18446744073709551615"

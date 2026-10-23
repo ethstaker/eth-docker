@@ -16,6 +16,28 @@ __normalize_int() {
   printf '%s' "${v}"
 }
 
+__normalize_float() {
+  local v=$1
+  local int_part
+  local frac_part
+
+  if [[ "${v}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    int_part="${v%%.*}"
+    frac_part=""
+    if [[ "${v}" == *.* ]]; then
+      frac_part="${v#*.}"
+    fi
+    # Strip leading zeros as text, as in __normalize_int
+    [[ "${int_part}" =~ ^0*([0-9]+)$ ]] && int_part="${BASH_REMATCH[1]}"
+    if [[ -n "${frac_part}" ]]; then
+      v="${int_part}.${frac_part}"
+    else
+      v="${int_part}"
+    fi
+  fi
+  printf '%s' "${v}"
+}
+
 
 if [[ "${NETWORK}" = "ephemery" ]]; then
   config_dir_path="$(ephemery-config.sh /var/lib/lighthouse/validators/testnet/ephemery)"
@@ -61,17 +83,12 @@ else
   __mev_active=0
 fi
 
-# Check whether we should use MEV Boost
-if [[ "${__mev_active}" -eq 1 ]]; then
-  __mev_boost="--builder-proposals"
-  echo "MEV Boost enabled"
-else
-  __mev_boost=""
-fi
-
 # Check whether we should use ePBS
+__epbs=""
 if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
   if [[ "${__mev_active}" -eq 1 ]]; then
+    echo "MEV Boost enabled"
+    __epbs="--builder-proposals"
     if [[ "${EPBS_BUILDERS}" = "false" ]]; then
       echo "ePBS builders are meant to be disabled, but MEV Boost is true, which will enable them anyway."
       echo "Update Eth Docker again after ${NETWORK}'s Glamsterdam hard fork to fix this."
@@ -90,21 +107,18 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
   case "${build_factor}" in
     0|local)
       if [[ "${__mev_active}" -eq 1 ]]; then
-        __mev_boost=""
-        __mev_factor=""
+        __epbs=""
         echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
         echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
-      else
-        __mev_factor="--builder-boost-factor 0"
-        echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
       fi
+      __epbs+=" --builder-boost-factor 0"
+      echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
       ;;
     always)
-      __mev_factor="--prefer-builder-proposals"
+      __epbs+=" --prefer-builder-proposals"
       echo "Always prefer ePBS builder blocks, EPBS_BUILD_FACTOR always"
       ;;
     "")
-      __mev_factor=""
       echo "Use default --builder-boost-factor"
       ;;
     *)
@@ -115,23 +129,29 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
           echo "EPBS_BUILD_FACTOR ${build_factor} exceeds the 64-bit maximum, capping it to 18446744073709551615"
           build_factor=18446744073709551615
         fi
-        __mev_factor="--builder-boost-factor ${build_factor}"
+        __epbs+=" --builder-boost-factor ${build_factor}"
         echo "Enabled ePBS Build Factor of ${build_factor}"
       else
-        __mev_factor=""
         echo "WARNING: EPBS_BUILD_FACTOR has an invalid value of \"${build_factor}\""
       fi
       ;;
   esac
-  # Adjust once Lighthouse supports ePBS CLI parameters, to pass them here like Prysm does
+  if [[ -n "${EPBS_MIN_BID}" ]]; then
+    min_bid="$(__normalize_float "${EPBS_MIN_BID}")"
+    if [[ "${min_bid}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+      min_bid_gwei=$(awk -v v="${min_bid}" 'BEGIN{printf "%.0f", v * 1000000000}')
+      __epbs+=" --builder-min-bid ${min_bid_gwei}"
+    else
+      echo "WARNING: EPBS_MIN_BID has an invalid value of \"${EPBS_MIN_BID}\", ignoring"
+    fi
+  fi
   # Compose keeps the newlines of a multi-line EPBS_BUILDER_URLS
   builder_urls="${EPBS_BUILDER_URLS//[[:space:]]/}"
-  if [[ -n "${builder_urls}" || -n "${EPBS_MIN_BID}" ]]; then
-    echo "Lighthouse does not support ePBS CLI parameters for builder URLs or minimum bid yet. Ignoring EPBS_BUILDER_URLS and EPBS_MIN_BID."
-    echo "Use \"./ethd keys set-builder\" to configure ePBS builders."
+  if [[ -n "${builder_urls}" ]]; then
+    __epbs+=" --builder-urls ${builder_urls}"
   fi
 else
-  __mev_factor="--builder-boost-factor 0"
+  __epbs="--builder-boost-factor 0"
   echo "Build blocks locally, use ePBS builders as fallback"
 fi
 
@@ -168,4 +188,4 @@ fi
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__network} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
+exec "$@" ${__network} "${__graffiti_args[@]}" ${__epbs} ${__beacon_stats} ${__doppel} ${__att_aggr} ${VC_EXTRAS}
