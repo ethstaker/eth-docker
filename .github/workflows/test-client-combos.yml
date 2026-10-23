@@ -67,7 +67,6 @@ jobs:
             {"labels": ["test-caplin"],
              "env": ["CORE_FILES=caplin.yml:erigon.yml:lodestar-vc-only.yml:mev-boost.yml",
                      "FEE_RECIPIENT=0xDccf8451070a86183eE70D330C4c43b686E9CF86",
-                     "CL_NODE=http://execution:5052",
                      "EL_EXTRAS=--torrent.download.rate 1mb"],
              "test_cl": false, "test_el": true, "test_vc": true},
             {"labels": ["test-nimbus-unified"],
@@ -156,7 +155,6 @@ jobs:
             "MAX_BLOBS=6",
             "CL_MAX_PEER_COUNT=100 CL_MIN_PEER_COUNT=20 EL_MAX_PEER_COUNT=10",
             "IPV6=true",
-            "IPV6=false",
             "EL_NODE_TYPE=full",
             "CHECKPOINT_SYNC_URL="
           ]'
