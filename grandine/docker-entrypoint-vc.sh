@@ -16,6 +16,28 @@ __normalize_int() {
   printf '%s' "${v}"
 }
 
+__normalize_float() {
+  local v=$1
+  local int_part
+  local frac_part
+
+  if [[ "${v}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    int_part="${v%%.*}"
+    frac_part=""
+    if [[ "${v}" == *.* ]]; then
+      frac_part="${v#*.}"
+    fi
+    # Strip leading zeros as text, as in __normalize_int
+    [[ "${int_part}" =~ ^0*([0-9]+)$ ]] && int_part="${BASH_REMATCH[1]}"
+    if [[ -n "${frac_part}" ]]; then
+      v="${int_part}.${frac_part}"
+    else
+      v="${int_part}"
+    fi
+  fi
+  printf '%s' "${v}"
+}
+
 
 if [[ ! -f /var/lib/grandine-vc/wallet-password.txt ]]; then
   echo "Creating password for Grandine key wallet"
@@ -69,10 +91,6 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
   fi
   if [[ "${EPBS_BUILDERS}" = "true" ]]; then
     echo "ePBS builders enabled"
-    if [[ -n "${EPBS_BUILDER_URLS}" || -n "${EPBS_MIN_BID}" ]]; then
-      echo "Grandine VC does not support ePBS builder URL or minimum bid parameters yet. Ignoring EPBS_BUILDER_URLS and EPBS_MIN_BID."
-      echo "Use \"./ethd keys set-builder\" to configure ePBS builders."
-    fi
   fi
 
   build_factor="$(__normalize_int "${EPBS_BUILD_FACTOR}")"
@@ -81,6 +99,11 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
   fi
   case "${build_factor}" in
     0|local)
+      if [[ "${__mev_active}" -eq 1 ]]; then
+        __epbs=""
+        echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
+        echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
+      fi
       __epbs+=" --default-builder-boost-factor 0"
       echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
       ;;
@@ -106,6 +129,20 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
       fi
       ;;
   esac
+  if [[ -n "${EPBS_MIN_BID}" ]]; then
+    min_bid="$(__normalize_float "${EPBS_MIN_BID}")"
+    if [[ "${min_bid}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+      min_bid_gwei=$(awk -v v="${min_bid}" 'BEGIN{printf "%.0f", v * 1000000000}')
+      __epbs+=" --default-builder-min-bid ${min_bid_gwei}"
+    else
+      echo "WARNING: EPBS_MIN_BID has an invalid value of \"${EPBS_MIN_BID}\", ignoring"
+    fi
+  fi
+  # Compose keeps the newlines of a multi-line EPBS_BUILDER_URLS, which would create an empty entry from "url,<newline>"
+  builder_urls="${EPBS_BUILDER_URLS//[[:space:]]/}"
+  if [[ -n "${builder_urls}" ]]; then
+    __epbs+=" --payload-builder-urls ${builder_urls}"
+  fi
 else
   __epbs="--default-builder-boost-factor 0"
   echo "Build blocks locally, use ePBS builders as fallback"
