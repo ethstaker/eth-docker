@@ -261,7 +261,7 @@ if [[ -n "${__ere}" ]]; then
   echo "${__ere}"
 fi
 
-if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
+if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1|-cl-only)?\.yml ]]; then
   if [[ ! -f /var/lib/grandine/wallet-password.txt ]]; then
     echo "Creating password for Grandine key wallet"
     head -c 32 /dev/urandom | sha256sum | cut -d' ' -f1 > /var/lib/grandine/wallet-password.txt
