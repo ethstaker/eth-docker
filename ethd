@@ -76,6 +76,8 @@ __cl_rest_port=""  # These four are port-check's configuration, also read by __c
 __cl_service=""
 __cl_alias=""
 __el_alias=""
+__uv_version="0.13.4"  # uv that __ensure_uv installs. The TUI runs on a uv-managed Python, never the system one
+__tui_python="3.15"
 
 
 __dodocker() {
@@ -1461,6 +1463,9 @@ install_command() {
   esac
 
   __install_bash_completions
+
+  echo
+  __ensure_uv
 
   if ! grep -q "alias ethd" ~/.profile; then  # If an alias already exists, don't touch it
     echo
@@ -8758,11 +8763,9 @@ __config_lido_obol() {
 }
 
 
-config() {
-  local var
+__create_env_file() {
   local mode
 
-  # Create ENV file if needed
   if [[ ! -f "${__env_file}" ]]; then
     mode=$(${__as_owner} stat "${__stat_mode_param[@]}" default.env)
     mode=$(__mode_after_umask "${mode}")
@@ -8771,6 +8774,112 @@ config() {
   else
     __minty_fresh=0
   fi
+}
+
+
+# Install uv for this user if needed, and the Python the TUI runs on. Both live in the user's home,
+# nothing is installed system-wide.
+__ensure_uv() {
+  if ! type -P uv >/dev/null 2>&1; then
+    if [[ ! -x "${HOME}/.local/bin/uv" ]]; then
+      echo "Installing uv ${__uv_version}, which runs the ${__project_name} terminal UI"
+      # The installer also adds ~/.local/bin to PATH in the shell profile, for future shells
+      curl -LsSf "https://astral.sh/uv/${__uv_version}/install.sh" | sh
+    fi
+    # shellcheck source=/dev/null
+    . "${HOME}/.local/bin/env"
+  fi
+  uv python install --quiet "${__tui_python}"
+}
+
+
+# The TUI needs 80x24
+__tui_fits() {
+  local size
+
+  size=$(stty size </dev/tty 2>/dev/null) || return 1
+  [[ "${size% *}" -ge 24 && "${size#* }" -ge 80 ]]
+}
+
+
+# Run the TUI on the host, as a TTY in Docker is unreliable. It saves through "apply-config".
+# When that changed .env, images are pulled and built, as after the config wizard.
+__launch_tui() {
+  local before
+  local rc=0
+
+  # An .env that "update" has not migrated yet would show default.env's clients instead of the user's
+  if [[ -f "${__env_file}" ]]; then
+    __verify_env_file --enforce-min
+  fi
+
+  if [[ ! " $* " =~ " --web " ]] && ! __tui_fits; then
+    if whiptail --title "Terminal too small" --yesno "The ${__project_name} configuration screen needs a \
+terminal of at least 80 columns and 24 lines.\n\nDo you want to run the legacy config wizard instead?" 12 65; then
+      config --legacy
+    fi
+    return 0
+  fi
+
+  __ensure_uv
+  before=$(cksum "${__env_file}" 2>/dev/null || true)
+  # shortcut: one venv per user, shared by all checkouts. uv re-syncs it when a checkout's lock differs
+  UV_PROJECT_ENVIRONMENT="${XDG_CACHE_HOME:-${HOME}/.cache}/eth-docker/tui-venv" \
+    uv run --quiet --locked --managed-python --python "${__tui_python}" --project tui ethd-tui "$@" || rc=$?
+  if [[ "$(cksum "${__env_file}" 2>/dev/null || true)" != "${before}" ]]; then
+    __get_compose_file
+    if [[ "${ETHD_FRONTEND:-}" != "ci" ]]; then
+      __pull_and_build
+    fi
+  fi
+  return "${rc}"
+}
+
+
+tui() {
+  __launch_tui --screen menu "$@"
+}
+
+
+# Saves what the TUI chose. The file holds NUL-separated names and values, the values already
+# quoted the way .env needs them.
+apply-config() {
+  local name
+  local value
+  local var
+
+  if [[ ! -f "${1:-}" ]]; then
+    echo "Usage: ${__me} apply-config FILE. This is called by the ${__project_name} TUI."
+    exit 1
+  fi
+  __create_env_file
+
+  while IFS= read -r -d '' name && IFS= read -r -d '' value; do
+    if [[ ! "${name}" =~ ^[A-Z_][A-Z0-9_]*$ ]]; then
+      echo "Refusing to write the invalid variable name ${name}"
+      exit 1
+    fi
+    __update_value_in_env "${name}" "${value}" "${__env_file}"
+  done < "$1"
+
+  __write_vars=()
+  __make_siren_password
+  for var in "${__write_vars[@]}"; do
+    __update_value_in_env "${var}" "${!var}" "${__env_file}"
+  done
+  echo "Saved ${__env_file}"
+}
+
+
+config() {
+  local var
+
+  if [[ "${1:-}" != "--legacy" ]]; then
+    __launch_tui --screen config
+    return 0
+  fi
+
+  __create_env_file
 
   __get_compose_file
   __verify_env_file --enforce-min
@@ -9122,8 +9231,12 @@ __full_help() {
   echo "commands:"
   echo "  install"
   echo "    attempts to install Docker and Docker Compose for you"
-  echo "  config"
+  echo "  config [--legacy]"
   echo "    configures ${__project_name} with your choice of Ethereum clients"
+  echo "    --legacy runs the step-by-step config wizard instead of the configuration screen"
+  echo "  tui [--web [--port PORT]]"
+  echo "    opens the ${__project_name} terminal UI"
+  echo "    --web serves it on http://127.0.0.1:PORT (default 8000), reach it remotely via an SSH tunnel"
   echo "  keys ACTION [--non-interactive] [--debug]"
   echo "    list, count, delete, import keys; their fee recipients, gas fees and builders"
   echo "    Run without ACTION to get help text"
@@ -9260,6 +9373,12 @@ if [[ "${__command}" = "install" ]]; then
   exit "$?"
 fi
 
+# Only edits .env. The TUI runs it without a terminal, where a "sudo docker" prompt would hang
+if [[ "${__command}" = "apply-config" ]]; then
+  apply-config "$@"
+  exit "$?"
+fi
+
 __handle_docker
 __check_compose_version
 __check_buildx
@@ -9325,7 +9444,7 @@ if ! __docompose --help >/dev/null 2>&1; then
 fi
 
 case "${__command}" in
-  help|config|cmd|terminate)  # Commands that can be run without .env existing
+  help|config|tui|cmd|terminate)  # Commands that can be run without .env existing
     ${__command} "$@"
     exit 0
     ;;

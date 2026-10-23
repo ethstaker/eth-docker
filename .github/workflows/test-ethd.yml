@@ -60,6 +60,20 @@ jobs:
         run: ./.github/test-ethd-migrate.sh
       - name: Test double VC check
         run: ./.github/test-double-vc.sh
+      # What the TUI hands over when saving: NUL-separated names and quoted values
+      - name: Test ethd apply-config
+        run: |
+          printf 'CORE_FILES\0reth.yml:lighthouse.yml\0GRAFFITI\0"hello world"\0' > changes
+          printf 'MEV_RELAYS\0"\nhttps://a.example,\nhttps://b.example\n"\0' >> changes
+          ./ethd apply-config changes
+          grep -qx 'CORE_FILES=reth.yml:lighthouse.yml' .env
+          grep -qx 'GRAFFITI="hello world"' .env
+          grep -qx 'MEV_RELAYS="' .env
+          grep -qx 'https://b.example' .env
+          # "bash -e" does not stop on a failing "! command", so test with if
+          if grep -q 'aestus' .env; then exit 1; fi  # the old multi-line value is gone
+          printf 'bad name\0x\0' > bad
+          if ./ethd apply-config bad; then exit 1; fi
       - name: Remove .env
         run: rm .env
       - name: Test ethd config defaults

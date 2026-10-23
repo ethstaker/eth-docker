@@ -1,0 +1,41 @@
+# The Eth Docker terminal UI, started by "./ethd tui" and "./ethd config"
+[project]
+name = "ethd-tui"
+version = "0.1.0"
+requires-python = ">=3.15,<4"
+dependencies = [
+    "textual",
+    "textual-serve",
+    # Transitive dependencies. Listed explicitly because Dependabot cannot
+    # update transitive dependencies in uv.lock. Not imported directly.
+    "aiohappyeyeballs",
+    "aiohttp",
+    "aiohttp-jinja2",
+    "aiosignal",
+    "attrs",
+    "frozenlist",
+    "idna",
+    "jinja2",
+    "linkify-it-py",
+    "markdown-it-py",
+    "markupsafe",
+    "mdit-py-plugins",
+    "mdurl",
+    "multidict",
+    "platformdirs",
+    "propcache",
+    "pygments",
+    "rich",
+    "typing-extensions",
+    "yarl",
+]
+
+[project.scripts]
+ethd-tui = "ethd_tui.app:main"
+
+[build-system]
+requires = ["uv_build>=0.9,<1"]
+build-backend = "uv_build"
+
+[tool.ruff.lint.isort]
+known-first-party = ["ethd_tui"]

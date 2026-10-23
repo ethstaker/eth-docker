@@ -1,0 +1,660 @@
+# What the TUI can configure: roles, the clients and add-ons for each, and which .env
+# variables belong to them. Defaults and help text come from default.env, not from here.
+#
+# role.choice     pick one, or none. "files" go into CORE_FILES
+# role.addon      independent toggles
+# role.exposure   publish a port to the host ("shared" file) and/or route via traefik
+# requires        { role = [choice ids] }, "*" is any choice. Not met is an error
+# forces          variables a choice forces, none_forces what the role forces when nothing is chosen
+# none_vars       shown when the role has no choice, to point at an external service
+# image           prefixes of the *_DOCKER_TAG, *_DOCKERFILE etc. variables
+# hide            role variables this choice does not use
+# ports           variables published on the host while selected, checked for conflicts
+
+# CL and VC of the same client share one yml
+combined = [
+  { cl = "grandine", vc = "grandine", file = "grandine.yml" },
+  { cl = "lighthouse", vc = "lighthouse", file = "lighthouse.yml" },
+  { cl = "lodestar", vc = "lodestar", file = "lodestar.yml" },
+  { cl = "nimbus", vc = "nimbus", file = "nimbus.yml" },
+  { cl = "prysm", vc = "prysm", file = "prysm.yml" },
+  { cl = "teku", vc = "teku", file = "teku.yml" },
+]
+
+# Never offered. Kept in CORE_FILES as-is if a .env already has them
+legacy = [
+  "allin1-keyapi-shared.yml",
+  "grandine-allin1.yml",
+  "grandine-plugin-allin1.yml",
+  "nimbus-allin1.yml",
+  "teku-allin1.yml",
+]
+
+# Added by the TUI itself when needed, never chosen
+derived = ["grafana-for-vc.yml"]
+
+# Variables ethd manages, or that only exist inside compose
+internal = [
+  "ALLOY_PROJECT_NAME",
+  "COMPOSE_FILE",
+  "CORE_FILES",
+  "DOCKER_ROOT",
+  "DOCKER_ROOT_MOUNTPOINT",
+  "DOCKER_SOCK",
+  "ENV_VERSION",
+  "KEYSTORE_PASSWORD",
+  "XDG_RUNTIME_DIR",
+]
+
+[enums]
+NETWORK = ["hoodi", "sepolia", "ephemery", "mainnet", "gnosis"]
+CL_NODE_TYPE = ["pruned", "full", "archive", "blob-archive", "aggressive-pruned"]
+EL_NODE_TYPE = ["pre-merge-expiry", "rolling-expiry", "full", "archive", "stakewise-expiry", "custom", "use-cl-zkproofs"]
+LOG_LEVEL = ["info", "debug", "warn", "error"]
+
+[labels]
+NETWORK = "Network"
+FEE_RECIPIENT = "Fee recipient"
+IPV6 = "IPv6 P2P"
+HOST_IP = "Host IP"
+SHARE_IP = "Share IP"
+LOG_LEVEL = "Log level"
+CUSTOM_FILES = "Custom yml files"
+EL_NODE = "External execution client"
+JWT_SECRET = "JWT secret"
+EL_NODE_TYPE = "Node type"
+EL_P2P_PORT = "P2P port"
+CL_NODE = "External consensus client(s)"
+CHECKPOINT_SYNC_URL = "Checkpoint sync URL"
+CL_NODE_TYPE = "Node type"
+CL_P2P_PORT = "P2P port"
+CL_QUIC_PORT = "QUIC port"
+GRAFFITI = "Graffiti"
+DEFAULT_GRAFFITI = "Client default graffiti"
+DOPPELGANGER = "Doppelganger protection"
+W3S_NODE = "External Web3signer"
+MEV_NODE = "External MEV service"
+MEV_RELAYS = "Relays"
+EPBS_BUILDERS = "Use ePBS builders"
+EPBS_MIN_BID = "Minimum bid"
+EPBS_BUILD_FACTOR = "Build factor"
+RPC_URLS = "Upstream RPC URLs"
+DOMAIN = "Domain"
+ACME_EMAIL = "Let's Encrypt email"
+DDNS_HOST = "DDNS host record"
+CNAME_LIST = "CNAME records"
+
+[[role]]
+id = "stack"
+label = "Stack"
+essentials = ["NETWORK", "FEE_RECIPIENT", "IPV6"]
+advanced = [
+  "HOST_IP", "SHARE_IP", "LOG_LEVEL", "LOG_DRIVER", "LOG_MAX_SIZE", "LOG_MAX_FILE", "LOG_TAG",
+  "ETH_DOCKER_TAG", "CUSTOM_FILES",
+]
+
+  [[role.addon]]
+  id = "ext-network"
+  label = "Connect to an external Docker network"
+  files = ["ext-network.yml"]
+  vars = ["DOCKER_EXT_NETWORK"]
+
+[[role]]
+id = "el"
+label = "Execution"
+none_vars = ["EL_NODE", "JWT_SECRET"]
+essentials = ["EL_NODE_TYPE", "EL_P2P_PORT"]
+advanced = ["EL_MAX_PEER_COUNT", "EL_EXTRAS", "MAX_BLOBS", "ERE_URL", "JWT_SECRET", "EL_ALIAS"]
+ports = ["EL_P2P_PORT"]
+
+  [[role.choice]]
+  id = "besu"
+  label = "Besu"
+  files = ["besu.yml"]
+  image = ["BESU"]
+  vars = ["BESU_HEAP"]
+  arch = ["x86_64", "aarch64"]
+  not_networks = ["gnosis"]
+
+  [[role.choice]]
+  id = "erigon"
+  label = "Erigon"
+  files = ["erigon.yml"]
+  image = ["ERIGON"]
+  vars = ["ERIGON_TORRENT_PORT"]
+  ports = ["ERIGON_TORRENT_PORT"]
+  arch = ["x86_64", "aarch64"]
+
+  [[role.choice]]
+  id = "ethrex"
+  label = "Ethrex"
+  files = ["ethrex.yml"]
+  image = ["ETHREX"]
+  not_networks = ["gnosis"]
+
+  [[role.choice]]
+  id = "geth"
+  label = "Geth"
+  files = ["geth.yml"]
+  image = ["GETH"]
+  vars = ["ANCIENT_DIR"]
+  not_networks = ["gnosis"]
+
+  [[role.choice]]
+  id = "nethermind"
+  label = "Nethermind"
+  files = ["nethermind.yml"]
+  image = ["NM"]
+  vars = ["AUTOPRUNE_NM"]
+  arch = ["x86_64", "aarch64"]
+
+  [[role.choice]]
+  id = "nimbus-el"
+  label = "Nimbus EL (beta)"
+  files = ["nimbus-el.yml"]
+  image = ["NIMEL"]
+  networks = ["hoodi", "sepolia", "ephemery"]
+
+  [[role.choice]]
+  id = "reth"
+  label = "Reth"
+  files = ["reth.yml"]
+  image = ["RETH"]
+  vars = ["RETH_SNAPSHOT", "ANCIENT_DIR"]
+  arch = ["x86_64", "aarch64"]
+  not_networks = ["gnosis"]
+
+  [[role.exposure]]
+  id = "el-rpc"
+  label = "RPC / WS API"
+  shared = "el-shared.yml"
+  traefik = "el-traefik.yml"
+  vars = ["EL_RPC_PORT", "EL_WS_PORT"]
+  traefik_vars = ["EL_HOST", "EL_LB", "EL_WS_HOST", "EL_WS_LB"]
+
+  [[role.exposure]]
+  id = "el-engine"
+  label = "Engine API (distributed setups only)"
+  shared = "ee-shared.yml"
+  traefik = "ee-traefik.yml"
+  vars = ["EE_PORT"]
+  traefik_vars = ["EE_HOST"]
+
+[[role]]
+id = "cl"
+label = "Consensus"
+none_vars = ["CL_NODE"]
+essentials = ["CHECKPOINT_SYNC_URL", "CL_NODE_TYPE", "CL_P2P_PORT", "CL_QUIC_PORT"]
+advanced = ["CL_MAX_PEER_COUNT", "CL_EXTRAS", "BEACON_STATS_API", "BEACON_STATS_MACHINE", "CL_REST_PORT", "CL_ALIAS"]
+ports = ["CL_P2P_PORT", "CL_QUIC_PORT"]
+
+  [[role.choice]]
+  id = "grandine"
+  label = "Grandine"
+  files = ["grandine-cl-only.yml"]
+  image = ["GRANDINE"]
+  arch = ["x86_64", "aarch64"]
+  not_networks = ["gnosis", "ephemery"]
+
+  [[role.choice]]
+  id = "lighthouse"
+  label = "Lighthouse"
+  files = ["lighthouse-cl-only.yml"]
+  image = ["LH"]
+
+  [[role.choice]]
+  id = "lodestar"
+  label = "Lodestar"
+  files = ["lodestar-cl-only.yml"]
+  image = ["LS"]
+  vars = ["LODESTAR_HEAP"]
+  arch = ["x86_64", "aarch64"]
+
+  [[role.choice]]
+  id = "nimbus"
+  label = "Nimbus"
+  files = ["nimbus-cl-only.yml"]
+  image = ["NIM"]
+  vars = ["ERC_URL"]
+
+  [[role.choice]]
+  id = "prysm"
+  label = "Prysm"
+  files = ["prysm-cl-only.yml"]
+  image = ["PRYSM"]
+  vars = ["PRYSM_PORT", "PRYSM_UDP_PORT"]
+  hide = ["CL_P2P_PORT"]
+  ports = ["PRYSM_PORT", "PRYSM_UDP_PORT"]
+  arch = ["x86_64", "aarch64"]
+  not_networks = ["gnosis"]
+
+  [[role.choice]]
+  id = "teku"
+  label = "Teku"
+  files = ["teku-cl-only.yml"]
+  image = ["TEKU"]
+  vars = ["TEKU_HEAP", "CL_MIN_PEER_COUNT", "CL_IPV6_P2P_PORT", "CL_IPV6_QUIC_PORT"]
+  ports = ["CL_IPV6_P2P_PORT", "CL_IPV6_QUIC_PORT"]
+  arch = ["x86_64", "aarch64"]
+
+  [[role.choice]]
+  id = "caplin"
+  label = "Caplin (Erigon built-in)"
+  files = ["caplin.yml"]
+  requires = { el = ["erigon"] }
+  arch = ["x86_64", "aarch64"]
+  not_networks = ["ephemery"]
+
+  [[role.choice]]
+  id = "grandine-plugin"
+  label = "Grandine (Nethermind plugin)"
+  files = ["grandine-plugin.yml"]
+  requires = { el = ["nethermind"] }
+  arch = ["x86_64", "aarch64"]
+  not_networks = ["gnosis", "ephemery"]
+
+  [[role.choice]]
+  id = "nimbus-unified"
+  label = "Nimbus Unified, CL and EL (beta)"
+  files = ["nimbus-unified.yml"]
+  image = ["NIMEL", "NIMUNIFIED"]
+  vars = ["ERC_URL", "ERE_URL", "EL_P2P_PORT", "EL_RPC_PORT"]
+  ports = ["EL_P2P_PORT"]
+  provides = ["el"]
+  not_networks = ["gnosis"]
+
+  [[role.choice]]
+  id = "ethlambda"
+  label = "ethlambda (pre-alpha)"
+  files = ["ethlambda-cl-only.yml"]
+  image = ["ETHLAMBDA"]
+  requires = { vc = ["*"] }
+  networks = ["hoodi", "sepolia", "ephemery"]
+  arch = ["x86_64", "aarch64"]
+
+  [[role.addon]]
+  id = "prysm-stats"
+  label = "Send Prysm stats to beaconcha.in"
+  files = ["prysm-stats.yml"]
+  requires = { cl = ["prysm"] }
+
+  [[role.addon]]
+  id = "nimbus-stats"
+  label = "Send Nimbus stats to beaconcha.in"
+  files = ["nimbus-stats.yml"]
+  requires = { cl = ["nimbus"] }
+
+  [[role.exposure]]
+  id = "cl-rest"
+  label = "REST API"
+  shared = "cl-shared.yml"
+  traefik = "cl-traefik.yml"
+  vars = ["CL_REST_PORT"]
+  traefik_vars = ["CL_HOST", "CL_LB"]
+  skip = ["caplin", "grandine-plugin"]
+
+  [[role.exposure]]
+  id = "caplin-rest"
+  label = "REST API"
+  shared = "caplin-shared.yml"
+  traefik = "caplin-traefik.yml"
+  vars = ["CL_REST_PORT"]
+  traefik_vars = ["CL_HOST", "CL_LB"]
+  only = ["caplin"]
+
+[[role]]
+id = "vc"
+label = "Validator"
+essentials = ["GRAFFITI", "DEFAULT_GRAFFITI", "DOPPELGANGER"]
+advanced = ["VC_EXTRAS", "ENABLE_DIST_ATTESTATION_AGGR", "VC_ALIAS"]
+
+  [[role.choice]]
+  id = "grandine"
+  label = "Grandine"
+  files = ["grandine-vc-only.yml"]
+  image = ["GRANDINE"]
+  arch = ["x86_64", "aarch64"]
+  not_networks = ["gnosis", "ephemery"]
+
+  [[role.choice]]
+  id = "lighthouse"
+  label = "Lighthouse"
+  files = ["lighthouse-vc-only.yml"]
+  image = ["LH"]
+
+  [[role.choice]]
+  id = "lodestar"
+  label = "Lodestar"
+  files = ["lodestar-vc-only.yml"]
+  image = ["LS"]
+  vars = ["LODESTAR_HEAP"]
+  arch = ["x86_64", "aarch64"]
+
+  [[role.choice]]
+  id = "nimbus"
+  label = "Nimbus"
+  files = ["nimbus-vc-only.yml"]
+  image = ["NIM"]
+
+  [[role.choice]]
+  id = "prysm"
+  label = "Prysm"
+  files = ["prysm-vc-only.yml"]
+  image = ["PRYSM"]
+  arch = ["x86_64", "aarch64"]
+  not_networks = ["gnosis"]
+
+  [[role.choice]]
+  id = "teku"
+  label = "Teku"
+  files = ["teku-vc-only.yml"]
+  image = ["TEKU"]
+  vars = ["TEKU_HEAP"]
+  arch = ["x86_64", "aarch64"]
+
+  [[role.choice]]
+  id = "vero"
+  label = "Vero"
+  files = ["vero-vc-only.yml"]
+  image = ["VERO"]
+  arch = ["x86_64", "aarch64"]
+  not_networks = ["gnosis"]
+
+  [[role.exposure]]
+  id = "keyapi"
+  label = "Keymanager API"
+  shared = "keyapi-shared.yml"
+  vars = ["KEY_API_PORT"]
+
+  [[role.exposure]]
+  id = "vc-traefik"
+  label = "Keymanager API, for Siren"
+  traefik = "vc-traefik.yml"
+  traefik_vars = ["VC_HOST"]
+  only = ["lighthouse"]
+
+[[role]]
+id = "w3s"
+label = "Web3signer"
+none_forces = { WEB3SIGNER = "false" }
+advanced = ["W3S_ALIAS", "PG_ALIAS"]
+
+  [[role.choice]]
+  id = "local"
+  label = "Web3signer in this stack"
+  files = ["web3signer.yml"]
+  image = ["W3S", "PG"]
+  vars = ["W3S_HEAP", "W3S_READ_ONLY"]
+  forces = { WEB3SIGNER = "true" }
+
+  [[role.choice]]
+  id = "external"
+  label = "External Web3signer"
+  vars = ["W3S_NODE"]
+  forces = { WEB3SIGNER = "true" }
+
+[[role]]
+id = "mev"
+label = "Block building"
+none_forces = { MEV_BOOST = "false" }
+essentials = ["EPBS_BUILDERS", "EPBS_MIN_BID", "EPBS_BUILD_FACTOR"]
+advanced = ["EPBS_BUILDER_URLS", "MEV_ALIAS"]
+
+  [[role.choice]]
+  id = "mev-boost"
+  label = "MEV-Boost (until Glamsterdam)"
+  files = ["mev-boost.yml"]
+  image = ["MEV"]
+  vars = ["MEV_RELAYS", "MEV_EXTRAS"]
+  forces = { MEV_BOOST = "true" }
+
+  [[role.choice]]
+  id = "commit-boost"
+  label = "Commit-Boost PBS (until Glamsterdam)"
+  files = ["commit-boost-pbs.yml"]
+  image = ["CB"]
+  forces = { MEV_BOOST = "true" }
+  note = "Relays are configured in commit-boost/cb-config.toml"
+
+  [[role.choice]]
+  id = "external"
+  label = "External MEV service (Vouch)"
+  vars = ["MEV_NODE"]
+  forces = { MEV_BOOST = "true" }
+
+[[role]]
+id = "dvt"
+label = "DVT"
+advanced = ["EL_RPC_NODE", "EL_WS_NODE"]
+
+  [[role.choice]]
+  id = "ssv"
+  label = "SSV node"
+  files = ["ssv.yml"]
+  image = ["SSV_NODE"]
+  vars = ["SSV_P2P_PORT", "SSV_P2P_PORT_UDP"]
+  ports = ["SSV_P2P_PORT", "SSV_P2P_PORT_UDP"]
+  arch = ["x86_64", "aarch64"]
+  note = "Operator keys and ssv-config/config.yaml are set up by the config wizard"
+
+  [[role.choice]]
+  id = "anchor"
+  label = "Anchor (SSV)"
+  files = ["anchor.yml"]
+  image = ["SSV_ANCHOR"]
+  vars = ["SSV_P2P_PORT", "SSV_P2P_PORT_UDP", "SSV_QUIC_PORT", "DVT_EXTRAS"]
+  ports = ["SSV_P2P_PORT", "SSV_P2P_PORT_UDP", "SSV_QUIC_PORT"]
+  arch = ["x86_64", "aarch64"]
+  note = "Operator keys are set up by the config wizard"
+
+  [[role.choice]]
+  id = "lido-obol"
+  label = "Lido Obol (Charon)"
+  files = ["lido-obol.yml"]
+  image = ["CHARON", "LIDO_DV_EXIT", "VALIDATOR_EJECTOR"]
+  requires = { vc = ["*"] }
+  vars = [
+    "OBOL_P2P_PORT", "OBOL_P2P_RELAYS", "OBOL_P2P_EXTERNAL_HOSTNAME", "OBOL_CHARON_NICKNAME",
+    "OBOL_CHARON_CL_ENDPOINTS", "OBOL_CL_NODE", "OBOL_EL_NODE", "OBOL_LOG_LEVEL", "OBOL_LOG_FORMAT",
+    "CHARON_FEATURE_SET_ENABLE", "BUILDER_API_ENABLED", "VE_OPERATOR_ID", "VE_STAKING_MODULE_ID",
+    "VE_LOCATOR_ADDRESS", "VE_ORACLE_ADDRESSES_ALLOWLIST", "VE_EASY_TRACK_ADDRESS",
+    "VE_EASY_TRACK_MOTION_CREATOR_ADDRESSES_ALLOWLIST", "VE_DISABLE_SECURITY", "LIDO_DV_EXIT_EXIT_EPOCH",
+    "LIDO_DV_EXIT_LOG_LEVEL", "LIDO_DV_EXIT_VALIDATOR_QUERY_CHUNK_SIZE", "OBOL_CHARON_REMOTE_LOKI_ADDRESSES",
+  ]
+  ports = ["OBOL_P2P_PORT"]
+  arch = ["x86_64", "aarch64"]
+  note = "ENR, cluster definition and DKG are set up by the config wizard"
+
+  [[role.addon]]
+  id = "ssv-dkg"
+  label = "SSV DKG"
+  files = ["ssv-dkg.yml"]
+  image = ["SSV_DKG"]
+  vars = ["SSV_DKG_PORT"]
+  ports = ["SSV_DKG_PORT"]
+  requires = { dvt = ["ssv", "anchor"] }
+
+  [[role.addon]]
+  id = "ssv-pulse"
+  label = "SSV Pulse benchmark"
+  files = ["ssv-pulse.yml"]
+  requires = { dvt = ["ssv", "anchor"] }
+
+  [[role.addon]]
+  id = "lido-obol-alloy"
+  label = "Obol remote logs and metrics"
+  files = ["lido-obol-alloy.yml"]
+  vars = ["OBOL_CLUSTER_NAME", "OBOL_CLUSTER_PEER", "OBOL_PROM_REMOTE_WRITE_TOKEN"]
+  requires = { dvt = ["lido-obol"] }
+
+  [[role.exposure]]
+  id = "alloy-obol"
+  label = "Obol Alloy UI"
+  shared = "alloy-obol-shared.yml"
+  vars = ["ALLOY_OBOL_PORT"]
+  addon = "lido-obol-alloy"
+
+[[role]]
+id = "proxy"
+label = "RPC proxy"
+essentials = ["RPC_URLS"]
+advanced = ["PROXY_EXTRAS", "RPC_PROXY_ALIAS"]
+
+  [[role.choice]]
+  id = "nimbus-vp"
+  label = "Nimbus Verified Proxy"
+  files = ["nimbus-vp.yml"]
+  image = ["NIMVP"]
+
+  [[role.choice]]
+  id = "erpc"
+  label = "eRPC"
+  files = ["erpc.yml"]
+  image = ["ERPC"]
+  note = "Further eRPC settings are in erpc/erpc.ts"
+
+  [[role.exposure]]
+  id = "rpc-proxy"
+  label = "Proxy RPC / WS API"
+  shared = "rpc-proxy-shared.yml"
+  traefik = "rpc-proxy-traefik.yml"
+  vars = ["PROXY_RPC_PORT", "PROXY_WS_PORT"]
+  traefik_vars = ["PROXY_RPC_HOST", "PROXY_WS_HOST"]
+
+[[role]]
+id = "monitoring"
+label = "Monitoring"
+advanced = [
+  "PROMETHEUS_RETENTION_TIME", "NODE_EXPORTER_PORT", "NODE_EXPORTER_COLLECTOR_MOUNT_PATH",
+  "NODE_EXPORTER_IGNORE_MOUNT_REGEX", "ALLOY_FILTER_BY_PROJECT_NAME", "GRAFANA_HOST",
+]
+
+  [[role.choice]]
+  id = "grafana"
+  label = "Grafana"
+  files = ["grafana.yml"]
+
+  [[role.choice]]
+  id = "grafana-rootless"
+  label = "Grafana, rootless / macOS"
+  files = ["grafana-rootless.yml"]
+  hide = ["NODE_EXPORTER_PORT", "NODE_EXPORTER_COLLECTOR_MOUNT_PATH", "NODE_EXPORTER_IGNORE_MOUNT_REGEX"]
+
+  [[role.choice]]
+  id = "grafana-cloud"
+  label = "Grafana Cloud (Alloy only)"
+  files = ["grafana-cloud.yml"]
+  hide = ["PROMETHEUS_RETENTION_TIME", "GRAFANA_HOST"]
+
+  [[role.choice]]
+  id = "central-metrics"
+  label = "Metrics exporter only, for central-proxy-docker"
+  files = ["central-metrics.yml"]
+  hide = [
+    "PROMETHEUS_RETENTION_TIME", "NODE_EXPORTER_PORT", "NODE_EXPORTER_COLLECTOR_MOUNT_PATH",
+    "NODE_EXPORTER_IGNORE_MOUNT_REGEX", "ALLOY_FILTER_BY_PROJECT_NAME", "GRAFANA_HOST",
+  ]
+
+  [[role.addon]]
+  id = "siren"
+  label = "Lighthouse Siren"
+  files = ["siren.yml"]
+  image = ["SIREN"]
+  vars = ["SIREN_PASSWORD", "SIREN_HOST"]
+  requires = { vc = ["lighthouse"] }
+
+  [[role.addon]]
+  id = "contributoor"
+  label = "EthPandaOps Contributoor"
+  files = ["contributoor.yml"]
+  image = ["CONTRIBUTOOR"]
+  vars = ["CONTRIBUTOOR_USERNAME", "CONTRIBUTOOR_PASSWORD", "CONTRIBUTOOR_EXTRAS"]
+
+  [[role.exposure]]
+  id = "grafana"
+  label = "Grafana"
+  shared = "grafana-shared.yml"
+  vars = ["GRAFANA_PORT"]
+  only = ["grafana", "grafana-rootless"]
+
+  [[role.exposure]]
+  id = "prometheus"
+  label = "Prometheus"
+  shared = "prometheus-shared.yml"
+  traefik = "prometheus-traefik.yml"
+  vars = ["PROMETHEUS_PORT"]
+  traefik_vars = ["PROM_HOST"]
+  only = ["grafana", "grafana-rootless"]
+
+  [[role.exposure]]
+  id = "loki"
+  label = "Loki"
+  shared = "loki-shared.yml"
+  traefik = "loki-traefik.yml"
+  vars = ["LOKI_PORT"]
+  traefik_vars = ["LOKI_HOST"]
+  only = ["grafana", "grafana-rootless"]
+
+  [[role.exposure]]
+  id = "tempo"
+  label = "Tempo"
+  shared = "tempo-shared.yml"
+  traefik = "tempo-traefik.yml"
+  vars = ["TEMPO_GRPC_PORT", "TEMPO_HTTP_PORT"]
+  traefik_vars = ["TEMPO_GRPC_HOST", "TEMPO_HTTP_HOST"]
+  only = ["grafana", "grafana-rootless"]
+
+  [[role.exposure]]
+  id = "alloy"
+  label = "Alloy UI"
+  shared = "alloy-shared.yml"
+  vars = ["ALLOY_PORT"]
+  skip = ["central-metrics"]
+
+  [[role.exposure]]
+  id = "siren"
+  label = "Siren"
+  shared = "siren-shared.yml"
+  vars = ["SIREN_PORT"]
+  addon = "siren"
+
+[[role]]
+id = "traefik"
+label = "Web proxy"
+essentials = ["DOMAIN", "ACME_EMAIL", "DDNS_HOST", "CNAME_LIST"]
+advanced = ["TTL", "TRAEFIK_WEB_PORT", "TRAEFIK_WEB_HTTP_PORT"]
+ports = ["TRAEFIK_WEB_PORT", "TRAEFIK_WEB_HTTP_PORT"]
+
+  [[role.choice]]
+  id = "cf"
+  label = "Traefik with Cloudflare DNS"
+  files = ["traefik-cf.yml"]
+  image = ["TRAEFIK", "DDNS"]
+  vars = ["CF_DNS_API_TOKEN", "CF_ZONE_ID", "CF_PROXY"]
+
+  [[role.choice]]
+  id = "aws"
+  label = "Traefik with AWS Route53"
+  files = ["traefik-aws.yml"]
+  image = ["TRAEFIK", "DDNS"]
+  vars = ["AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_HOSTED_ZONE_ID", "AWS_REGION", "CF_PROXY"]
+
+[[role]]
+id = "tools"
+label = "Tools"
+
+  [[role.addon]]
+  id = "deposit-cli"
+  label = "ethstaker-deposit-cli"
+  files = ["deposit-cli.yml"]
+  image = ["DEPCLI"]
+
+  [[role.addon]]
+  id = "ethdo"
+  label = "ethdo"
+  files = ["ethdo.yml"]
+
+  [[role.addon]]
+  id = "w3s-tools"
+  label = "Web3signer tools"
+  files = ["w3s-tools.yml"]
