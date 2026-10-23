@@ -310,10 +310,6 @@ if [[ "${EMBEDDED_VC}" = "true" ]]; then
       for builder in ${builders}; do
         __builder_urls+=("--payload-builder-url=${builder}")
       done
-      # Nimbus cannot handle more than one builder URL yet
-      if [[ "${#__builder_urls[@]}" -gt 1 ]]; then
-        echo "Nimbus as of 26.10.1 supports only one ePBS builder URL. It might only use the last entry in \"${builders}\""
-      fi
       if [[ "${__mev_active}" -eq 1 ]]; then
         echo "You have ePBS builder URLs, which pre-Glamsterdam would conflict with MEV Boost on Nimbus."
         echo "These have been disabled. Please update Eth Docker again after Glamsterdam for them to take effect."

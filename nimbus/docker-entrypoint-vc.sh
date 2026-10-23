@@ -148,10 +148,6 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
     for builder in ${builders}; do
       __builder_urls+=("--payload-builder-url=${builder}")
     done
-    # Nimbus cannot handle more than one builder URL yet
-    if [[ "${#__builder_urls[@]}" -gt 1 ]]; then
-      echo "Nimbus as of 26.10.1 supports only one ePBS builder URL. It might only use the last entry in \"${builders}\""
-    fi
   fi
 else
   __epbs="--builder-boost-factor=0"
