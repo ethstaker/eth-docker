@@ -16,6 +16,28 @@ __normalize_int() {
   printf '%s' "${v}"
 }
 
+__normalize_float() {
+  local v=$1
+  local int_part
+  local frac_part
+
+  if [[ "${v}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    int_part="${v%%.*}"
+    frac_part=""
+    if [[ "${v}" == *.* ]]; then
+      frac_part="${v#*.}"
+    fi
+    # Strip leading zeros as text, as in __normalize_int
+    [[ "${int_part}" =~ ^0*([0-9]+)$ ]] && int_part="${BASH_REMATCH[1]}"
+    if [[ -n "${frac_part}" ]]; then
+      v="${int_part}.${frac_part}"
+    else
+      v="${int_part}"
+    fi
+  fi
+  printf '%s' "${v}"
+}
+
 
 # Set keymanager API token permissions
 if [[ -f /var/lib/vero/keymanager-api-token.txt ]]; then
@@ -115,14 +137,23 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
       fi
       ;;
   esac
-  # Adjust once Vero supports ePBS CLI parameters, to pass them here like Prysm does
+  __epbs=""
+  if [[ -n "${EPBS_MIN_BID}" ]]; then
+    min_bid="$(__normalize_float "${EPBS_MIN_BID}")"
+    if [[ "${min_bid}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+      min_bid_gwei=$(awk -v v="${min_bid}" 'BEGIN{printf "%.0f", v * 1000000000}')
+      __epbs+=" --builder-min-bid ${min_bid_gwei}"
+    else
+      echo "WARNING: EPBS_MIN_BID has an invalid value of \"${EPBS_MIN_BID}\", ignoring"
+    fi
+  fi
   # Compose keeps the newlines of a multi-line EPBS_BUILDER_URLS
   builder_urls="${EPBS_BUILDER_URLS//[[:space:]]/}"
-  if [[ -n "${builder_urls}" || -n "${EPBS_MIN_BID}" ]]; then
-    echo "Vero does not support ePBS CLI parameters for builder URLs or minimum bid yet. Ignoring EPBS_BUILDER_URLS and EPBS_MIN_BID."
-    echo "Use \"./ethd keys set-builder\" to configure ePBS builders."
+  if [[ -n "${builder_urls}" ]]; then
+    __epbs+=" --builder-urls ${builder_urls}"
   fi
 else
+  __epbs=""
   __mev_factor="--builder-boost-factor 0"
   echo "Build blocks locally, use ePBS builders as fallback"
 fi
@@ -169,4 +200,4 @@ fi
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__network} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__log_level} ${__doppel} ${VC_EXTRAS}
+exec "$@" ${__network} "${__graffiti_args[@]}" ${__mev_boost} ${__mev_factor} ${__epbs} ${__log_level} ${__doppel} ${VC_EXTRAS}
