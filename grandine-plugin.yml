@@ -3,8 +3,8 @@ services:
   execution:
     ports:
       # Grandine consensus P2P ports
-      - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/tcp"
-      - "${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp"
+      - "${HOST_IP:-}:${CL_DISC_PORT:-9000}:${CL_DISC_PORT:-9000}/udp"
+      - "${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp"
     environment:
       - CL_NODE_TYPE=${CL_NODE_TYPE:-pruned}
       - CL_EXTRAS=${CL_EXTRAS:-}
@@ -22,7 +22,7 @@ services:
       - DEFAULT_GRAFFITI=${DEFAULT_GRAFFITI:-false}
       - DOPPELGANGER=${DOPPELGANGER:-false}
       - IPV6=${IPV6:-false}
-      - CL_P2P_PORT=${CL_P2P_PORT:-9000}
+      - CL_DISC_PORT=${CL_DISC_PORT:-9000}
       - CL_QUIC_PORT=${CL_QUIC_PORT:-9001}
       - CL_REST_PORT=${CL_REST_PORT:-5052}
       - CL_MAX_PEER_COUNT=${CL_MAX_PEER_COUNT:-}

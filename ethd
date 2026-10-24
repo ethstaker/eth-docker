@@ -2179,7 +2179,7 @@ port-check() {
   var="CL_REST_PORT"
   __get_value_from_env "${var}" "${__env_file}" "__cl_rest_port"
   __cl_rest_port="${__cl_rest_port:-5052}"
-  var="CL_P2P_PORT"
+  var="CL_DISC_PORT"
   __get_value_from_env "${var}" "${__env_file}" "p2p_port"
   p2p_port="${p2p_port:-9000}"
   var="CL_QUIC_PORT"
@@ -2425,7 +2425,7 @@ port-check() {
   if [[ -n "${udp4}" && "${udp4}" != "${p2p_port}" ]]; then
     echo "${cl_client} advertises discv5 UDP ${udp4}, the port its NAT mapping happens"
     echo "to use. That is not the port you forward, and it can change. The port to"
-    echo "forward - and the one this pings - is ${p2p_port}, CL_P2P_PORT in \".env\"."
+    echo "forward - and the one this pings - is ${p2p_port}, CL_DISC_PORT in \".env\"."
     echo
   fi
   if [[ "${probe_ip}" = "${ip4}" ]]; then
@@ -2488,7 +2488,7 @@ port-check() {
   printf '  %-12s %s\n' "Compose" "${COMPOSE_FILE}"
   printf '  %-12s %s\n' "Network" "${network:-unset}"
   printf '  %-12s %s\n' "Env" \
-    "CL_P2P_PORT ${p2p_port}, CL_QUIC_PORT ${quic_port}, CL_REST_PORT ${__cl_rest_port}, IPV6 ${ipv6:-unset}"
+    "CL_DISC_PORT ${p2p_port}, CL_QUIC_PORT ${quic_port}, CL_REST_PORT ${__cl_rest_port}, IPV6 ${ipv6:-unset}"
   printf '  %-12s %s\n' "Aliases" "${__cl_alias} / ${__el_alias}"
   printf '  %-12s %s\n' "Beacon API" "${cl_api_via:-unknown}"
   printf '  %-12s %s\n' "Peer ID" "${peer_id:-none}"
@@ -3094,41 +3094,6 @@ __check_mev_boost() {
 }
 
 
-# Remove after Glamsterdam, with full MPlex deprecation
-__warn_mplex() {
-  local clients
-  local regex
-  local var
-  local quic_port
-  local p2p_port
-  local p2p_disc_port
-
-  clients='prysm|lighthouse|lodestar|nimbus|nimbus-unified|teku|grandine|grandine-plugin|caplin'
-  regex="(${clients})(-cl-only)?(-allin1)?\.yml"  # Would match files that don't exist, which is harmless
-
-  if [[ "${COMPOSE_FILE}" =~ ${regex} ]]; then
-    if [[ "${COMPOSE_FILE}" =~ prysm ]]; then
-      var=PRYSM_PORT
-    else
-      var=CL_P2P_PORT
-    fi
-    __get_value_from_env "${var}" "${__env_file}" "p2p_port"
-    if [[ "${COMPOSE_FILE}" =~ prysm ]]; then
-      var=PRYSM_UDP_PORT
-    else
-      var=CL_P2P_PORT
-    fi
-    __get_value_from_env "${var}" "${__env_file}" "p2p_disc_port"
-    var=CL_QUIC_PORT
-    __get_value_from_env "${var}" "${__env_file}" "quic_port"
-
-    __final_msg+="\nNOTE: Sometime after Glamsterdam, likely Q1 2027, your Consensus Layer Client will drop use of its P2P TCP port and only use QUIC UDP."
-    __final_msg+="\nEnsure that QUIC port ${quic_port} UDP is port-forwarded and allowed by your firewall. Use \"${__me} port-check\" to check incoming QUIC connections."
-    __final_msg+="\nEventually, you won't need MPlex port ${p2p_port} TCP any more, but you still DO need discovery port ${p2p_disc_port} UDP.\n"
-  fi
-}
-
-
 repair-reth() {
   local yn
 
@@ -3658,8 +3623,8 @@ __adjust_epbs_urls() {
 
 
 __migrate_env() {
-  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL CB_PBS_DOCKER_TAG CB_PBS_DOCKER_REPO MEV_MIN_BID MEV_BUILD_FACTOR )
-  local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS CB_DOCKER_TAG CB_DOCKER_REPO EPBS_MIN_BID EPBS_BUILD_FACTOR )
+  local old_vars=( DDNS_PROXY DDNS_SUBDOMAIN ERA_URL RPC_URL CB_PBS_DOCKER_TAG CB_PBS_DOCKER_REPO MEV_MIN_BID MEV_BUILD_FACTOR CL_P2P_PORT CL_IPV6_P2P_PORT )
+  local new_vars=( CF_PROXY DDNS_HOST ERE_URL RPC_URLS CB_DOCKER_TAG CB_DOCKER_REPO EPBS_MIN_BID EPBS_BUILD_FACTOR CL_DISC_PORT CL_IPV6_DISC_PORT )
   local error
   local line
   local index
@@ -3676,6 +3641,7 @@ __migrate_env() {
   local nethermind_flatdb
   local cl_p2p_port
   local prysm_udp_port
+  local quic_port
   local el_archive_node
   local el_minimal_node
   local cl_archive_node
@@ -3987,17 +3953,27 @@ __migrate_env() {
     var=${old_vars[index]}
     __get_value_from_env "${var}" "${__env_file}.source" "value" "found"
     # Remove after Glamsterdam
-    if [[ "${__source_ver}" -lt "67" && "${var}" = "CB_PBS_DOCKER_REPO" && ${value} = "ghcr.io/commit-boost/pbs" ]]; then
+    if [[ "${__source_ver}" -lt "67" && "${var}" = "CB_PBS_DOCKER_REPO" && "${value}" = "ghcr.io/commit-boost/pbs" ]]; then
       value="ghcr.io/commit-boost/commit-boost"
     fi
     # Remove after Glamsterdam
     if [[ "${__source_ver}" -lt "72" && "${var}" = "MEV_BUILD_FACTOR" && "${value}" =~ ^0*100$ ]]; then
       value="always"  # 100 used to mean "always", it now means "maxprofit"
     fi
+    # Remove after Hegotá
+    if [[ "${__source_ver}" -lt "78" && "${var}" = "CL_P2P_PORT" && "${COMPOSE_FILE}" =~ prysm(-cl-only)?\.yml ]]; then
+      __get_value_from_env "PRYSM_UDP_PORT" "${__env_file}.source" "value" "found"
+    fi
     if [[ "${found}" -eq 1 ]]; then
       __update_value_in_env "${new_vars[index]}" "${value}" "${__env_file}"
     fi
   done
+  # Remove after Hegotá
+  if [[ "${__source_ver}" -lt "78" && "${COMPOSE_FILE}" =~ (prysm|lighthouse|lodestar|nimbus|nimbus-unified|teku|grandine|grandine-plugin|caplin)(-cl-only|-allin1)?\.yml ]]; then
+    __get_value_from_env "CL_QUIC_PORT" "${__env_file}" "quic_port"
+    __final_msg+="\nNOTE: Your consensus client no longer uses a P2P TCP port. Make sure QUIC port ${quic_port:-9001} UDP is forwarded"
+    __final_msg+="\nand allowed by your firewall. Use \"${__me} port-check\" to check incoming QUIC connections.\n"
+  fi
 # Check whether we run a CL or VC, if so nag about FEE_RECIPIENT
 # It's CL&VC, CL-only, or VC-only
   if [[ "${COMPOSE_FILE}" =~ (prysm\.yml|lighthouse\.yml|teku\.yml|nimbus\.yml|lodestar\.yml|-cl-only\.yml|-allin1\.yml|-vc-only\.yml) ]]; then
@@ -4617,8 +4593,6 @@ reset to defaults."
   __nag_os_version
   __nag_os_update
   __upgrade_docker
-# Remove after Glamsterdam when fully deprecating MPLex
-  __warn_mplex
 
   unset ETHDSECUNDO
   unset GITEXITCODE
