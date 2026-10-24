@@ -184,6 +184,26 @@ else
   __bootnodes=""
 fi
 
+# Nimbus cannot read the oversized response headers GitHub sends with the Hoodi genesis, so curl fetches it instead.
+# trustedNodeSync has no --genesis-state, it gets a network directory that holds the genesis.
+# beacon_node.enr only exists once the node has started on an initialized database
+# shortcut: Hoodi only, remove once Nimbus can download the Hoodi genesis itself again
+__tns_network="${__network}"
+__genesis_state=""
+if [[ "${NETWORK}" = "hoodi" && ! -f /var/lib/nimbus/beacon_node.enr ]]; then
+  mkdir -p /tmp/hoodi
+  for __file in config.yaml deposit_contract_block.txt; do
+    curl -fsSL -o "/tmp/hoodi/${__file}" "https://raw.githubusercontent.com/eth-clients/hoodi/main/metadata/${__file}"
+  done
+  if [[ ! -f /tmp/hoodi/genesis.ssz ]]; then
+    echo "Downloading the Hoodi genesis state"
+    curl -fsSL -o /tmp/hoodi/genesis.ssz.part https://github.com/eth-clients/hoodi/releases/download/genesis/genesis.ssz
+    mv /tmp/hoodi/genesis.ssz.part /tmp/hoodi/genesis.ssz
+  fi
+  __tns_network="--network=/tmp/hoodi"
+  __genesis_state="--genesis-state=/tmp/hoodi/genesis.ssz"
+fi
+
 if [[ -n "${CHECKPOINT_SYNC_URL}" && ! -f /var/lib/nimbus/setupdone ]]; then
   if [[ "${CL_NODE_TYPE}" =~ ^(archive|blob-archive)$ ]]; then
     if [[ -z "${ERC_URL}" ]]; then
@@ -192,14 +212,14 @@ if [[ -n "${CHECKPOINT_SYNC_URL}" && ! -f /var/lib/nimbus/setupdone ]]; then
     else
       echo "Starting Checkpoint sync. EraC files will be downloaded next."
 # shellcheck disable=SC2086
-      nimbus_beacon_node trustedNodeSync --backfill=false ${__network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
+      nimbus_beacon_node trustedNodeSync --backfill=false ${__tns_network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
     fi
     touch /var/lib/nimbus/setupdone
   else
     echo "Starting checkpoint sync. Nimbus will restart when done."
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-    nimbus_beacon_node trustedNodeSync --backfill=false ${__network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
+    nimbus_beacon_node trustedNodeSync --backfill=false ${__tns_network} --data-dir=/var/lib/nimbus --trusted-node-url="${CHECKPOINT_SYNC_URL}"
     touch /var/lib/nimbus/setupdone
   fi
 fi
@@ -401,4 +421,4 @@ done
 
 # Word splitting is desired for the command line parameters
 # shellcheck disable=SC2086
-exec "$@" ${__network} ${__bootnodes} ${__w3s_url} "${__graffiti_args[@]}" ${__epbs} "${__builder_urls[@]}" ${__doppel} ${__prune} ${__erc_dir} ${CL_EXTRAS} ${VC_EXTRAS}
+exec "$@" ${__network} ${__genesis_state} ${__bootnodes} ${__w3s_url} "${__graffiti_args[@]}" ${__epbs} "${__builder_urls[@]}" ${__doppel} ${__prune} ${__erc_dir} ${CL_EXTRAS} ${VC_EXTRAS}
