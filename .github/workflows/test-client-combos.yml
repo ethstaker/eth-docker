@@ -152,6 +152,8 @@ jobs:
             "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=maxprofit",
             "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=always",
             "MEV_BOOST=true EPBS_BUILDERS=true EPBS_BUILD_FACTOR=local",
+            "MEV_BOOST=true EPBS_MIN_BID=0.1 EPBS_BUILDER_URLS=https://hoodi.titanrelay.xyz,https://hoodi.aestus.live",
+            "MEV_BOOST=false EPBS_MIN_BID=0.1 EPBS_BUILDER_URLS=https://hoodi.titanrelay.xyz,https://hoodi.aestus.live",
             "MAX_BLOBS=6",
             "CL_MAX_PEER_COUNT=100 CL_MIN_PEER_COUNT=20 EL_MAX_PEER_COUNT=10",
             "IPV6=true",
