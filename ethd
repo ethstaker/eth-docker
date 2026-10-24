@@ -6791,6 +6791,7 @@ __query_consensus_client() {
       choices+=("teku.yml" "Teku (Java) - consensus and validator client")
       choices+=("prysm.yml" "Prysm (Go) - consensus and validator client")
       choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
+      choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
@@ -6899,6 +6900,7 @@ __query_consensus_only_client() {
       choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
       choices+=("prysm-cl-only.yml" "Prysm (Go) - consensus client")
       choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
+      choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]]; then
     choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
@@ -7041,6 +7043,7 @@ __query_execution_client() {
     else
       choices+=("geth.yml" "Geth (Go)")
       choices+=("besu.yml" "Besu (Java)")
+      choices+=("erigon.yml" "Erigon (Go)")
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]] ; then
     choices+=("ethrex.yml" "Ethrex (Rust)")

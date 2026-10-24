@@ -11,6 +11,8 @@ services:
     restart: "unless-stopped"
     build:
       context: ./erigon
+      additional_contexts:
+        ephemery: ./ephemery
       dockerfile: ${ERIGON_DOCKERFILE}
       args:
         - BUILD_TARGET=${ERIGON_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}

@@ -44,7 +44,21 @@ if [[ -O /var/lib/erigon/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/erigon/ee-secret/jwtsecret
 fi
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+config_dir_path=""
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/erigon/testnet/ephemery)"
+  # A new iteration has a new genesis, and the chain data of the old one is for a dead chain. This covers
+  # Caplin's data as well. ee-secret is the JWT secret volume and testnet holds the Ephemery configs; both stay.
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/erigon/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/erigon/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old chain data"
+      find /var/lib/erigon -mindepth 1 -maxdepth 1 ! -name ee-secret ! -name testnet \
+        ! -name ephemery-iteration -exec rm -rf {} +
+    fi
+  fi
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -60,6 +74,8 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/erigon/testnet/${config_dir}"
+fi
+if [[ -n "${config_dir_path}" ]]; then
   if [[ -f "${config_dir_path}/enodes.yaml" ]]; then
     el_bootnodes="$(awk -F'- ' '!/^#/ && NF>1 { split($2, a, /[ \t#]/); if (a[1] != "") printf (first++ ? "," : "") a[1] } END { print "" }' "${config_dir_path}/enodes.yaml")"
   else
@@ -68,7 +84,10 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   networkid="$(jq -r '.config.chainId' "${config_dir_path}/genesis.json")"
   __network="--bootnodes=${el_bootnodes} --networkid=${networkid}"
   if [[ ! -d /var/lib/erigon/chaindata ]]; then
-    erigon init --datadir /var/lib/erigon "/var/lib/erigon/testnet/${config_dir}/genesis.json"
+    erigon init --datadir /var/lib/erigon "${config_dir_path}/genesis.json"
+  fi
+  if [[ -n "${__iteration:-}" ]]; then
+    echo "${__iteration}" > /var/lib/erigon/ephemery-iteration
   fi
 else
   __network="--chain ${NETWORK}"
@@ -149,8 +168,7 @@ else
       __caplin+=" --caplin.states-archive=true --caplin.blobs-archive=true --caplin.blobs-no-pruning=true --caplin.blocks-archive=true"
       ;;
   esac
-  if [[ "${NETWORK}" =~ ^https?:// ]]; then
-    config_dir_path="/var/lib/erigon/testnet/${config_dir}"
+  if [[ -n "${config_dir_path}" ]]; then
     if [[ -f "${config_dir_path}/bootstrap_nodes.txt" ]]; then
       cl_bootnodes="$(paste -sd, "${config_dir_path}/bootstrap_nodes.txt")"
     else

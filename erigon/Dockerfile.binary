@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3007,DL3008,DL3059,DL3066
+# hadolint global ignore=DL3007,DL3008,DL3022,DL3059,DL3066
 ARG DOCKER_TAG=latest
 ARG DOCKER_REPO=erigontech/erigon
 
@@ -22,6 +22,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   git \
   git-lfs \
   jq \
+  curl \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -31,6 +32,7 @@ RUN mkdir -p /var/lib/erigon/ee-secret && chown -R ${USER}:${USER} /var/lib/erig
 
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+COPY --from=ephemery --chown=${USER}:${USER} ephemery-config.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 
