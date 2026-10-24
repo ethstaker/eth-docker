@@ -11,6 +11,8 @@ services:
     restart: "unless-stopped"
     build:
       context: ./reth
+      additional_contexts:
+        ephemery: ./ephemery
       dockerfile: ${RETH_DOCKERFILE}
       args:
         - BUILD_TARGET=${RETH_SRC_BUILD_TARGET:-main}

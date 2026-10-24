@@ -44,7 +44,25 @@ if [[ -O /var/lib/reth/ee-secret/jwtsecret ]]; then
   chmod 666 /var/lib/reth/ee-secret/jwtsecret
 fi
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+config_dir_path=""
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/reth/testnet/ephemery)"
+  # A new iteration has a new genesis, and the chain data of the old one is for a dead chain.
+  # ee-secret is the JWT secret volume and testnet holds the Ephemery configs; both stay.
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/reth/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/reth/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old chain data"
+      find /var/lib/reth -mindepth 1 -maxdepth 1 ! -name ee-secret ! -name testnet \
+        ! -name ephemery-iteration -exec rm -rf {} +
+      if [[ -n "${STATIC_DIR}" && ! "${STATIC_DIR}" = ".nada" ]]; then
+        find /var/lib/static -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+      fi
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/reth/ephemery-iteration
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -60,6 +78,8 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/reth/testnet/${config_dir}"
+fi
+if [[ -n "${config_dir_path}" ]]; then
   if [[ -f "${config_dir_path}/enodes.txt" ]]; then
     bootnodes="$(paste -sd, "${config_dir_path}/enodes.txt")"
   else
@@ -219,7 +239,7 @@ if [[ -n "${__prune}" ]]; then
 fi
 
 if [[ -f /var/lib/reth/repair-trie ]]; then
-  if [[ "${NETWORK}" =~ ^https?:// ]]; then
+  if [[ -n "${config_dir_path}" ]]; then
     echo "Can't repair database on custom network"
     rm -f /var/lib/reth/repair-trie
   else
@@ -231,7 +251,7 @@ if [[ -f /var/lib/reth/repair-trie ]]; then
 fi
 
 if [[ -f /var/lib/reth/migrate-v2 ]]; then
-  if [[ "${NETWORK}" =~ ^https?:// ]]; then
+  if [[ -n "${config_dir_path}" ]]; then
     echo "Can't migrate database on custom network"
     rm -f /var/lib/reth/migrate-v2
   else
@@ -271,7 +291,7 @@ if [[ -n "${__snap}" && ! -d /var/lib/reth/db ]]; then
 fi
 
 # EraE import
-if [[ -n "${ERE_URL}" && ! -f /var/lib/reth/ere-import-complete && ! "${NETWORK}" =~ ^https?:// ]]; then  # Fresh sync and named network
+if [[ -n "${ERE_URL}" && ! -f /var/lib/reth/ere-import-complete && -z "${config_dir_path}" ]]; then  # Fresh sync and named network
   if [[ "${NODE_TYPE}" =~ ^(full|archive|custom)$ ]]; then
     echo "Starting EraE history import from ${ERE_URL}"
 # shellcheck disable=SC2086

@@ -7045,6 +7045,7 @@ __query_execution_client() {
       choices+=("besu.yml" "Besu (Java)")
       choices+=("erigon.yml" "Erigon (Go)")
       choices+=("nethermind.yml" "Nethermind (.NET)")
+      choices+=("reth.yml" "Reth (Rust)")
     fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]] ; then
     choices+=("ethrex.yml" "Ethrex (Rust)")
