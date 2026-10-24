@@ -9,8 +9,9 @@ env:
   ETHD_FRONTEND: ci
 
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: "17 3 * * *"  # Daily at 3:17 AM UTC
+  workflow_dispatch:
   pull_request:
     types: [opened, synchronize, labeled, unlabeled]
     branches: [main]
@@ -24,7 +25,7 @@ jobs:
     name: Lint sources
     if: |
       contains(join(github.event.pull_request.labels.*.name, ','), 'test-')
-      || github.event_name == 'push'
+      || github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -39,13 +40,13 @@ jobs:
           extra_args: --all-files --show-diff-on-failure
 
   # Turns the labels into the matrix, so combos without a matching label never get a runner.
-  # A combo runs for either of its labels, for "test-all", and on every push to main.
+  # A combo runs for either of its labels, for "test-all", and on every scheduled or manual run on main.
   # A combo's optional skip_env drops the env_vars entries that start with any of its prefixes.
   # GitHub caps one matrix at 256 configurations, so the selection is split in half across two jobs.
   select:
     if: |
       contains(join(github.event.pull_request.labels.*.name, ','), 'test-')
-      || github.event_name == 'push'
+      || github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -161,7 +162,7 @@ jobs:
           include="$(jq -c --argjson labels "${LABELS}" --arg event "${EVENT}" --argjson env_vars "${env_vars}" '
             ($labels // []) as $l
             | [ .[] | . as $c
-                | select($event == "push" or any($l[]; . == "test-all" or IN($c.labels[])))
+                | select($event != "pull_request" or any($l[]; . == "test-all" or IN($c.labels[])))
                 | $env_vars[] as $v
                 | select(any($c.skip_env[]?; . as $p | $v | startswith($p)) | not)
                 | $c + {"env-var": $v, name: ($c.env[0] | sub("^CORE_FILES="; ""))} ]' <<< "${combos}")"

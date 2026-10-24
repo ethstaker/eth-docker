@@ -9,8 +9,6 @@ env:
   ETHD_FRONTEND: ci
 
 on:
-  push:
-    branches: [main]
   pull_request:
     types: [opened, synchronize, labeled, unlabeled]
     branches: [main]
