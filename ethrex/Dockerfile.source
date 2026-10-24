@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3007,DL3008,DL3059,DL4006
+# hadolint global ignore=DL3007,DL3008,DL3022,DL3059,DL4006
 
 # Unused, this is here to avoid build time complaints
 ARG DOCKER_TAG
@@ -111,6 +111,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install 
   git-lfs \
   wget \
   jq \
+  curl \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -133,6 +134,7 @@ WORKDIR /usr/local/bin
 # Cannot assume buildkit, hence no chmod
 COPY --from=builder --chown=${USER}:${USER} /ethrex/target/release/ethrex .
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+COPY --from=ephemery --chown=${USER}:${USER} ephemery-config.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 

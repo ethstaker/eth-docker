@@ -7037,16 +7037,6 @@ __query_execution_client() {
   if [[ "${NETWORK}" = "gnosis" ]]; then
     choices+=("nethermind.yml" "Nethermind (.NET)")
     choices+=("erigon.yml" "Erigon (Go)")
-  elif [[ "${NETWORK}" = "ephemery" ]]; then
-    if [[ "${arch}" =~ riscv64 ]]; then
-      choices+=("geth.yml" "Geth (Go)")
-    else
-      choices+=("geth.yml" "Geth (Go)")
-      choices+=("besu.yml" "Besu (Java)")
-      choices+=("erigon.yml" "Erigon (Go)")
-      choices+=("nethermind.yml" "Nethermind (.NET)")
-      choices+=("reth.yml" "Reth (Rust)")
-    fi
   elif [[ "${arch}" =~ (aarch64|arm64) ]] ; then
     choices+=("ethrex.yml" "Ethrex (Rust)")
     choices+=("reth.yml" "Reth (Rust)")

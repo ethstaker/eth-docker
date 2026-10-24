@@ -11,6 +11,8 @@ services:
     restart: "unless-stopped"
     build:
       context: ./ethrex
+      additional_contexts:
+        ephemery: ./ephemery
       dockerfile: ${ETHREX_DOCKERFILE}
       args:
         - BUILD_TARGET=${ETHREX_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
