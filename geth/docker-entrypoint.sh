@@ -138,6 +138,10 @@ if [[ "${NETWORK}" = "ephemery" ]]; then
     if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
       echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old chain data"
       rm -rf /var/lib/geth/geth/chaindata /var/lib/geth/geth/nodes
+      # A separate ancient dir holds the old chain's freezer, which Geth rejects as a genesis mismatch
+      if [[ -n "${__ancient}" ]]; then
+        find /var/lib/ancient -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+      fi
     fi
   fi
 elif [[ "${NETWORK}" =~ ^https?:// ]]; then
@@ -166,7 +170,8 @@ if [[ -n "${config_dir_path}" ]]; then
   networkid="$(jq -r '.config.chainId' "${config_dir_path}/genesis.json")"
   __network="--bootnodes=${bootnodes} --networkid=${networkid}"
   if [[ ! -d /var/lib/geth/geth/chaindata/ ]]; then
-    geth init --datadir /var/lib/geth "${config_dir_path}/genesis.json"
+    # shellcheck disable=SC2086
+    geth init --datadir /var/lib/geth ${__ancient} "${config_dir_path}/genesis.json"
   fi
   if [[ -n "${__iteration:-}" ]]; then
     echo "${__iteration}" > /var/lib/geth/ephemery-iteration
