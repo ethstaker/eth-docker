@@ -72,13 +72,6 @@ fetch_release() {
     echo "Could not download the Ephemery network config for ${tag}." >&2
     return 1
   fi
-  # Ephemery's config stops at Fulu. Prysm then takes the Gloas fork version from mainnet, and
-  # refuses to start because it clashes with its built-in mainnet config. Give Gloas a version
-  # of Ephemery's own, never activated.
-  if ! grep -q '^GLOAS_FORK_VERSION:' "${base_dir}/${tag}.tmp/metadata/config.yaml"; then
-    printf '\n# Added by eth-docker: Gloas is not scheduled on Ephemery\nGLOAS_FORK_VERSION: 0x8000101b\nGLOAS_FORK_EPOCH: 18446744073709551615\n' \
-      >> "${base_dir}/${tag}.tmp/metadata/config.yaml"
-  fi
   rm -rf "${base_dir:?}/${tag}"
   mv "${base_dir}/${tag}.tmp" "${base_dir}/${tag}"
 }
