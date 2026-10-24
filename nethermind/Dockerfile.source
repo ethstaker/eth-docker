@@ -1,4 +1,4 @@
-# hadolint global ignore=DL3007,DL3008,DL3059,DL4006
+# hadolint global ignore=DL3007,DL3008,DL3022,DL3059,DL4006
 # Partially from Nethermind github
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS builder
 # Unused, this is here to avoid build time complaints
@@ -81,6 +81,7 @@ RUN mkdir -p /var/lib/nethermind/ee-secret && chown -R ${USER}:${USER} /var/lib/
 
 # Cannot assume buildkit, hence no chmod
 COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+COPY --from=ephemery --chown=${USER}:${USER} ephemery-config.sh /usr/local/bin/
 # Belt and suspenders
 RUN chmod -R 755 /usr/local/bin/*
 

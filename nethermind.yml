@@ -13,6 +13,8 @@ services:
     stop_signal: SIGINT
     build:
       context: ./nethermind
+      additional_contexts:
+        ephemery: ./ephemery
       dockerfile: ${NM_DOCKERFILE}
       args:
         - >-

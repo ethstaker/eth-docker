@@ -58,7 +58,24 @@ fi
 # This will be set by custom network code or named network node type code
 __prune=""
 
-if [[ "${NETWORK}" =~ ^https?:// ]]; then
+config_dir_path=""
+if [[ "${NETWORK}" = "ephemery" ]]; then
+  config_dir_path="$(ephemery-config.sh /var/lib/nethermind/testnet/ephemery)"
+  # Ephemery ships no chainspec.json; Nethermind reads the Geth genesis.json just as well
+  __chainspec="${config_dir_path}/genesis.json"
+  # A new iteration has a new genesis, and the chain data of the old one is for a dead chain.
+  # ee-secret is the JWT secret volume and testnet holds the Ephemery configs; both stay.
+  __iteration="$(basename "$(dirname "${config_dir_path}")")"
+  if [[ -f /var/lib/nethermind/ephemery-iteration ]]; then
+    __old_iteration="$(cat /var/lib/nethermind/ephemery-iteration)"
+    if [[ ! "${__old_iteration}" = "${__iteration}" ]]; then
+      echo "Ephemery reset from ${__old_iteration} to ${__iteration}, removing the old chain data"
+      find /var/lib/nethermind -mindepth 1 -maxdepth 1 ! -name ee-secret ! -name testnet \
+        ! -name ephemery-iteration -exec rm -rf {} +
+    fi
+  fi
+  echo "${__iteration}" > /var/lib/nethermind/ephemery-iteration
+elif [[ "${NETWORK}" =~ ^https?:// ]]; then
   echo "Custom testnet at ${NETWORK}"
   repo=$(awk -F'/tree/' '{print $1}' <<< "${NETWORK}")
   branch=$(awk -F'/tree/' '{print $2}' <<< "${NETWORK}" | cut -d'/' -f1)
@@ -74,6 +91,9 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
     git pull origin "${branch}"
   fi
   config_dir_path="/var/lib/nethermind/testnet/${config_dir}"
+  __chainspec="${config_dir_path}/chainspec.json"
+fi
+if [[ -n "${config_dir_path}" ]]; then
   if [[ -f "${config_dir_path}/enodes.txt" ]]; then
     bootnodes="$(paste -sd, "${config_dir_path}/enodes.txt")"
   else
@@ -89,7 +109,7 @@ if [[ "${NETWORK}" =~ ^https?:// ]]; then
   elif [[ -n "${v5_bootnodes}" ]]; then
     bootnodes="${v5_bootnodes}"
   fi
-  __network="--config none.cfg --Init.ChainSpecPath=${config_dir_path}/chainspec.json --Discovery.Bootnodes=${bootnodes}"
+  __network="--config none.cfg --Init.ChainSpecPath=${__chainspec} --Discovery.Bootnodes=${bootnodes}"
   if [[ ! "${NODE_TYPE}" = "archive" ]]; then
     __prune="--Pruning.Mode=None"
   fi
@@ -117,7 +137,7 @@ if [[ ! -f /var/lib/nethermind/flatdb ]]; then
 fi
 
 # Only configure prune parameters for named networks, non-archive and Patricia DB
-if [[ ! "${NETWORK}" =~ ^https?:// && "${NODE_TYPE}" != "archive" && "${__patricia}" -eq 1 ]]; then
+if [[ -z "${config_dir_path}" && "${NODE_TYPE}" != "archive" && "${__patricia}" -eq 1 ]]; then
   memtotal=$(awk '/MemTotal/ {printf "%d", int($2/1024/1024)}' /proc/meminfo)
   parallel=$(($(nproc)/4))
   if [[ "${parallel}" -lt 2 ]]; then
@@ -245,7 +265,7 @@ fi
 
 # EraE import
 __ere=""
-if [[ -n "${ERE_URL}" && ! "${NETWORK}" =~ ^https?:// ]]; then  # Named network
+if [[ -n "${ERE_URL}" && -z "${config_dir_path}" ]]; then  # Named network
   if [[ "${NODE_TYPE}" = "rolling-expiry" ]]; then
     echo "Nethermind is configured for ${NODE_TYPE}, skipping EraE import."
   else
