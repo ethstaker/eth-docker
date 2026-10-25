@@ -36,7 +36,6 @@ Test Grafana with rootless Docker or Podman: verify no node-exporter UFW rules a
 Test Grafana with inactive or unavailable UFW: verify configuration continues without adding rules
 
 Test all networks once, verify the expected choices are seen, configure a node on each
-Test Nimbus on Gnosis, verify that `Dockerfile.sourcegnosis` was configured for it
 
 Test that Reth on mainnet with history expiry prompts for snapshot
 
@@ -71,8 +70,7 @@ Verify that `.env` has all mainnet relays for SSV
 
 Test RPC
 
-Test validator on gnosis, ephemery, hoodi and mainnet
-Test Nimbus on Gnosis, verify that `Dockerfile.sourcegnosis` was configured for it
+Test validator on ephemery, hoodi and mainnet
 Verify that `deposit-cli.yml` is added to `CORE_FILES` on Hoodi only
 Test with and without MEV Boost and verify that `MEV_BOOST` is set accordingly
 

@@ -2563,7 +2563,7 @@ __check_disk_space() {
   var="EL_NODE_TYPE"
   __get_value_from_env "${var}" "${__env_file}" "el_node_type"
 
-  if [[ "${network}" =~ ^(mainnet|gnosis)$ ]]; then
+  if [[ "${network}" = "mainnet" ]]; then
     min_free=314572800
     min_gib=300
     safe_prune=250
@@ -5173,7 +5173,7 @@ prune-nethermind() {
   var="NETWORK"
   __get_value_from_env "${var}" "${__env_file}" "network"
 
-  if [[ "${network}" =~ ^(mainnet|gnosis)$ ]]; then
+  if [[ "${network}" = "mainnet" ]]; then
     min_free=262144000
     min_gib=250
   else
@@ -5225,7 +5225,7 @@ prune-nethermind() {
   if [[ "${__non_interactive}" -eq 0 ]]; then
     while true; do
       if [[ "${autoprune_nm}" = true ]]; then
-        if [[ "${network}" =~ ^(mainnet|gnosis)$ ]]; then
+        if [[ "${network}" = "mainnet" ]]; then
           threshold="350"
         else
           threshold="50"
@@ -6494,7 +6494,6 @@ __query_network() {
   choices+=("plataberget" "Plataberget Testnet (short-lived)")
   choices+=("ephemery" "Ephemery Testnet")
   choices+=("mainnet" "Ethereum Mainnet")
-  choices+=("gnosis" "Gnosis Chain")
   choices+=("sepolia" "Sepolia Testnet (permissioned validators)")
   choices+=("custom" "Custom Testnet (needs a URL)")
 
@@ -6510,9 +6509,6 @@ __query_network() {
   case "${NETWORK}" in
     mainnet)
       echo "You chose to run on Ethereum mainnet"
-      ;;
-    gnosis)
-      echo "You chose to run on Gnosis Chain"
       ;;
     sepolia|hoodi|ephemery|plataberget)
       echo "You chose to run on ${NETWORK} testnet"
@@ -6559,15 +6555,7 @@ __query_deployment() {
 
   arch=$(uname -m)
 
-  if [[ "${NETWORK}" = "gnosis" ]]; then
-    if [[ "${arch}" =~ riscv64 ]]; then
-      echo "Gnosis network has no available client combos on RISC-V. Aborting."
-      exit 1
-    fi
-    choices+=("node" "Ethereum node - consensus, execution and validator client")
-    choices+=("rpc" "Ethereum RPC node - consensus and execution client")
-    choices+=("validator" "Validator client only")
-  elif [[ "${NETWORK}" = "ephemery" ]]; then
+  if [[ "${NETWORK}" = "ephemery" ]]; then
     choices+=("node" "Ethereum node - consensus, execution and validator client")
     choices+=("rpc" "Ethereum RPC node - consensus and execution client")
     choices+=("validator" "Validator client only")
@@ -6644,12 +6632,7 @@ __query_validator_client() {
 
   arch=$(uname -m)
 
-  if [[ "${NETWORK}" = "gnosis" ]]; then
-    choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
-    choices+=("teku-vc-only.yml" "Teku validator client")
-    choices+=("lodestar-vc-only.yml" "Lodestar validator client")
-    choices+=("nimbus-vc-only.yml" "Nimbus validator client")
-  elif [[ "${NETWORK}" = "ephemery" ]]; then
+  if [[ "${NETWORK}" = "ephemery" ]]; then
     if [[ "${arch}" =~ riscv64 ]]; then
       choices+=("nimbus-vc-only.yml" "Nimbus validator client")
       choices+=("lighthouse-vc-only.yml" "Lighthouse validator client")
@@ -6697,11 +6680,6 @@ __query_validator_client() {
   VALIDATOR_CLIENT=$(whiptail --notags --title "Select validator client" --menu \
     "Which validator client do you want to run?" "${menu_height}" 65 "${num_items}" \
     "${choices[@]}" 3>&1 1>&2 2>&3)
-
-  if [[ "${VALIDATOR_CLIENT}" = "nimbus-vc-only.yml" && "${NETWORK}" = "gnosis" ]]; then
-    __write_vars+=("NIM_DOCKERFILE")
-    NIM_DOCKERFILE=Dockerfile.sourcegnosis
-  fi
 
   if [[ "${VALIDATOR_CLIENT}" = "nimbus-vc-only.yml" && "${arch}" =~ riscv64 ]]; then
     __write_vars+=("NIM_DOCKERFILE")
@@ -6773,13 +6751,7 @@ __query_consensus_client() {
 
   arch=$(uname -m)
 
-  if [[ "${NETWORK}" = "gnosis" ]]; then
-    choices+=("lodestar.yml" "Lodestar (Zig/TypeScript) - consensus and validator client")
-    choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
-    choices+=("teku.yml" "Teku (Java) - consensus and validator client")
-    choices+=("lighthouse.yml" "Lighthouse (Rust) - consensus and validator client")
-    choices+=("caplin.yml" "Caplin (Go) - Erigon's built-in CL")
-  elif [[ "${NETWORK}" = "ephemery" ]]; then
+  if [[ "${NETWORK}" = "ephemery" ]]; then
     if [[ "${arch}" =~ riscv64 ]]; then
       choices+=("nimbus.yml" "Nimbus (Nim) - consensus and validator client")
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
@@ -6836,11 +6808,6 @@ __query_consensus_client() {
     "Which consensus client do you want to run?" "${menu_height}" 65 "${num_items}" \
     "${choices[@]}" 3>&1 1>&2 2>&3)
 
-  if [[ "${CONSENSUS_CLIENT}" = "nimbus.yml" && "${NETWORK}" = "gnosis" ]]; then
-    __write_vars+=("NIM_DOCKERFILE")
-    NIM_DOCKERFILE=Dockerfile.sourcegnosis
-  fi
-
   if [[ "${CONSENSUS_CLIENT}" = "nimbus.yml" && "${arch}" =~ riscv64 ]]; then
     __write_vars+=("NIM_DOCKERFILE")
     NIM_DOCKERFILE=Dockerfile.source
@@ -6883,12 +6850,7 @@ __query_consensus_only_client() {
 
   arch=$(uname -m)
 
-  if [[ "${NETWORK}" = "gnosis" ]]; then
-    choices+=("lodestar-cl-only.yml" "Lodestar (Zig/TypeScript) - consensus client")
-    choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
-    choices+=("lighthouse-cl-only.yml" "Lighthouse (Rust) - consensus client")
-    choices+=("teku-cl-only.yml" "Teku (Java) - consensus client")
-  elif [[ "${NETWORK}" = "ephemery" ]]; then
+  if [[ "${NETWORK}" = "ephemery" ]]; then
     if [[ "${arch}" =~ riscv64 ]]; then
       choices+=("nimbus-cl-only.yml" "Nimbus (Nim) - consensus client")
       choices+=("nimbus-unified.yml" "Nimbus Unified (Nim) - consensus and execution client - beta")
@@ -6938,11 +6900,6 @@ __query_consensus_only_client() {
   CONSENSUS_CLIENT=$(whiptail --notags --title "Select consensus client" --menu \
     "Which consensus client do you want to run?" "${menu_height}" 65 "${num_items}" \
     "${choices[@]}" 3>&1 1>&2 2>&3)
-
-  if [[ "${CONSENSUS_CLIENT}" = "nimbus-cl-only.yml" && "${NETWORK}" = "gnosis" ]]; then
-    __write_vars+=("NIM_DOCKERFILE")
-    NIM_DOCKERFILE=Dockerfile.sourcegnosis
-  fi
 
   if [[ "${CONSENSUS_CLIENT}" = "nimbus-cl-only.yml" && "${arch}" =~ riscv64 ]]; then
     __write_vars+=("NIM_DOCKERFILE")
@@ -7034,10 +6991,7 @@ __query_execution_client() {
 
   arch=$(uname -m)
 
-  if [[ "${NETWORK}" = "gnosis" ]]; then
-    choices+=("nethermind.yml" "Nethermind (.NET)")
-    choices+=("erigon.yml" "Erigon (Go)")
-  elif [[ "${arch}" =~ (aarch64|arm64) ]] ; then
+  if [[ "${arch}" =~ (aarch64|arm64) ]] ; then
     choices+=("ethrex.yml" "Ethrex (Rust)")
     choices+=("reth.yml" "Reth (Rust)")
     choices+=("nethermind.yml" "Nethermind (.NET)")
@@ -7290,9 +7244,6 @@ __query_checkpoint_beacon() {
         ;;
       mainnet)
         CHECKPOINT_SYNC_URL="https://sync-mainnet.beaconcha.in"
-        ;;
-      gnosis)
-        CHECKPOINT_SYNC_URL="https://checkpoint.gnosischain.com"
         ;;
       *)
         CHECKPOINT_SYNC_URL=""
