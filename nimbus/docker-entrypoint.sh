@@ -331,9 +331,8 @@ if [[ "${EMBEDDED_VC}" = "true" ]]; then
         __builder_urls+=("--payload-builder-url=${builder}")
       done
       if [[ "${__mev_active}" -eq 1 ]]; then
-        echo "You have ePBS builder URLs, which pre-Glamsterdam would conflict with MEV Boost on Nimbus."
-        echo "These have been disabled. Please update Eth Docker again after Glamsterdam for them to take effect."
-        __builder_urls=()
+        echo "You have ePBS builder URLs, which pre-Glamsterdam are configured alongside MEV Boost on Nimbus."
+        echo "Update Eth Docker again after Glamsterdam to remove the mev-boost URL."
       fi
     fi
   else
