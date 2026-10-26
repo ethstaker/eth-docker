@@ -1382,6 +1382,8 @@ __install_docker() {
     ${__auto_sudo} install -m 0755 -d /etc/apt/keyrings
     ${__auto_sudo} curl -fsSL https://download.docker.com/linux/${repo}/gpg -o /etc/apt/keyrings/docker.asc
     ${__auto_sudo} chmod a+r /etc/apt/keyrings/docker.asc
+    # A leftover one-line docker.list with a different Signed-By would make apt refuse both
+    ${__auto_sudo} rm -f /etc/apt/sources.list.d/docker.list
     # shellcheck source=/dev/null
     ${__auto_sudo} tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
@@ -4308,6 +4310,7 @@ update() {
   local targetcli
   local script_dir
   local uniq_id
+  local lock_file
   local screen_session
   local old_sessions
   local session_id
@@ -4334,13 +4337,14 @@ update() {
   script_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
   uniq_id="${script_dir//\//_}"
   if [[ ! "$OSTYPE" = "darwin"* ]]; then
-    __lock_file="${uniq_id}_lock"
-    ${__as_owner} touch "/tmp/${__lock_file}"
-    exec 200<"/tmp/${__lock_file}"
+    lock_file="${uniq_id}_lock"
+    ${__as_owner} touch "/tmp/${lock_file}"
+    exec 200<"/tmp/${lock_file}"
     if ! flock -n 200; then
       echo "Another instance of \"${__me} update\" is running. Aborting."
       exit 1
     fi
+    __lock_file="${lock_file}"  # Only now, so that __handle_error never removes another instance's lock file
   fi
 
   __during_update=1
@@ -4466,8 +4470,8 @@ update() {
     if [[ -z "${eth_docker_tag}" || "${eth_docker_tag}" = "latest" ]]; then
       export ETHDPINNED=""
       branch=$(git rev-parse --abbrev-ref HEAD)
-      if [[ "${branch}" =~ ^tag-* ]]; then
-        git checkout main
+      if [[ "${branch}" =~ ^tag- ]]; then
+        ${__as_owner} git checkout main
       fi
       ${__as_owner} git pull origin main
     else
