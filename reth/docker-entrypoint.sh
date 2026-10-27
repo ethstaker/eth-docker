@@ -295,7 +295,7 @@ if [[ -n "${ERE_URL}" && ! -f /var/lib/reth/ere-import-complete && -z "${config_
   if [[ "${NODE_TYPE}" =~ ^(full|archive|custom)$ ]]; then
     echo "Starting EraE history import from ${ERE_URL}"
 # shellcheck disable=SC2086
-    reth import-era --datadir /var/lib/reth ${__static} ${__network} --url "${ERE_URL}"
+    reth import-era --with-receipts --datadir /var/lib/reth ${__static} ${__network} --url "${ERE_URL}"
     touch /var/lib/reth/ere-import-complete
   else
     echo "Reth is neither a full nor archive node, it uses ${NODE_TYPE}. Skipping EraE import."
