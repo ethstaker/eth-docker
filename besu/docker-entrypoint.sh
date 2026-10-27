@@ -132,7 +132,7 @@ case "${NODE_TYPE}" in
     ;;
   aggressive-expiry)
     echo "Besu minimal node with aggressive expiry"
-    __prune="--snapsync-server-enabled --Xchain-pruning-enabled=ALL --Xchain-pruning-blocks-retained=113056"
+    __prune="--snapsync-server-enabled --Xchain-pruning-enabled=ALL --Xchain-pruning-blocks-retained=457568"
     ;;
   custom)
     echo "Besu default block retention; adjust as desired by \"EL_EXTRAS\" in \".env\""
