@@ -2,7 +2,7 @@
 FROM grafana/grafana:latest
 
 USER root
-RUN apk update && apk --no-cache add wget tree jq sed su-exec && rm -rf /var/cache/apk/*
+RUN apk update && apk --no-cache add bash wget tree jq sed su-exec && rm -rf /var/cache/apk/*
 
 RUN mkdir -p /etc/grafana/provisioning/dashboards/
 RUN mkdir -p /etc/grafana/provisioning/datasources/
