@@ -92,8 +92,15 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
   fi
   case "${build_factor}" in
     0|local)
-      __epbs="--builder.selection executionalways"
-      echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
+      if [[ "${__mev_active}" -eq 1 ]]; then
+        # executiononly does not register with MEV Boost
+        __epbs="--builder.selection executiononly"
+        echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
+        echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
+      else
+        __epbs="--builder.selection executionalways"
+        echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
+      fi
       ;;
     always)
       __epbs="--builder.selection builderalways"
