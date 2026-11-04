@@ -46,6 +46,7 @@ repos:
           - cloudflare
           - tenacity
           - types-pexpect
+          - tomlkit
         args: [--strict]
         exclude: ^traefik-utils/app/tests/
 
