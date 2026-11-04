@@ -13,7 +13,7 @@ node_up() {
 }
 
 # The ENR is fixture_enr from test-port-check.sh: a properly signed record with a private key of 1,
-# 203.0.113.42 and 2001:db8::1, UDP 9000 as CL_P2P_PORT. Compact, the way ethd's sed wants it.
+# 203.0.113.42 and 2001:db8::1, UDP 9000 as CL_DISC_PORT. Compact, the way ethd's sed wants it.
 identity='{"data":{"peer_id":"16Uiu2HAmStubNode","enr":"enr:-Lm4QH2z7bOXo6bYgd6JCZjFF2DzrbFb_OXwGR7Cqse_ytCaSxpqtJ9IO4mO8GB7ryM6T_dptihwtUqUkbJZdqokVwQHgmlkgnY0gmlwhMsAcSqDaXA2kCABDbgAAAAAAAAAAAAAAAGEcXVpY4IjKYVxdWljNoIjjYlzZWNwMjU2azGhAnm-Zn753LusVaBilc6HCwcCm_zbLc4o2VnygVsW-BeYg3RjcIIjKIN1ZHCCIyiEdWRwNoIjjA","p2p_addresses":["/ip4/203.0.113.42/tcp/9000","/ip4/203.0.113.42/udp/9001/quic-v1"],"discovery_addresses":["/ip4/203.0.113.42/udp/9000"],"metadata":{"seq_number":"1","attnets":"0x00","syncnets":"0x00"}}}'
 # No connected inbound peers, as on a CI runner, so the plain output points at --troubleshoot.
 # The disconnected inbound peer is one ethd must not count.

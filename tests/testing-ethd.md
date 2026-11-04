@@ -162,7 +162,7 @@ The Teku and Grandine direction-split check in particular cannot be automated: a
 node has no peers, and a table of all zeroes is mirrored whether or not the split works.
 
 - `./ethd port-check --troubleshoot` on a node with no inbound peers: the discv5 and QUIC probe commands print, and both run clean when pasted on another machine with Docker
-- `./ethd port-check --troubleshoot` on a node behind port-translating NAT: the discv5 probe command must carry `CL_P2P_PORT`, not the port the ENR advertises, and the report must say why the two differ
+- `./ethd port-check --troubleshoot` on a node behind port-translating NAT: the discv5 probe command must carry `CL_DISC_PORT`, not the port the ENR advertises, and the report must say why the two differ
 - `./ethd port-check --troubleshoot` on a dual-stack node: the IPv6 pair prints as well, creating an `ethd-v6-probe` docker network instead of using `--network host`
 - `./ethd port-check --troubleshoot` on an IPv4-only node: the `IPv6 - test incoming ports are open` banner must not stand alone. It says there is no global IPv6 address to test instead
 - `./ethd port-check` on Teku or Grandine: the inbound and outbound rows must not be identical. Both clients ignore the `state` and `direction` query parameters on `/eth/v1/node/peers`, so a mirrored table means the direction split regressed to trusting the API's filters
