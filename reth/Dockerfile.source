@@ -9,7 +9,7 @@ ARG DOCKER_REPO
 RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release wget gnupg ca-certificates
 
-ARG LLVM_VER=22
+ARG LLVM_VER=23
 RUN wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && \
     chmod +x /tmp/llvm.sh && /tmp/llvm.sh "$LLVM_VER" all && \
     rm /tmp/llvm.sh
@@ -22,8 +22,7 @@ WORKDIR /src
 ARG SRC_DIR=reth
 ENV CC=clang-$LLVM_VER
 ENV CXX=clang++-$LLVM_VER
-RUN --mount=type=cache,sharing=locked,id=reth-target,target=/src/target/ \
-    --mount=type=cache,sharing=locked,target=/usr/local/cargo/git/db \
+RUN --mount=type=cache,sharing=locked,target=/usr/local/cargo/git/db \
     --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry/ \
   bash <<'EOF'
 set -Eeuo pipefail
@@ -39,7 +38,7 @@ if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
 else
   git checkout "$TARGET"
 fi
-CARGO_TARGET_DIR=/src/target RUSTFLAGS='-C target-cpu=native' cargo build --profile maxperf --features jemalloc
+CARGO_TARGET_DIR=/src/target RUSTFLAGS='-C target-cpu=native' cargo build --profile maxperf --features jemalloc --locked --bin reth
 mkdir -p /src/bin
 cp /src/target/maxperf/reth /src/bin/reth
 EOF
