@@ -3091,7 +3091,7 @@ __check_mev_boost() {
   var="MEV_BOOST"
   __get_value_from_env "${var}" "${__env_file}" "mev_boost"
   if [[ "${mev_boost}" = "true" ]]; then
-    __final_msg+="\nUpdate Eth Docker again after mainnet Glamsterdam hard fork, expected December 2026, to remove MEV Boost\n"
+    __final_msg+="\nUpdate Eth Docker again after mainnet Glamsterdam hard fork, expected earliest January 2027, to remove MEV Boost\n"
   fi
 }
 
