@@ -77,7 +77,7 @@ shopt -s extglob
 case "${CLIENT}" in
   *prysm* )
     #  prysm_small
-    url='https://www.offchainlabs.com/prysm/docs/assets/files/small_amount_validators-372a4e8caa631260e6c951d4d81c3283.json/'
+    url='https://prysm.offchainlabs.com/docs/assets/files/small_amount_validators-372a4e8caa631260e6c951d4d81c3283.json'
     file='/etc/grafana/provisioning/dashboards/prysm_small.json'
     tmp=$(mktemp)
     status=0
@@ -85,7 +85,7 @@ case "${CLIENT}" in
       | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${tmp}" || status=1
     handle_replacement "${status}" "${tmp}" "${file}"
     #  prysm_more_10
-    url='https://www.offchainlabs.com/prysm/docs/assets/files/big_amount_validators-0ed1a1ead364ced51d5d92ddc19db229.json/'
+    url='https://prysm.offchainlabs.com/docs/assets/files/big_amount_validators-a8e49261728605928f7648bdbd4cb7ed.json'
     file='/etc/grafana/provisioning/dashboards/prysm_big.json'
     tmp=$(mktemp)
     status=0
