@@ -46,6 +46,8 @@ repos:
           - cloudflare
           - tenacity
           - types-pexpect
+          - textual
+          - textual-serve
         args: [--strict]
         exclude: ^traefik-utils/app/tests/
 

@@ -1,0 +1,112 @@
+#sidebar {
+    width: 26;
+    border-right: tall $panel;
+}
+
+#roles {
+    height: 1fr;
+}
+
+#issues {
+    height: auto;
+    padding: 0 1;
+}
+
+#review-button {
+    width: 100%;
+    margin: 0 1 1 1;
+}
+
+#detail {
+    padding: 0 2;
+}
+
+.title {
+    text-style: bold;
+    color: $accent;
+    margin: 1 0 0 0;
+}
+
+.field {
+    height: auto;
+}
+
+.field-label {
+    width: 22;
+    color: $text-muted;
+}
+
+.field Input, .field Select {
+    width: 1fr;
+}
+
+
+#detail > RadioSet {
+    margin: 1 0;
+    width: 100%;
+}
+
+.multiline {
+    height: 7;
+    width: 1fr;
+}
+
+Collapsible {
+    margin-top: 1;
+    padding-bottom: 0;
+}
+
+.note {
+    color: $text-muted;
+    text-style: italic;
+}
+
+.error {
+    color: $error;
+}
+
+.warning {
+    color: $warning;
+}
+
+#help {
+    height: 2;
+    padding: 0 1;
+    background: $panel;
+}
+
+#review {
+    width: 80%;
+    height: 80%;
+    border: thick $accent;
+    background: $surface;
+    padding: 0 2;
+    align: center middle;
+}
+
+ReviewScreen {
+    align: center middle;
+}
+
+#review RichLog {
+    height: auto;
+    max-height: 12;
+}
+
+.buttons {
+    height: auto;
+    align-horizontal: right;
+}
+
+.buttons Button {
+    margin-left: 2;
+}
+
+/* Narrow terminals and phone browsers */
+.-narrow #sidebar {
+    width: 16;
+}
+
+.-narrow .field-label {
+    width: 14;
+}
