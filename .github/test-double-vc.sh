@@ -13,7 +13,8 @@ if ! ETHD_SOURCE_ONLY=1 source ./ethd; then
 fi
 set +eEuo pipefail  # "ethd" turns these on; this script is deliberately without them
 
-__env_file=.env
+__env_file=$(mktemp)
+echo "ENV_VERSION=78" > "${__env_file}"
 __me=ethd
 __docompose() {
   echo "STUB compose $*"
@@ -43,10 +44,18 @@ check "teku.yml:geth.yml" 0
 check "lighthouse-cl-only.yml:teku-vc-only.yml:grafana.yml:grafana-for-vc.yml" 0
 check "teku.yml:teku.yml" 0
 check "teku-vc-only.yml:grafana.yml:grafana-vc-only.yml" 0
-check "grandine-plugin.yml:caplin.yml:web3signer.yml:vc-traefik.yml:allin1-keyapi-shared.yml" 0
+check "grandine-plugin-cl-only.yml:caplin.yml:web3signer.yml:vc-traefik.yml:allin1-keyapi-shared.yml" 0
 check "lighthouse.yml:teku-vc-only.yml" 1
 check "nimbus-allin1.yml:reth.yml:vero-vc-only.yml" 1
 check "prysm.yml:lodestar.yml:nimbus.yml" 1
+check "grandine.yml:lighthouse-vc-only.yml" 1
+check "grandine-plugin.yml:nethermind.yml:lighthouse-vc-only.yml" 1
+
+# Remove after Glamsterdam
+# Before 78, grandine-plugin.yml had no VC. "update" has to get past the check to rename it
+echo "ENV_VERSION=77" > "${__env_file}"
+check "grandine-plugin.yml:nethermind.yml:lighthouse-vc-only.yml" 0
+rm -f "${__env_file}"
 
 echo
 if [[ "${failures}" -gt 0 ]]; then

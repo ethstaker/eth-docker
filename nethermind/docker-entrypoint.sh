@@ -34,6 +34,28 @@ __normalize_int() {
   printf '%s' "${v}"
 }
 
+__normalize_float() {
+  local v=$1
+  local int_part
+  local frac_part
+
+  if [[ "${v}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    int_part="${v%%.*}"
+    frac_part=""
+    if [[ "${v}" == *.* ]]; then
+      frac_part="${v#*.}"
+    fi
+    # Strip leading zeros as text, as in __normalize_int
+    [[ "${int_part}" =~ ^0*([0-9]+)$ ]] && int_part="${BASH_REMATCH[1]}"
+    if [[ -n "${frac_part}" ]]; then
+      v="${int_part}.${frac_part}"
+    else
+      v="${int_part}"
+    fi
+  fi
+  printf '%s' "${v}"
+}
+
 
 if [[ -n "${JWT_SECRET}" ]]; then
   echo -n "${JWT_SECRET}" > /var/lib/nethermind/ee-secret/jwtsecret
@@ -281,7 +303,7 @@ if [[ -n "${__ere}" ]]; then
   echo "${__ere}"
 fi
 
-if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
+if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1|-cl-only)?\.yml ]]; then
   if [[ ! -f /var/lib/grandine/wallet-password.txt ]]; then
     echo "Creating password for Grandine key wallet"
     head -c 32 /dev/urandom | sha256sum | cut -d' ' -f1 > /var/lib/grandine/wallet-password.txt
@@ -392,13 +414,11 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
         0|local)
           if [[ "${__mev_active}" -eq 1 ]]; then
             __mev_boost=""
-            __mev_factor=""
             echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
             echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
-          else
-            __mev_factor=" --grandine-default-builder-boost-factor 0"
-            echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
           fi
+          __mev_factor=" --grandine-default-builder-boost-factor 0"
+          echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
           ;;
         always)
           __mev_factor=" --grandine-default-builder-boost-factor 18446744073709551615"
@@ -424,12 +444,19 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
           fi
           ;;
       esac
-      # Adjust once Grandine supports ePBS CLI parameters, to pass them here like Prysm does
-      # Compose keeps the newlines of a multi-line EPBS_BUILDER_URLS
+      if [[ -n "${EPBS_MIN_BID}" ]]; then
+        min_bid="$(__normalize_float "${EPBS_MIN_BID}")"
+        if [[ "${min_bid}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+          min_bid_gwei=$(awk -v v="${min_bid}" 'BEGIN{printf "%.0f", v * 1000000000}')
+          __mev_factor+=" --grandine-default-builder-min-bid ${min_bid_gwei}"
+        else
+          echo "WARNING: EPBS_MIN_BID has an invalid value of \"${EPBS_MIN_BID}\", ignoring"
+        fi
+      fi
+      # Compose keeps the newlines of a multi-line EPBS_BUILDER_URLS, which would create an empty entry from "url,<newline>"
       builder_urls="${EPBS_BUILDER_URLS//[[:space:]]/}"
-      if [[ -n "${builder_urls}" || -n "${EPBS_MIN_BID}" ]]; then
-        echo "Grandine does not support ePBS CLI parameters for builder URLs or minimum bid yet. Ignoring EPBS_BUILDER_URLS and EPBS_MIN_BID."
-        echo "Use \"./ethd keys set-builder\" to configure ePBS builders."
+      if [[ -n "${builder_urls}" ]]; then
+        __mev_factor+=" --grandine-payload-builder-urls ${builder_urls}"
       fi
     else
       __mev_factor=" --grandine-default-builder-boost-factor 0"

@@ -7,6 +7,8 @@
 # They also cover later value migrations, such as the EPBS_BUILD_FACTOR meaning of 100, and the
 # move from MEV_BOOST and MEV_RELAYS to EPBS_BUILDERS and EPBS_BUILDER_URLS after Glamsterdam.
 # Before a network's own Glamsterdam, EPBS_BUILDER_URLS is filled in while MEV Boost stays on.
+# Compose file renames are covered too: mev-boost.yml and commit-boost-pbs.yml leave a network after
+# its Glamsterdam, and grandine-plugin.yml becomes grandine-plugin-cl-only.yml once, at ENV_VERSION 78.
 #
 # Run from the root of an eth-docker checkout. It replaces .env, so only run this in CI or in a
 # scratch checkout, never against a live node.
@@ -320,6 +322,60 @@ check_equals "MEV_BOOST stays false" "false" "$(get_value MEV_BOOST)"
 check_equals "EPBS_BUILDERS stays true" "true" "$(get_value EPBS_BUILDERS)"
 check_equals "EPBS_BUILDER_URLS is unchanged" "${__urls}" "$(get_raw_value EPBS_BUILDER_URLS)"
 check_no_output "it does not set builder URLs" "Set ePBS builder URLs" "${output}"
+
+# Remove after Hegotá
+echo "== mev-boost.yml and commit-boost-pbs.yml are dropped on Sepolia =="
+fresh_env
+set_in_env ENV_VERSION 76
+set_in_env NETWORK sepolia
+set_in_env CORE_FILES lighthouse.yml:nethermind.yml:mev-boost.yml
+set_in_env CUSTOM_FILES commit-boost-pbs.yml:grafana.yml
+output=$(run_update)
+check_equals "CORE_FILES loses mev-boost.yml" "lighthouse.yml:nethermind.yml" "$(get_value CORE_FILES)"
+check_equals "CUSTOM_FILES loses commit-boost-pbs.yml" "grafana.yml" "$(get_value CUSTOM_FILES)"
+
+echo "== mev-boost.yml is kept on networks before their Glamsterdam =="
+fresh_env
+set_in_env ENV_VERSION 76
+set_in_env NETWORK mainnet
+set_in_env CORE_FILES lighthouse.yml:nethermind.yml:mev-boost.yml
+output=$(run_update)
+check_equals "CORE_FILES keeps mev-boost.yml" "lighthouse.yml:nethermind.yml:mev-boost.yml" "$(get_value CORE_FILES)"
+
+# Remove after Glamsterdam
+echo "== grandine-plugin.yml before ENV_VERSION 78 becomes grandine-plugin-cl-only.yml =="
+fresh_env
+set_in_env ENV_VERSION 77  # 26.10.1 shipped 77 with the old grandine-plugin.yml
+set_in_env NETWORK mainnet
+set_in_env CORE_FILES grandine-plugin.yml:reth.yml:mev-boost.yml
+output=$(run_update)
+check_equals "grandine-plugin.yml is renamed" "grandine-plugin-cl-only.yml:reth.yml:mev-boost.yml" "$(get_value CORE_FILES)"
+set_in_env CORE_FILES grandine-plugin.yml:reth.yml:mev-boost.yml
+output=$(run_update)
+check_equals "a grandine-plugin.yml set after the migration stays" "grandine-plugin.yml:reth.yml:mev-boost.yml" "$(get_value CORE_FILES)"
+
+echo "== grandine-plugin.yml at ENV_VERSION 78 is left alone =="
+fresh_env
+set_in_env ENV_VERSION 78
+set_in_env CORE_FILES grandine-plugin.yml:reth.yml
+output=$(run_update)
+check_equals "CORE_FILES keeps grandine-plugin.yml" "grandine-plugin.yml:reth.yml" "$(get_value CORE_FILES)"
+
+echo "== A pre-54 COMPOSE_FILE with grandine-plugin.yml is split and renamed =="
+fresh_env
+set_in_env ENV_VERSION 42
+set_in_env COMPOSE_FILE grandine-plugin.yml:reth.yml
+make_pre_54
+output=$(run_update)
+check_equals "CORE_FILES has grandine-plugin-cl-only.yml" "grandine-plugin-cl-only.yml:reth.yml" "$(get_value CORE_FILES)"
+
+echo "== Sepolia drops mev-boost.yml and renames grandine-plugin.yml in one update =="
+fresh_env
+set_in_env ENV_VERSION 76
+set_in_env NETWORK sepolia
+set_in_env CORE_FILES grandine-plugin.yml:reth.yml:mev-boost.yml
+output=$(run_update)
+check_equals "both changes are applied" "grandine-plugin-cl-only.yml:reth.yml" "$(get_value CORE_FILES)"
 
 # Leave a pristine .env behind, the way the checkout had it before this ran
 rm -f .env.new .env.source .env.partial .env.bak.*
