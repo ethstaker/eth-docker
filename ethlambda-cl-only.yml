@@ -12,7 +12,7 @@ x-build: &ethlambda-build
     ephemery: ./ephemery
   dockerfile: ${ETHLAMBDA_DOCKERFILE:-Dockerfile.binary}
   args:
-    - BUILD_TARGET=${ETHLAMBDA_SRC_BUILD_TARGET:-beacon-chain-integration}
+    - BUILD_TARGET=${ETHLAMBDA_SRC_BUILD_TARGET:-$$(git describe --tags $$(git rev-list --tags --max-count=1))}
     - SRC_REPO=${ETHLAMBDA_SRC_REPO:-https://github.com/lambdaclass/ethlambda}
     - DOCKER_TAG=${ETHLAMBDA_DOCKER_TAG:-beacon}
     - DOCKER_REPO=${ETHLAMBDA_DOCKER_REPO:-ghcr.io/lambdaclass/ethlambda}
