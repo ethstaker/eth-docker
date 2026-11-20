@@ -139,6 +139,11 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
   fi
   case "${build_factor}" in
     0|local)
+      if [[ "${__mev_active}" -eq 1 ]]; then
+        __epbs=""
+        echo "Disabled MEV Boost because EPBS_BUILD_FACTOR is ${build_factor}."
+        echo "WARNING: This conflicts with MEV_BOOST true. Set a factor above 0, or maxprofit or always"
+      fi
       __epbs+=" --builder-boost-factor 0"
       echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
       ;;
