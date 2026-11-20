@@ -106,6 +106,7 @@ services:
       - metrics.path=/metrics
       - metrics.port=8008
       - metrics.instance=consensus
+      - metrics.job=beacon
       - metrics.network=${NETWORK}
       - logs.collect=true
 
