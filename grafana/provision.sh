@@ -76,22 +76,21 @@ shopt -s extglob
 # Assumed to be mutually exclusive
 case "${CLIENT}" in
   *prysm* )
-    #  prysm_small
-    url='https://prysm.offchainlabs.com/docs/assets/files/small_amount_validators-372a4e8caa631260e6c951d4d81c3283.json'
-    file='/etc/grafana/provisioning/dashboards/prysm_small.json'
+    # Official Grafana 13+ v2 beacon-node dashboard. Title is spec.title.
+    # Pinned to the OffchainLabs/prysm-documentation commit that added the file.
+    # System/Replay panels filter job="beacon" (see metrics.job on the consensus service).
+    url='https://raw.githubusercontent.com/OffchainLabs/prysm-documentation/c0d5c52d9a917f77d46c12ed8d98c2bee9fda078/static/assets/grafana-dashboards/beacon_node.json'
+    file='/etc/grafana/provisioning/dashboards/prysm_beacon_node.json'
     tmp=$(mktemp)
     status=0
-    wget -t 3 -T 10 -qcO - "${url}" | jq '.title = "Prysm Dashboard"' \
+    wget -t 3 -T 10 -qcO - "${url}" | jq '.spec.title = "Prysm Beacon Node"' \
       | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${tmp}" || status=1
     handle_replacement "${status}" "${tmp}" "${file}"
-    #  prysm_more_10
-    url='https://prysm.offchainlabs.com/docs/assets/files/big_amount_validators-a8e49261728605928f7648bdbd4cb7ed.json'
-    file='/etc/grafana/provisioning/dashboards/prysm_big.json'
-    tmp=$(mktemp)
-    status=0
-    wget -t 3 -T 10 -qcO - "${url}" | jq '.title = "Prysm Dashboard Many Validators"' \
-      | jq 'walk(if . == "${DS_PROMETHEUS}" then "Prometheus" else . end)' >"${tmp}" || status=1
-    handle_replacement "${status}" "${tmp}" "${file}"
+    # Remove the old hashed-docs-site boards if a previous provision left them behind.
+    rm -f /etc/grafana/provisioning/dashboards/prysm_small.json \
+      /etc/grafana/provisioning/dashboards/prysm_small.json.sha1sum \
+      /etc/grafana/provisioning/dashboards/prysm_big.json \
+      /etc/grafana/provisioning/dashboards/prysm_big.json.sha1sum
     ;;
   *lighthouse.yml* )
     #  lighthouse_summary
