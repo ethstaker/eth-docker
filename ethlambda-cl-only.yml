@@ -44,7 +44,7 @@ services:
       - RUST_LOG=${LOG_LEVEL:-info}
     ports:
       # discv5 is UDP only. libp2p listens on the QUIC port for both QUIC (UDP) and TCP
-      - ${HOST_IP:-}:${CL_P2P_PORT:-9000}:${CL_P2P_PORT:-9000}/udp
+      - ${HOST_IP:-}:${CL_DISC_PORT:-9000}:${CL_DISC_PORT:-9000}/udp
       - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/tcp
       - ${HOST_IP:-}:${CL_QUIC_PORT:-9001}:${CL_QUIC_PORT:-9001}/udp
     networks:
@@ -67,7 +67,7 @@ services:
       - --api-port
       - ${CL_REST_PORT:-5052}
       - --discovery.port
-      - ${CL_P2P_PORT:-9000}
+      - ${CL_DISC_PORT:-9000}
       - --gossipsub-port
       - ${CL_QUIC_PORT:-9001}
       - ${CL_MAX_PEER_COUNT:+--discovery.target-peers}
