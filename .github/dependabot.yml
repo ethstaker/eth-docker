@@ -32,6 +32,18 @@ updates:
       test-tools-deps:
         patterns:
           - "*"
+  - package-ecosystem: "uv"
+    allow:
+      - dependency-type: "all"
+    cooldown:
+      default-days: 7
+    directory: "/tui"
+    schedule:
+      interval: "weekly"
+    groups:
+      tui-deps:
+        patterns:
+          - "*"
   - package-ecosystem: "docker"
     cooldown:
       default-days: 7

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive "ethd config" through its whiptail dialogs, as CI does on Ubuntu and macOS.
+"""Drive "ethd config --legacy" through its whiptail dialogs, as CI does on Ubuntu and macOS.
 
 Its dependencies are locked in .github/test-tools. From the repo root:
 uv run --locked --project .github/test-tools .github/test-ethd-config.py all-defaults
@@ -174,7 +174,7 @@ def main() -> None:
     # is what "expect -d" showed.
     child = pexpect.spawn(
         "./ethd",
-        ["config"],
+        ["config", "--legacy"],
         dimensions=(24, 80),
         encoding="utf-8",
         timeout=TIMEOUT,
