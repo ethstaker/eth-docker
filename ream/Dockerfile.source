@@ -1,0 +1,103 @@
+# hadolint global ignore=DL3007,DL3008,DL3059,DL4006
+# Build ream in a stock rust container
+FROM rust:trixie AS builder
+
+# Unused, this is here to avoid build time complaints
+ARG DOCKER_TAG
+ARG DOCKER_REPO
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  clang libclang-dev pkg-config libssl-dev build-essential
+
+RUN cargo install cargo-udeps --locked
+RUN cargo install --git https://github.com/DevinR528/cargo-sort.git --rev 25a60ad860ce7cd0055abf4b69c18285cb07ab41 cargo-sort
+
+ARG BUILD_TARGET
+ARG SRC_REPO
+
+WORKDIR /src
+
+ARG SRC_DIR=ream
+ENV CC=clang
+ENV CXX=clang++
+RUN --mount=type=cache,sharing=locked,id=ream-target,target=/src/target/ \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/git/db \
+    --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry/ \
+  bash <<'EOF'
+set -Eeuo pipefail
+git clone "$SRC_REPO" "$SRC_DIR"
+cd "$SRC_DIR"
+git config advice.detachedHead false
+git fetch --all --tags
+CLEANED=$(echo "$BUILD_TARGET" | sed 's/\$\$(/$(/g')
+TARGET=$(eval echo "$CLEANED")
+if [[ "$TARGET" =~ ^pr-[1-9][0-9]*$ ]]; then
+  git fetch origin pull/${TARGET#pr-}/head:build-pr
+  git checkout build-pr
+else
+  git checkout "$TARGET"
+fi
+CARGO_TARGET_DIR=/src/target make build
+mkdir -p /src/bin
+cp /src/target/release/ream /src/bin/
+EOF
+
+
+# Pull all binaries into a second stage deploy debian container
+FROM debian:trixie-slim
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y --no-install-recommends \
+  ca-certificates \
+  tzdata \
+  adduser \
+  bash \
+  git \
+  git-lfs \
+  wget \
+  jq \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG USER=reamconsensus
+ARG UID=10002
+
+# See https://stackoverflow.com/a/55757473/12429735RUN
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --shell "/sbin/nologin" \
+    --uid "${UID}" \
+    "${USER}"
+
+RUN mkdir -p /var/lib/ream/beacon/ee-secret && chown -R ${USER}:${USER} /var/lib/ream/beacon && chmod -R 700 /var/lib/ream/beacon && chmod 777 /var/lib/ream/beacon/ee-secret
+
+# Cannot assume buildkit, hence no chmod
+#COPY --chown=${USER}:${USER} ./docker-entrypoint.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
+ARG USER=reamvalidator
+ARG UID=10000
+
+# See https://stackoverflow.com/a/55757473/12429735RUN
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    "${USER}"
+
+# Create data mount point with permissions
+RUN mkdir -p /var/lib/ream/validators && chown ${USER}:${USER} /var/lib/ream/validators && chmod 700 /var/lib/ream/validators
+
+# Cannot assume buildkit, hence no chmod
+COPY --from=builder --chown=${USER}:${USER} /src/bin/ream /usr/local/bin/
+#COPY --chown=${USER}:${USER} ./docker-entrypoint-vc.sh /usr/local/bin/
+# Belt and suspenders
+RUN chmod -R 755 /usr/local/bin/*
+
+USER reamconsensus
+
+ENTRYPOINT ["ream"]
