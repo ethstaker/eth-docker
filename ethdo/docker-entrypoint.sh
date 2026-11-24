@@ -83,6 +83,7 @@ if [[ "$*" =~ "--offline" ]]; then
     chown ethdo:ethdo /app/offline-preparation.json
   fi
 else
+  node_reachable=0
   nodes=$(echo "${CL_NODE}" | tr ',' ' ')
   for node in ${nodes}; do
     if curl -s -m 5 -o /dev/null -w "%{http_code}" "${node}/eth/v1/node/health" | grep -q "^[23]"; then
