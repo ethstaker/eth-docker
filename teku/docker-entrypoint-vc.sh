@@ -128,16 +128,16 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
   fi
   case "${build_factor}" in
     0|local)
-      __epbs="--Xbuilder-boost-factor=0"
+      __epbs="--builder-boost-factor=0 --p2p-builder-boost-factor=0"
       echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
       ;;
     always)
-      __epbs="--Xbuilder-boost-factor=18446744073709551615"
+      __epbs="--builder-boost-factor=18446744073709551615 --p2p-builder-boost-factor=18446744073709551615"
       echo "Always prefer ePBS builder blocks, EPBS_BUILD_FACTOR always"
       ;;
     "")
       __epbs=""
-      echo "Use default --Xbuilder-boost-factor"
+      echo "Use default --builder-boost-factor/--p2p-builder-boost-factor"
       ;;
     *)
       if [[ "${build_factor}" =~ ^[1-9][0-9]{0,19}$ ]]; then
@@ -147,7 +147,7 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
           echo "EPBS_BUILD_FACTOR ${build_factor} exceeds the 64-bit maximum, capping it to 18446744073709551615"
           build_factor=18446744073709551615
         fi
-        __epbs="--Xbuilder-boost-factor=${build_factor}"
+        __epbs="--builder-boost-factor=${build_factor} --p2p-builder-boost-factor=${build_factor}"
         echo "Enabled ePBS Build Factor of ${build_factor}"
       else
         __epbs=""
@@ -159,7 +159,7 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
     min_bid="$(__normalize_float "${EPBS_MIN_BID}")"
     if [[ "${min_bid}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
       min_bid_gwei=$(awk -v v="${min_bid}" 'BEGIN{printf "%.0f", v * 1000000000}')
-      __epbs+=" --Xbuilder-min-bid=${min_bid_gwei}"
+      __epbs+=" --builder-min-bid=${min_bid_gwei} --p2p-builder-min-bid=${min_bid_gwei}"
     else
       echo "WARNING: EPBS_MIN_BID has an invalid value of \"${EPBS_MIN_BID}\", ignoring"
     fi
@@ -167,10 +167,10 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
 # Compose keeps the newlines of a multi-line EPBS_BUILDER_URLS, which would create an empty entry from "url,<newline>"
   builder_urls="${EPBS_BUILDER_URLS//[[:space:]]/}"
   if [[ -n "${builder_urls}" ]]; then
-    __epbs+=" --Xbuilder-urls=${builder_urls}"
+    __epbs+=" --builder-urls=${builder_urls}"
   fi
 else
-  __epbs="--Xbuilder-boost-factor=0"
+  __epbs="--builder-boost-factor=0 --p2p-builder-boost-factor=0"
   echo "Build blocks locally, use ePBS builders as fallback"
 fi
 
