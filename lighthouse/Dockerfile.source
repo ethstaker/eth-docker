@@ -10,7 +10,7 @@ RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y --no-install
 
 ARG BUILD_TARGET
 ARG SRC_REPO
-ENV FEATURES portable,gnosis,slasher-lmdb,beacon-node-leveldb
+ENV FEATURES portable,slasher-lmdb,beacon-node-leveldb
 
 WORKDIR /usr/src
 
