@@ -115,7 +115,7 @@ if [[ "${__mev_active}" -eq 1 || "${EPBS_BUILDERS}" = "true" ]]; then
       echo "Build blocks locally, use ePBS builders as fallback. EPBS_BUILD_FACTOR is ${build_factor}."
       ;;
     always)
-      __epbs+=" --prefer-builder-proposals"
+      __epbs+=" --builder-boost-factor 18446744073709551615"
       echo "Always prefer ePBS builder blocks, EPBS_BUILD_FACTOR always"
       ;;
     "")
