@@ -281,8 +281,8 @@ if [[ -n "${__ere}" ]]; then
   echo "${__ere}"
 fi
 
-if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
-  if [[ ! -f /var/lib/grandine/wallet-password.txt ]]; then
+if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1|-cl-only)?\.yml ]]; then
+  if [[ "${EMBEDDED_VC}" = "true" && ! -f /var/lib/grandine/wallet-password.txt ]]; then
     echo "Creating password for Grandine key wallet"
     head -c 32 /dev/urandom | sha256sum | cut -d' ' -f1 > /var/lib/grandine/wallet-password.txt
   fi
@@ -480,7 +480,11 @@ if [[ "${COMPOSE_FILE}" =~ grandine-plugin(-allin1)?\.yml ]]; then
   export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
   fi
 
-  __grandine+=" ${CL_EXTRAS} ${VC_EXTRAS}"
+  __grandine+=" ${CL_EXTRAS}"
+  # VC_EXTRAS belongs to a separate VC unless Grandine runs its embedded one
+  if [[ "${EMBEDDED_VC}" = "true" ]]; then
+    __grandine+=" ${VC_EXTRAS}"
+  fi
   echo "Grandine plugin will be launched with these parameters: ${__grandine}" "${__grandine_graffiti_args[@]}"
 else
   __grandine=""

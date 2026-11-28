@@ -1,4 +1,4 @@
-# grandine-plugin-allin1.yml to be used with nethermind.yml for Nethermind with Grandine plugin and Grandine VC
+# grandine-plugin-allin1.yml to be used with nethermind.yml for Nethermind with Grandine plugin and Grandine built-in VC
 services:
   execution:
     ports:
@@ -35,6 +35,14 @@ services:
       - RUST_LOG=${LOG_LEVEL:-info}
     volumes:
       - grandineconsensus-data:/var/lib/grandine
+    networks:
+      default:
+        aliases:
+          # The CL runs inside execution, so answer to the names of a consensus service
+          - consensus
+          - eth2
+          # This allows multiple Eth Docker stacks all connected to the same bridge network
+          - ${CL_ALIAS:-default-consensus}
 # No metrics scrape at present via labels.
 # Create an extra scrape target for execution:8008 in prometheus/conf.d
 

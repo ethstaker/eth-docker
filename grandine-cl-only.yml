@@ -66,6 +66,7 @@ services:
     entrypoint:
       - docker-entrypoint.sh
       - grandine
+      - bn
       - --disable-upnp
       - --data-dir
       - /var/lib/grandine
@@ -88,6 +89,7 @@ services:
       - ${EL_NODE}
       - --jwt-secret
       - /var/lib/grandine/ee-secret/jwtsecret
+      - --track-liveness
       - --metrics
       - --metrics-address
       - 0.0.0.0
